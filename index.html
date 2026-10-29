@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Denuwara Tyre Center</title>
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Denuwara Tyre Center" />
+
+    <link rel="manifest" href="./manifest.json?v=117" />
+    <link rel="icon" href="./icons/logo.png" />
+    <link rel="apple-touch-icon" href="./icons/logo.png" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/variables.css?v=117" />
+    <link rel="stylesheet" href="css/base.css?v=117" />
+    <link rel="stylesheet" href="css/components.css?v=117" />
+    <link rel="stylesheet" href="css/pages.css?v=117" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=117" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Login Page -->
+      <div id="login-page" class="page">
+        <div class="logo-container">
+          <img src="icons/banner.png" alt="Denuwara Tyre Care" class="login-banner" />
+          <p style="color: var(--text-muted); margin-top: 8px">
+            Powered by J&co.
+          </p>
+        </div>
+        <div
+          class="card"
+          style="width: 100%; max-width: 400px; text-align: left"
+        >
+          <h2 id="login-title" style="margin-bottom: 16px">Welcome Setup</h2>
+          <div class="input-group">
+            <label>Username</label>
+            <input
+              type="text"
+              id="auth-user"
+              class="input-field"
+              placeholder="Enter username"
+              autocomplete="username"
+            />
+          </div>
+          <div class="input-group">
+            <label>Password</label>
+            <input
+              type="password"
+              id="auth-pass"
+              class="input-field"
+              placeholder="Enter password"
+              autocomplete="current-password"
+            />
+          </div>
+          <button
+            id="btn-login"
+            class="btn-primary"
+            style="margin-top: 24px; width: 100%"
+          >
+            Continue
+          </button>
+          <button
+            id="btn-reset-login"
+            style="
+              margin-top: 10px;
+              width: 100%;
+              color: var(--text-muted);
+              font-size: 0.9rem;
+            "
+          >
+            Forgot Password / Reset Login
+          </button>
+        </div>
+      </div>
+
+      <!-- Billing Page -->
+      <div id="billing-page" class="page">
+        <header class="top-header">
+          <h1>
+            <img src="icons/banner.png" alt="Denuwara Tyre Care" class="header-banner" />
+          </h1>
+          <div class="header-actions">
+            <button id="btn-quick-backup" class="header-tool-btn">
+              Backup
+            </button>
+            <button
+              class="icon-btn logout-btn"
+              onclick="app.logout()"
+              title="Logout"
+            >
+              Logout
+            </button>
+          </div>
+        </header>
+
+        <div
+          style="
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: calc(140px + env(safe-area-inset-bottom));
+          "
+        >
+          <div id="backup-reminder" class="backup-reminder hidden">
+            <div>
+              <strong>Backup recommended</strong>
+              <span id="backup-reminder-text"
+                >Create a backup to protect your data.</span
+              >
+            </div>
+            <button id="btn-reminder-backup">Backup Now</button>
+          </div>
+
+          <!-- Customer Section -->
+          <div class="card">
+            <div class="input-group">
+              <label>Customer Name</label>
+              <input
+                type="text"
+                id="customer-name"
+                class="input-field"
+                placeholder="Walk-in Customer"
+              />
+              <div id="customer-autocomplete" class="customer-dropdown"></div>
+              <div
+                id="customer-outstanding"
+                style="
+                  display: none;
+                  margin-top: 6px;
+                  font-size: 0.85rem;
+                  color: #d70015;
+                  font-weight: 600;
+                "
+              ></div>
+            </div>
+            <div class="input-group">
+              <label>Phone Number (Optional)</label>
+              <input
+                type="tel"
+                id="customer-phone"
+                class="input-field"
+                placeholder="07XXXXXXXX"
+              />
+            </div>
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Customer Address (Optional)</label>
+              <input
+                type="text"
+                id="customer-address"
+                class="input-field"
+                placeholder="Enter address"
+              />
+            </div>
+          </div>
+
+          <!-- Products List -->
+          <div id="bill-items-container">
+            <!-- Items injected via JS -->
+          </div>
+
+          <div style="text-align: center; margin: 0 20px">
+            <button
+              id="btn-add-item"
+              style="
+                color: var(--accent-color);
+                font-weight: 500;
+                font-size: 1rem;
+                padding: 12px;
+              "
+            >
+              + Add Another Product
+            </button>
+          </div>
+
+          <!-- Price Summary -->
+          <div class="summary-card">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span id="label-subtotal">LKR 0</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total</span>
+              <span id="label-total">LKR 0</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="input-group">
+              <label>Payment Method</label>
+              <select id="payment-method" class="input-field">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="credit">Credit</option>
+              </select>
+            </div>
+            <div id="cheque-details" class="cheque-details hidden">
+              <div class="input-group">
+                <label>Cheque Amount</label>
+                <input
+                  type="number"
+                  id="cheque-amount"
+                  class="input-field"
+                  placeholder="0"
+                  step="0.01"
+                />
+              </div>
+              <div class="input-group">
+                <label>Cheque Date</label>
+                <input type="date" id="cheque-date" class="input-field" />
+              </div>
+              <div class="input-group">
+                <label>Cheque Number</label>
+                <input
+                  type="text"
+                  id="cheque-number"
+                  class="input-field"
+                  placeholder="Enter cheque number"
+                />
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>Bank</label>
+                <input
+                  type="text"
+                  id="cheque-bank"
+                  class="input-field"
+                  placeholder="Enter bank name"
+                />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Received Amount</label>
+              <input
+                type="number"
+                id="received-amount"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <button
+              type="button"
+              id="btn-add-payment-method"
+              class="btn-tool split-payment-add"
+            >
+              + Add Payment Method
+            </button>
+            <div id="split-payments" class="split-payments hidden">
+              <div class="split-payments-head">
+                <span>Payment Methods</span>
+                <button type="button" id="btn-clear-split-payments">
+                  Use Single Payment
+                </button>
+              </div>
+              <div id="split-payments-list"></div>
+            </div>
+            <div
+              class="summary-row total"
+              style="margin-top: 0; padding-top: 10px"
+            >
+              <span>Balance</span>
+              <span id="label-balance">LKR 0</span>
+            </div>
+            <div class="summary-row" style="margin-bottom: 0">
+              <span>Change</span>
+              <span id="label-change" style="display: none">LKR 0</span>
+            </div>
+          </div>
+
+          <button id="btn-generate-bill" class="btn-primary">
+            Generate & Share Bill
+          </button>
+          <button id="btn-cancel-edit" class="btn-secondary hidden">
+            Cancel Editing Bill
+          </button>
+        </div>
+      </div>
+
+      <!-- History Page -->
+      <div id="history-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Bill History</h1>
+          <div style="width: 40px"></div>
+        </header>
+        <div
+          style="
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: calc(140px + env(safe-area-inset-bottom));
+          "
+        >
+          <div class="card history-filters">
+            <div class="input-group" style="margin-bottom: 12px">
+              <label>Search Customer</label>
+              <input
+                type="text"
+                id="history-search"
+                class="input-field"
+                placeholder="Type customer name"
+              />
+            </div>
+            <div class="history-filter-dates">
+              <div class="input-group" style="margin-bottom: 0">
+                <label>From</label>
+                <input type="date" id="history-date-from" class="input-field" />
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>To</label>
+                <input type="date" id="history-date-to" class="input-field" />
+              </div>
+            </div>
+            <div class="history-tools">
+              <button id="btn-export-backup" class="btn-tool">
+                Export Backup
+              </button>
+              <button id="btn-import-backup" class="btn-tool">
+                Import Backup
+              </button>
+              <button id="btn-cloud-backup" class="btn-tool">
+                Cloud Backup Now
+              </button>
+              <button id="btn-cloud-restore" class="btn-tool">
+                Restore Cloud Backup
+              </button>
+              <button id="btn-rollback-import" class="btn-tool">
+                Rollback Import
+              </button>
+              <p id="cloud-backup-status" class="cloud-backup-status" role="status" aria-live="polite" style="grid-column: 1 / -1; margin: 4px 0 0; font-size: 0.82rem; color: var(--text-muted);">
+                Cloud backup is not configured.
+              </p>
+              <input
+                type="file"
+                id="backup-import-file"
+                accept="application/json"
+                style="display: none"
+              />
+            </div>
+          </div>
+          <div id="history-list" style="padding-bottom: 24px">
+            <!-- Bills injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Customers Page -->
+      <div id="customers-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Customers</h1>
+          <div style="width: 40px"></div>
+        </header>
+        <div
+          style="
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: calc(140px + env(safe-area-inset-bottom));
+          "
+        >
+          <div class="card history-filters">
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Search Customer</label>
+              <input
+                type="text"
+                id="customers-search"
+                class="input-field"
+                placeholder="Type customer name"
+              />
+            </div>
+            <div class="customers-page-actions">
+              <button id="btn-import-customers" type="button" class="btn-tool customers-import-btn">
+                Import Customers (CSV)
+              </button>
+              <button id="btn-add-customer" class="btn-tool customers-add-btn">
+                Add New Customer
+              </button>
+            </div>
+          </div>
+          <div id="customers-list" style="padding-bottom: 24px">
+            <!-- Customers injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Collection Page -->
+      <div id="collection-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Collection</h1>
+          <div style="width: 40px"></div>
+        </header>
+        <div
+          style="
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: calc(140px + env(safe-area-inset-bottom));
+          "
+        >
+          <div class="card history-filters">
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Search Customer</label>
+              <input
+                type="text"
+                id="collection-search"
+                class="input-field"
+                placeholder="Type customer name"
+              />
+            </div>
+          </div>
+          <div id="collection-list" style="padding-bottom: 24px">
+            <!-- Collection injected via JS -->
+          </div>
+          <div class="card">
+            <h3
+              style="
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+                color: var(--text-main);
+              "
+            >
+              Collection Audit Trail
+            </h3>
+            <div id="collection-audit-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expenses Page -->
+      <div id="expenses-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Expenses</h1>
+          <div style="width: 40px"></div>
+        </header>
+        <div class="expenses-scroll">
+          <div class="card">
+            <div class="input-group">
+              <label>Expense Name</label>
+              <input
+                type="text"
+                id="expense-name"
+                class="input-field"
+                list="expense-name-options"
+                placeholder="e.g. Transport, packing, salary"
+              />
+              <datalist id="expense-name-options">
+                <option value="ගැණුම්"></option>
+                <option value="විකුණුම්"></option>
+                <option value="ඉන්ධන"></option>
+                <option value="ප්‍රවාහන"></option>
+                <option value="සේවක ගෙවීම්"></option>
+                <option value="ලීපී දව්‍ය"></option>
+                <option value="ප්‍රවර්ධන"></option>
+                <option value="කල් ඉකුත් විම"></option>
+                <option value="විදුලි බිල්පත්"></option>
+                <option value="ජල බිල්පත්"></option>
+                <option value="අමුද්‍රව්‍ය"></option>
+                <option value="ක්ෂයවීම"></option>
+                <option value="වාහන නඩත්තුව"></option>
+                <option value="ලිසිං වාරික"></option>
+                <option value="අමතර වියදම්"></option>
+                <option value="යෙදවීම්"></option>
+                <option value="මුලික ප්‍රාග් ධනය"></option>
+                <option value="තැන්පතු"></option>
+                <option value="දුරකතන බිල්"></option>
+                <option value="වෙනත්"></option>
+                <option value="උපකරණ"></option>
+              </datalist>
+            </div>
+            <div class="input-group">
+              <label>Amount</label>
+              <input
+                type="number"
+                id="expense-amount"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group">
+              <label>Category</label>
+              <select id="expense-category" class="input-field">
+                <option value="Transport">Transport</option>
+                <option value="Salary">Salary</option>
+                <option value="Packing">Packing</option>
+                <option value="Rent">Rent</option>
+                <option value="Utility">Utility</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Date</label>
+              <input type="date" id="expense-date" class="input-field" />
+            </div>
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Note (Optional)</label>
+              <input
+                type="text"
+                id="expense-note"
+                class="input-field"
+                placeholder="Short note"
+              />
+            </div>
+            <input type="hidden" id="expense-edit-id" />
+            <button
+              id="btn-add-expense"
+              class="btn-primary"
+              style="margin: 16px 0 0 0; width: 100%"
+            >
+              Add Expense
+            </button>
+            <button
+              id="btn-cancel-expense-edit"
+              class="btn-secondary hidden"
+              style="margin: 10px 0 0 0; width: 100%"
+            >
+              Cancel Edit
+            </button>
+          </div>
+
+          <div class="card expenses-filter-card">
+            <div class="expenses-filter-head">
+              <span>Filter by Date</span>
+              <button
+                id="btn-clear-expense-filter"
+                class="expense-filter-clear"
+              >
+                Clear
+              </button>
+            </div>
+            <div class="expenses-filter-dates">
+              <div class="input-group" style="margin-bottom: 0">
+                <label>From</label>
+                <input type="date" id="expense-date-from" class="input-field" />
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>To</label>
+                <input type="date" id="expense-date-to" class="input-field" />
+              </div>
+            </div>
+          </div>
+
+          <div class="expenses-title-row">
+            <h3>Recent Expenses</h3>
+            <div class="expenses-title-actions">
+              <button
+                id="btn-print-expenses"
+                class="btn-tool"
+                onclick="expensesPage.printExpenses()"
+              >
+                Print
+              </button>
+              <span id="expenses-total" class="expenses-total-badge"
+                >LKR 0</span
+              >
+            </div>
+          </div>
+          <div id="expenses-list" style="padding-bottom: 24px">
+            <!-- Expenses injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Page -->
+      <div id="reports-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Reports</h1>
+          <div style="width: 40px"></div>
+        </header>
+        <div class="reports-shell">
+          <div class="card reports-controls">
+            <div class="reports-controls-grid">
+              <div class="input-group" style="margin-bottom: 0">
+                <label>Report</label>
+                <select id="reports-type" class="input-field">
+                  <option value="sales">Sales Summary</option>
+                  <option value="profit">Net Profit</option>
+                  <option value="receivables">Outstanding</option>
+                  <option value="collections">Collections</option>
+                  <option value="products">Top Products</option>
+                  <option value="stock">Stock Valuation</option>
+                  <option value="payments">Payment Methods</option>
+                  <option value="cheques">Cheque Details</option>
+                  <option value="expenses">Expense Summary</option>
+                  <option value="dayclose">Day Close</option>
+                  <option value="lowstock">Low Stock</option>
+                  <option value="auditlog">Audit Log</option>
+                  <option value="customers">Customer Summary</option>
+                  <option value="audit">Data Audit</option>
+                </select>
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>Period</label>
+                <select id="reports-period" class="input-field">
+                  <option value="today">Today</option>
+                  <option value="this_month">This Month</option>
+                  <option value="all">All Time</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+            </div>
+            <div
+              id="reports-custom-dates"
+              class="reports-controls-grid hidden"
+              style="margin-top: 10px"
+            >
+              <div class="input-group" style="margin-bottom: 0">
+                <label>From</label>
+                <input type="date" id="reports-date-from" class="input-field" />
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>To</label>
+                <input type="date" id="reports-date-to" class="input-field" />
+              </div>
+            </div>
+          </div>
+          <div class="card reports-controls">
+            <div class="input-group" style="margin-bottom: 10px">
+              <label>Quick Notes</label>
+              <textarea
+                id="reports-quick-note"
+                class="input-field"
+                rows="4"
+                placeholder="Write short notes here..."
+              ></textarea>
+            </div>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <div
+                id="reports-note-status"
+                class="history-date"
+                style="margin: 0"
+              >
+                Not saved yet
+              </div>
+              <div style="display: flex; gap: 8px">
+                <button id="reports-note-clear" class="btn-tool" type="button">
+                  Clear
+                </button>
+                <button id="reports-note-save" class="btn-tool" type="button">
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="reports-view" class="card reports-view"></div>
+        </div>
+      </div>
+
+      <!-- Inventory Page -->
+      <div id="inventory-page" class="page">
+        <header class="top-header">
+          <button
+            class="icon-btn logout-btn"
+            onclick="app.logout()"
+            title="Logout"
+          >
+            Logout
+          </button>
+          <h1>Inventory</h1>
+          <button
+            id="btn-inventory-edit"
+            class="inventory-header-edit"
+            onclick="inventory.enableEditing()"
+          >
+            Edit
+          </button>
+        </header>
+        <div class="inventory-scroll">
+          <div class="card">
+            <div class="input-group">
+              <label>Select Existing Product</label>
+              <select
+                id="inv-existing-product"
+                class="input-field"
+                onchange="inventory.selectExistingProduct(this.value)"
+              >
+                <option value="">New product or choose existing</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Add New Product</label>
+              <input
+                type="text"
+                id="inv-new-name"
+                class="input-field"
+                placeholder="Product Name"
+              />
+            </div>
+            <div class="input-group">
+              <label>Initial Stock (Qty)</label>
+              <input
+                type="number"
+                id="inv-new-stock"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group">
+              <label>Selling Price</label>
+              <input
+                type="number"
+                id="inv-new-billing-price"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group">
+              <label>Purchase Price</label>
+              <input
+                type="number"
+                id="inv-new-invoice-price"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Reorder Level</label>
+              <input
+                type="number"
+                id="inv-new-reorder-level"
+                class="input-field"
+                placeholder="5"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group" style="margin-top: 16px; margin-bottom: 0">
+              <label>Change Reason</label>
+              <input
+                type="text"
+                id="inv-change-reason"
+                class="input-field"
+                placeholder="Required when saving inventory changes"
+              />
+            </div>
+          </div>
+
+          <div class="inventory-stock-title-row">
+            <h3>Current Stock</h3>
+            <button
+              id="btn-inventory-pdf"
+              class="btn-tool"
+              onclick="inventory.printInventoryReport()"
+            >
+              Download PDF
+            </button>
+          </div>
+          <div id="inventory-list">
+            <!-- Inventory injected via JS -->
+          </div>
+          <div class="inventory-stock-title-row">
+            <h3>Archived Products</h3>
+          </div>
+          <div id="inventory-archived-list">
+            <!-- Archived inventory injected via JS -->
+          </div>
+        </div>
+        <button
+          id="btn-inventory-save"
+          class="inventory-floating-save hidden"
+          onclick="inventory.saveChanges()"
+        >
+          Save Changes
+        </button>
+      </div>
+
+      <!-- Bottom Navigation -->
+      <nav class="nav-bottom hidden" id="nav-bottom">
+        <button
+          class="nav-item active"
+          id="nav-billing"
+          onclick="app.navigate('billing')"
+        >
+          <span class="nav-icon">&#129534;</span>
+          <span>Billing</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-inventory"
+          onclick="app.navigate('inventory')"
+        >
+          <span class="nav-icon">&#128230;</span>
+          <span>Inventory</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-customers"
+          onclick="app.navigate('customers')"
+        >
+          <span class="nav-icon">&#128101;</span>
+          <span>Customers</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-collection"
+          onclick="app.navigate('collection')"
+        >
+          <span class="nav-icon">&#128176;</span>
+          <span>Collection</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-expenses"
+          onclick="app.navigate('expenses')"
+        >
+          <span class="nav-icon">&#128184;</span>
+          <span>Expenses</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-reports"
+          onclick="app.navigate('reports')"
+        >
+          <span class="nav-icon">&#128200;</span>
+          <span>Reports</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-history"
+          onclick="app.navigate('history')"
+        >
+          <span class="nav-icon">&#128220;</span>
+          <span>History</span>
+        </button>
+        <button
+          class="theme-toggle"
+          id="theme-toggle"
+          type="button"
+          aria-label="Switch to dark mode"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          <span class="theme-toggle-text">Dark Mode</span>
+        </button>
+      </nav>
+
+      <!-- Modals -->
+      <div id="share-modal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-handle"></div>
+          <h2 style="margin-bottom: 24px; text-align: center">Bill Created</h2>
+
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            <div class="input-group" style="margin: 0">
+              <label for="receipt-language">Receipt Language</label>
+              <select id="receipt-language" class="input-field" aria-label="Receipt language">
+                <option value="en" selected>English</option>
+                <option value="si">සිංහල (Sinhala)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+              </select>
+            </div>
+            <button
+              class="btn-primary"
+              onclick="share.printReceipt('a5')"
+              style="margin: 0; background: #7d1838; color: #fff; width: 100%; font-weight: 700;"
+            >
+              Print A5 Receipt (Cash Sale)
+            </button>
+            <button
+              class="btn-primary"
+              onclick="share.printReceipt('80mm')"
+              style="margin: 0; background: #111; color: #fff; width: 100%"
+            >
+              Print 80mm Thermal Receipt
+            </button>
+            <button
+              class="btn-primary"
+              onclick="share.viaWhatsApp()"
+              style="margin: 0; background: #25d366; width: 100%"
+            >
+              Share via WhatsApp
+            </button>
+            <button
+              class="btn-primary"
+              onclick="share.viaSMS()"
+              style="margin: 0; background: #007aff; width: 100%"
+            >
+              Send SMS
+            </button>
+            <button
+              class="btn-primary"
+              onclick="share.copyText()"
+              style="margin: 0; background: #8e8e93; width: 100%"
+            >
+              Copy Bill Text
+            </button>
+            <button
+              class="btn-primary"
+              onclick="app.closeModal('share-modal')"
+              style="
+                margin: 0;
+                background: none;
+                color: var(--text-main);
+                font-weight: 400;
+                width: 100%;
+              "
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="customer-import-modal" class="modal-overlay">
+        <div class="modal-content customer-import-modal-content">
+          <div class="modal-handle"></div>
+          <h2 style="margin-bottom: 8px; text-align: center">Bulk Import Customers</h2>
+          <p class="customer-import-help">Upload a CSV file with <strong>Name</strong>, <strong>Phone</strong>, and <strong>Address</strong> columns. Name is required; phone and address are optional.</p>
+          <div class="customer-import-actions">
+            <button id="btn-download-customer-template" type="button" class="btn-tool">Download CSV Template</button>
+          </div>
+          <div class="input-group customer-import-file-group">
+            <label for="customer-import-file">Choose CSV file (max 5 MB)</label>
+            <input id="customer-import-file" class="input-field" type="file" accept=".csv,text/csv" />
+          </div>
+          <div id="customer-import-message" class="customer-import-message" role="status" aria-live="polite">Choose a CSV file to preview its rows.</div>
+          <div id="customer-import-summary" class="customer-import-summary hidden"></div>
+          <div id="customer-import-preview" class="customer-import-preview"></div>
+          <button id="btn-confirm-customer-import" type="button" class="btn-primary" disabled style="margin: 14px 0 0; width: 100%">Import Valid Customers</button>
+          <button id="btn-close-customer-import" type="button" class="btn-primary" style="margin: 10px 0 0; background: none; color: var(--text-main); font-weight: 400; width: 100%">Close</button>
+        </div>
+      </div>
+
+      <div id="customer-edit-modal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-handle"></div>
+          <h2
+            id="customer-modal-title"
+            style="margin-bottom: 20px; text-align: center"
+          >
+            Edit Customer
+          </h2>
+          <div class="input-group">
+            <label>Name</label>
+            <input
+              type="text"
+              id="edit-customer-name"
+              class="input-field"
+              placeholder="Customer name"
+            />
+          </div>
+          <div class="input-group">
+            <label>Phone</label>
+            <input
+              type="tel"
+              id="edit-customer-phone"
+              class="input-field"
+              placeholder="07XXXXXXXX"
+            />
+          </div>
+          <div class="input-group" style="margin-bottom: 12px">
+            <label>Address</label>
+            <input
+              type="text"
+              id="edit-customer-address"
+              class="input-field"
+              placeholder="Customer address"
+            />
+          </div>
+          <div class="customer-location-panel">
+            <div>
+              <strong>Map Location</strong>
+              <span id="customer-location-status">No location saved</span>
+            </div>
+            <div class="customer-location-actions">
+              <button
+                id="btn-save-customer-location"
+                type="button"
+                class="btn-tool"
+              >
+                Save Current Location
+              </button>
+              <button
+                id="btn-set-customer-location-map"
+                type="button"
+                class="btn-tool"
+              >
+                Set on Map
+              </button>
+              <button
+                id="btn-view-customer-location"
+                type="button"
+                class="btn-tool"
+              >
+                View Map
+              </button>
+              <button
+                id="btn-clear-customer-location"
+                type="button"
+                class="btn-tool danger"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          <button
+            id="btn-save-customer-edit"
+            class="btn-primary"
+            style="margin: 0; width: 100%"
+          >
+            Save Changes
+          </button>
+          <button
+            class="btn-primary"
+            onclick="customersPage.closeEditModal()"
+            style="
+              margin: 10px 0 0 0;
+              background: none;
+              color: var(--text-main);
+              font-weight: 400;
+              width: 100%;
+            "
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div id="customer-map-modal" class="modal-overlay">
+        <div class="modal-content customer-map-modal-content">
+          <div class="modal-handle"></div>
+          <div class="customer-map-head">
+            <div>
+              <h2 id="customer-map-title">Customer Map</h2>
+              <p id="customer-map-subtitle"></p>
+            </div>
+            <button
+              class="btn-tool"
+              type="button"
+              onclick="customersPage.closeMapModal()"
+            >
+              Close
+            </button>
+          </div>
+          <div id="customer-map-tools" class="customer-map-tools hidden">
+            <div class="customer-map-search">
+              <input
+                id="customer-map-search-input"
+                class="input-field"
+                type="text"
+                placeholder="Search town, road, shop, or landmark"
+              />
+              <button id="btn-search-map-location" class="btn-tool" type="button">
+                Search
+              </button>
+            </div>
+            <div id="customer-map-search-results" class="customer-map-search-results"></div>
+            <div id="customer-map-instruction">
+              Tap the map to place the customer pin.
+            </div>
+            <button id="btn-save-manual-location" class="btn-tool" type="button">
+              Save Pin
+            </button>
+          </div>
+          <div id="customer-map"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="vendor/leaflet/leaflet.js?v=117"></script>
+    <script src="js/deploy-config.js?v=117"></script>
+    <script src="js/supabase-config.js?v=117"></script>
+    <script src="js/db.js?v=117"></script>
+    <script src="js/auth.js?v=117"></script>
+    <script src="js/billing.js?v=117"></script>
+    <script src="js/history.js?v=117"></script>
+    <script src="js/customers.js?v=117"></script>
+    <script src="js/collection.js?v=117"></script>
+    <script src="js/expenses.js?v=117"></script>
+    <script src="js/pdf.js?v=117"></script>
+    <script src="js/reports.js?v=117"></script>
+    <script src="js/inventory.js?v=117"></script>
+    <script src="js/share.js?v=117"></script>
+    <script src="js/clear-inputs.js?v=117"></script>
+    <script src="js/app.js?v=117"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js?v=117")
+            .then((reg) => {
+              console.log("SW registered:", reg.scope);
+            })
+            .catch((err) => {
+              console.log("SW reg failed:", err);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
+
+
+
+

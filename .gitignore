@@ -1,0 +1,18 @@
+node_modules/
+.env
+*.log
+test-output.txt
+test-results.txt
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
+local.properties
+
+# OS files
+.DS_Store
+Thumbs.db

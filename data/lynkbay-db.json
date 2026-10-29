@@ -1,0 +1,37 @@
+{
+  "app": "LynkBay Cashew Billing",
+  "exportedAt": "2026-10-29T07:44:50.927Z",
+  "schemaVersion": 9,
+  "data": {
+    "products": [
+      {
+        "name": "Cashew Packet",
+        "stock": 0,
+        "billingPrice": 0,
+        "invoicePrice": 0,
+        "reorderLevel": 5,
+        "inactive": false,
+        "created_at": 1793254785012,
+        "updated_at": 1793254785012,
+        "id": 1
+      }
+    ],
+    "customers": [],
+    "bills": [],
+    "collectionLogs": [],
+    "inventoryLogs": [],
+    "expenses": [],
+    "auditLogs": [
+      {
+        "action": "backup_export",
+        "entity": "backup",
+        "entityId": null,
+        "details": {
+          "reason": "manual"
+        },
+        "timestamp": 1793254847191,
+        "id": 1
+      }
+    ]
+  }
+}

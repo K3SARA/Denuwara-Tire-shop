@@ -1,0 +1,31 @@
+:root {
+  --bg-color: #FFFFFF;
+  --card-bg: #F5F5F7;
+  --text-main: #1C1C1E;
+  --text-muted: #8E8E93;
+  --accent-color: #000000;
+  --accent-color-rgb: 0, 0, 0;
+  --danger-color: #FF3B30;
+  
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  
+  --shadow-subtle: 0 2px 10px rgba(0,0,0,0.05);
+  --shadow-modal: 0 -4px 20px rgba(0,0,0,0.15);
+  
+  --transition-fast: 0.2s ease;
+  --transition-smooth: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --bottom-nav-height: 68px;
+  --bottom-nav-gap: 10px;
+  --bottom-nav-space: calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + 18px + env(safe-area-inset-bottom));
+}
