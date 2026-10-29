@@ -1775,16 +1775,24 @@
   }
 
   .logout-btn {
-    min-height: 40px;
-    border-radius: 10px;
+    min-height: 38px;
+    height: 38px;
+    border-radius: 999px;
     padding: 0 16px;
-    background: #141814;
-    box-shadow: 0 12px 24px rgba(17, 24, 20, 0.18);
-    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08);
   }
 
   .logout-btn:hover {
-    background: #0f5132;
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+    transform: translateY(-1px);
   }
 
   .card,
@@ -2293,7 +2301,20 @@
     color: rgba(244, 247, 242, 0.42);
   }
 
-  html[data-theme="dark"] .logout-btn,
+  html[data-theme="dark"] .logout-btn {
+    background: rgba(239, 68, 68, 0.16);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.32);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="dark"] .logout-btn:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
+  }
+
   html[data-theme="dark"] .btn-primary,
   html[data-theme="dark"] .inventory-floating-save {
     background: linear-gradient(135deg, #263229, #0f5132);
