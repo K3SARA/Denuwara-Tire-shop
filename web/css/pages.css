@@ -1772,10 +1772,28 @@
     transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   }
 
+  .settings-btn {
+    min-height: 36px;
+    height: 36px;
+    min-width: 36px;
+    width: 36px;
+    border: 1px solid var(--desktop-border-strong);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--desktop-text);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  }
+
+  .settings-btn .settings-icon {
+    width: 17px;
+    height: 17px;
+  }
+
   .header-tool-btn:hover,
   .btn-tool:hover,
   .inventory-header-edit:hover,
-  .expense-filter-clear:hover {
+  .expense-filter-clear:hover,
+  .settings-btn:hover {
     border-color: rgba(15, 81, 50, 0.34);
     box-shadow: 0 10px 24px rgba(17, 24, 20, 0.08);
     transform: translateY(-1px);
@@ -2294,6 +2312,7 @@
   html[data-theme="dark"] .input-field,
   html[data-theme="dark"] .cheque-status-select,
   html[data-theme="dark"] .header-tool-btn,
+  html[data-theme="dark"] .settings-btn,
   html[data-theme="dark"] .btn-tool,
   html[data-theme="dark"] .inventory-header-edit,
   html[data-theme="dark"] .expense-filter-clear,

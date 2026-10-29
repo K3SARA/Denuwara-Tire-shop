@@ -24,11 +24,24 @@ if (!window.Money) {
 class ShareManager {
   constructor() {
     this.currentBill = null;
-    this.businessName = 'DENUWARA TYRE CARE';
-    this.proprietorName = 'ATHULA NANDANA PERERA';
-    this.businessAddress = '54, Dalugama, Kelaniya.';
-    this.businessPhone = '075 7559975 / 077 8052775';
-    this.businessRegNo = '661800380v';
+    this.loadBusinessProfile();
+  }
+
+  loadBusinessProfile() {
+    try {
+      const custom = JSON.parse(localStorage.getItem('denuwara_shop_profile') || '{}');
+      this.businessName = custom.businessName || 'DENUWARA TYRE CARE';
+      this.proprietorName = custom.proprietorName || 'ATHULA NANDANA PERERA';
+      this.businessAddress = custom.businessAddress || '54, Dalugama, Kelaniya.';
+      this.businessPhone = custom.businessPhone || '075 7559975 / 077 8052775';
+      this.businessRegNo = custom.businessRegNo || '661800380v';
+    } catch (e) {
+      this.businessName = 'DENUWARA TYRE CARE';
+      this.proprietorName = 'ATHULA NANDANA PERERA';
+      this.businessAddress = '54, Dalugama, Kelaniya.';
+      this.businessPhone = '075 7559975 / 077 8052775';
+      this.businessRegNo = '661800380v';
+    }
   }
 
   splitRsCts(amount) {

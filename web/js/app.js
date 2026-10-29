@@ -74,14 +74,19 @@ class App {
   }
 
   updateThemeToggle() {
-    const toggle = document.getElementById('theme-toggle');
-    if (!toggle) return;
     const isDark = this.theme === 'dark';
-    toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
-    const icon = toggle.querySelector('.theme-toggle-icon');
-    const text = toggle.querySelector('.theme-toggle-text');
-    if (icon) icon.textContent = isDark ? '☀' : '☾';
-    if (text) text.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+      toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+      const icon = toggle.querySelector('.theme-toggle-icon');
+      const text = toggle.querySelector('.theme-toggle-text');
+      if (icon) icon.textContent = isDark ? '☀' : '☾';
+      if (text) text.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+    const settingsToggle = document.getElementById('settings-theme-label');
+    if (settingsToggle) {
+      settingsToggle.textContent = isDark ? '☀ Light Mode' : '☾ Dark Mode';
+    }
   }
 
   restoreReceiptNavigation() {
@@ -120,6 +125,10 @@ class App {
   navigate(pageId) {
     if (pageId !== 'login' && window.auth && !window.auth.isAuthenticated) {
       pageId = 'login';
+    }
+
+    if (this.currentPage && this.currentPage !== pageId && this.currentPage !== 'login') {
+      this.previousPage = this.currentPage;
     }
 
     document.querySelectorAll('.page').forEach(page => {
@@ -167,6 +176,9 @@ class App {
           window.billing.loadCustomerDirectory();
           window.billing.loadOutstandingDirectory();
         }
+      }
+      if (pageId === 'settings') {
+        this.renderSettings();
       }
     }
   }
@@ -382,6 +394,107 @@ class App {
 
   closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+  }
+
+  renderSettings() {
+    this.updateThemeToggle();
+    let profile = {};
+    try {
+      profile = JSON.parse(localStorage.getItem('denuwara_shop_profile') || '{}');
+    } catch (e) {
+      profile = {};
+    }
+
+    const bizName = document.getElementById('settings-biz-name');
+    if (bizName) bizName.value = profile.businessName || window.share?.businessName || 'DENUWARA TYRE CARE';
+
+    const propName = document.getElementById('settings-prop-name');
+    if (propName) propName.value = profile.proprietorName || window.share?.proprietorName || 'ATHULA NANDANA PERERA';
+
+    const bizAddress = document.getElementById('settings-biz-address');
+    if (bizAddress) bizAddress.value = profile.businessAddress || window.share?.businessAddress || '54, Dalugama, Kelaniya.';
+
+    const bizPhone = document.getElementById('settings-biz-phone');
+    if (bizPhone) bizPhone.value = profile.businessPhone || window.share?.businessPhone || '075 7559975 / 077 8052775';
+
+    const bizReg = document.getElementById('settings-biz-reg');
+    if (bizReg) bizReg.value = profile.businessRegNo || window.share?.businessRegNo || '661800380v';
+
+    const userField = document.getElementById('settings-user');
+    if (userField) userField.value = localStorage.getItem('billing_user') || 'admin';
+
+    const backupInfo = document.getElementById('settings-backup-info');
+    if (backupInfo) {
+      const last = this.getLastBackupTime();
+      const lastText = last ? new Date(last).toLocaleString() : 'Never';
+      const cloudBackupAt = localStorage.getItem('last_cloud_backup_at');
+      const cloudText = cloudBackupAt ? new Date(Number(cloudBackupAt)).toLocaleString() : 'Never';
+      backupInfo.innerHTML = `<strong>Last local backup:</strong> ${lastText} &nbsp;|&nbsp; <strong>Last cloud backup:</strong> ${cloudText}`;
+    }
+  }
+
+  saveSettingsProfile() {
+    const profile = {
+      businessName: (document.getElementById('settings-biz-name')?.value || '').trim() || 'DENUWARA TYRE CARE',
+      proprietorName: (document.getElementById('settings-prop-name')?.value || '').trim() || 'ATHULA NANDANA PERERA',
+      businessAddress: (document.getElementById('settings-biz-address')?.value || '').trim() || '54, Dalugama, Kelaniya.',
+      businessPhone: (document.getElementById('settings-biz-phone')?.value || '').trim() || '075 7559975 / 077 8052775',
+      businessRegNo: (document.getElementById('settings-biz-reg')?.value || '').trim() || '661800380v'
+    };
+
+    localStorage.setItem('denuwara_shop_profile', JSON.stringify(profile));
+    if (window.share && typeof window.share.loadBusinessProfile === 'function') {
+      window.share.loadBusinessProfile();
+    }
+    alert('Shop and receipt details saved successfully!');
+  }
+
+  async changePassword() {
+    const userField = document.getElementById('settings-user');
+    const newPassField = document.getElementById('settings-new-pass');
+    const confirmPassField = document.getElementById('settings-confirm-pass');
+
+    const username = (userField?.value || '').trim();
+    const newPass = newPassField?.value || '';
+    const confirmPass = confirmPassField?.value || '';
+
+    if (!username) {
+      alert('Please enter a username.');
+      return;
+    }
+    if (!newPass) {
+      alert('Please enter a new password.');
+      return;
+    }
+    if (newPass.length < 4) {
+      alert('Password must be at least 4 characters.');
+      return;
+    }
+    if (newPass !== confirmPass) {
+      alert('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    if (window.auth && typeof window.auth.saveCredentials === 'function') {
+      await window.auth.saveCredentials(username, newPass);
+      if (newPassField) newPassField.value = '';
+      if (confirmPassField) confirmPassField.value = '';
+      alert('Username and password updated successfully!');
+    } else {
+      alert('Authentication module not ready.');
+    }
+  }
+
+  async handleSettingsImport(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (window.historyView && typeof window.historyView.importBackup === 'function') {
+      await window.historyView.importBackup(file);
+      event.target.value = '';
+      this.renderSettings();
+    } else {
+      alert('History view not ready for import.');
+    }
   }
 
   logout() {

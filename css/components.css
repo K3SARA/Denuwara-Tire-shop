@@ -80,6 +80,44 @@
   align-items: center;
   gap: 8px;
 }
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0;
+  background: var(--card-bg);
+  color: var(--text-main);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  flex-shrink: 0;
+}
+.settings-btn:hover {
+  background: rgba(15, 81, 50, 0.08);
+  color: var(--accent-color, #0f5132);
+  border-color: rgba(15, 81, 50, 0.3);
+  box-shadow: 0 2px 8px rgba(15, 81, 50, 0.15);
+  transform: translateY(-1px);
+}
+.settings-btn:hover .settings-icon {
+  transform: rotate(45deg);
+}
+.settings-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+.settings-btn .settings-icon {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .header-tool-btn {
   display: inline-flex;
   align-items: center;
@@ -285,6 +323,13 @@
     height: 28px;
     padding: 0 9px;
     font-size: 0.74rem;
+  }
+
+  .settings-btn {
+    min-width: 28px;
+    width: 28px;
+    min-height: 28px;
+    height: 28px;
   }
 
   .icon-btn {
