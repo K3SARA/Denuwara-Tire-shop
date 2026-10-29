@@ -1,8 +1,10 @@
 :root {
   --bg-color: #FFFFFF;
-  --card-bg: #F5F5F7;
+  --card-bg: #e2e7ec;
+  --card-border: #cbd4de;
+  --card-bg-elevated: #d7dfe6;
   --text-main: #1C1C1E;
-  --text-muted: #8E8E93;
+  --text-muted: #5e6670;
   --accent-color: #000000;
   --accent-color-rgb: 0, 0, 0;
   --danger-color: #FF3B30;

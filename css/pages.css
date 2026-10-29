@@ -98,12 +98,13 @@
     margin-top: 12px !important;
   }
 }
-/* Subtotal / Total section */
 .summary-card {
-  margin: var(--spacing-6) var(--spacing-5);
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
+  margin: var(--spacing-4) var(--spacing-5);
+  background: var(--card-bg-elevated, #d7dfe6);
+  border: 1px solid var(--card-border, #cbd4de);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
+  padding: var(--spacing-4) var(--spacing-5);
 }
 .summary-row {
   display: flex;
@@ -1681,10 +1682,10 @@
 @media (min-width: 900px) {
   :root {
     --desktop-bg: #f7f8f5;
-    --desktop-surface: #ffffff;
-    --desktop-surface-soft: #f3f5f1;
-    --desktop-border: rgba(17, 24, 20, 0.1);
-    --desktop-border-strong: rgba(17, 24, 20, 0.16);
+    --desktop-surface: #e2e7ec;
+    --desktop-surface-soft: #d7dfe6;
+    --desktop-border: #cbd4de;
+    --desktop-border-strong: #b2beca;
     --desktop-text: #121511;
     --desktop-muted: #687067;
     --desktop-accent: #0f5132;
@@ -1794,7 +1795,7 @@
   .expense-card {
     border: 1px solid var(--desktop-border);
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--desktop-surface);
     box-shadow: var(--desktop-shadow-soft);
   }
 
@@ -2080,13 +2081,13 @@
   .report-table-wrap {
     border: 1px solid var(--desktop-border);
     border-radius: 12px;
-    background: #fff;
+    background: var(--desktop-surface);
     box-shadow: var(--desktop-shadow-soft);
   }
 
   .customers-table th,
   .report-table th {
-    background: #f5f7f3;
+    background: var(--desktop-surface-soft);
     color: var(--desktop-muted);
     font-size: 0.72rem;
     font-weight: 840;
@@ -2153,7 +2154,7 @@
 
   #inventory-list .card,
   #inventory-archived-list .card {
-    background: #fff;
+    background: var(--desktop-surface);
   }
 
   .inventory-product-header {
@@ -2216,14 +2217,14 @@
 
   .report-metric {
     border-color: var(--desktop-border);
-    background: #f8faf7;
+    background: var(--desktop-surface-soft);
     padding: 14px;
   }
 
   .modal-content,
   .customer-map-modal-content {
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    background: #fff;
+    border: 1px solid var(--desktop-border);
+    background: var(--desktop-surface);
     box-shadow: 0 28px 80px rgba(17, 24, 20, 0.26);
   }
 

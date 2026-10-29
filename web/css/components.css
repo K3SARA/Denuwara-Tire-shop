@@ -57,11 +57,11 @@
   font-weight: 800;
 }
 /* Card */
-.card {  background: var(--card-bg);  border-radius: var(--radius-lg);  padding: var(--spacing-5);  margin: var(--spacing-4) var(--spacing-5);  box-shadow: var(--shadow-subtle);  transition: transform var(--transition-fast); }
+.card {  background: var(--card-bg);  border: 1px solid var(--card-border);  border-radius: var(--radius-lg);  padding: var(--spacing-5);  margin: var(--spacing-4) var(--spacing-5);  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);  transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
 /* Inputs */
 .input-group {  display: flex;  flex-direction: column;  gap: var(--spacing-2);  margin-bottom: var(--spacing-4);  position: relative; }
-.input-group label {  font-size: 0.875rem;  color: var(--text-muted);  font-weight: 500; }
-.input-field {  width: 100%;  padding: var(--spacing-4);  border-radius: var(--radius-md);  border: 1px solid rgba(0,0,0,0.1);  background: var(--bg-color);  font-size: 1rem;  transition: border-color var(--transition-fast);  appearance: none; }
+.input-group label {  font-size: 0.875rem;  color: var(--text-muted);  font-weight: 600; }
+.input-field {  width: 100%;  padding: var(--spacing-4);  border-radius: var(--radius-md);  border: 1px solid var(--card-border);  background: #ffffff;  color: var(--text-main);  font-size: 1rem;  transition: border-color var(--transition-fast);  appearance: none; }
 .input-field:focus {  outline: none;  border-color: var(--accent-color); }
 .clearable-wrap {
   position: relative;
@@ -141,7 +141,8 @@
   transition: opacity var(--transition-smooth);
 }
 .modal-content {
-  background: var(--bg-color);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   width: 100%;
   max-height: calc(100dvh - var(--bottom-nav-space) - 32px);
   overflow-y: auto;
@@ -356,10 +357,10 @@
     max-width: 1120px;
     margin: 18px auto;
     padding: 22px;
-    border: 1px solid rgba(0,0,0,0.05);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius-md);
-    background: #fff;
-    box-shadow: 0 10px 28px rgba(15,23,42,0.06);
+    background: var(--card-bg);
+    box-shadow: 0 10px 28px rgba(15,23,42,0.08);
   }
 
   .input-field {
