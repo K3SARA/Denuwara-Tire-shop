@@ -561,15 +561,16 @@ class ShareManager {
   }
   .col-no { width: 7.5mm; text-align: center; color: #7d1838; font-weight: 700; font-size: 10.5px; }
   .col-qty { width: 11mm; text-align: center; }
-  .col-desc { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px !important; }
-  .col-rate { width: 18mm; text-align: right; }
-  .col-amt-rs { width: 22mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; }
-  .col-amt-cts { width: 8.5mm; text-align: center; color: #444; }
+  .col-desc { width: auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px !important; }
+  .col-rate { width: 17mm; text-align: right; }
+  .col-amount { width: 23mm; }
+  .col-amt-rs { width: 16.5mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; padding-right: 3px !important; font-variant-numeric: tabular-nums; }
+  .col-amt-cts { width: 6.5mm; text-align: center; color: #444; font-variant-numeric: tabular-nums; }
 
   .amt-header-title { font-size: 11px; padding-bottom: 1px; }
   .amt-sub-header { display: flex; border-top: 1px solid #7d1838; margin: 1px -2px -3px; }
-  .amt-sub-header span { flex: 1; text-align: center; font-size: 10px; padding: 1px 0; }
-  .amt-sub-header span:first-child { border-right: 0.5px solid #7d1838; }
+  .amt-sub-header span.amt-sub-rs { width: 16.5mm; text-align: center; font-size: 10px; padding: 1px 0; border-right: 0.5px solid #7d1838; flex: none; }
+  .amt-sub-header span.amt-sub-cts { width: 6.5mm; text-align: center; font-size: 10px; padding: 1px 0; flex: none; }
 
   .a5-tfoot-row td {
     border-top: 2px solid #7d1838;
@@ -723,8 +724,8 @@ class ShareManager {
               <th class="col-amount" colspan="2">
                 <div class="amt-header-title">Amount</div>
                 <div class="amt-sub-header">
-                  <span>Rs.</span>
-                  <span>Cts.</span>
+                  <span class="amt-sub-rs">Rs.</span>
+                  <span class="amt-sub-cts">Cts.</span>
                 </div>
               </th>
             </tr>
