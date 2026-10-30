@@ -280,7 +280,9 @@ class ShareManager {
     const yStr = String(dateObj.getFullYear());
 
     const invoiceNo = this.escapeHtml(b.billNumber || b.id || dateObj.getTime());
-    const customer = this.escapeHtml(b.customerName || t('walkInCustomer'));
+    const rawCustomer = String(b.customerName || '').trim();
+    const isWalkIn = !rawCustomer || rawCustomer.toLowerCase() === 'walk-in customer' || rawCustomer.toLowerCase() === 'direct customer';
+    const customer = isWalkIn ? '' : this.escapeHtml(rawCustomer);
     const phone = this.escapeHtml(b.customerPhone || '');
     const logoUrl = new URL('./icons/logo-print.png', window.location.href).href;
 
@@ -470,13 +472,15 @@ class ShareManager {
     color: #7d1838;
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    border-bottom: 1.5px dotted #7d1838;
-    padding-bottom: 2px;
-    margin-top: 4px;
+    width: 100%;
+    min-height: 20px;
+    margin-top: 5px;
+    margin-bottom: 6px;
   }
   .a5-customer-row .label {
     flex-shrink: 0;
+    padding-right: 4px;
+    letter-spacing: 0.5px;
   }
   .a5-customer-row .val {
     color: #111;
@@ -485,6 +489,10 @@ class ShareManager {
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+    border-bottom: 1.5px dotted #7d1838;
+    min-height: 18px;
+    padding-left: 2px;
+    padding-bottom: 1px;
   }
 
   .a5-biz-card {
@@ -693,10 +701,6 @@ class ShareManager {
               <span class="a5-dbox">${yStr[0]}</span><span class="a5-dbox">${yStr[1]}</span><span class="a5-dbox">${yStr[2]}</span><span class="a5-dbox">${yStr[3]}</span>
             </div>
           </div>
-          <div class="a5-customer-row">
-            <span class="label">M/s.</span>
-            <span class="val">${customer}</span>
-          </div>
         </div>
 
         <div class="a5-biz-card">
@@ -708,6 +712,11 @@ class ShareManager {
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="a5-customer-row">
+        <span class="label">M/s.</span>
+        <span class="val">${customer}</span>
       </div>
 
       <div class="a5-table-wrap">
