@@ -491,7 +491,7 @@ class ShareManager {
     width: 63mm;
     border: 1.5px solid #7d1838;
     border-radius: 6px;
-    padding: 4px 6px;
+    padding: 3px 5px;
     text-align: center;
     background: #fff;
     flex-shrink: 0;
@@ -511,22 +511,13 @@ class ShareManager {
     line-height: 1.15;
   }
   .a5-biz-middle {
-    margin-top: 3px;
+    margin-top: 2px;
   }
   .a5-biz-phones {
     font-size: 11px;
     font-weight: 800;
     color: #111;
-    line-height: 1.25;
-    text-align: center;
-  }
-  .a5-biz-owner {
-    font-size: 9.5px;
-    color: #444;
-    font-weight: 700;
-    margin-top: 2px;
-    border-top: 0.5px solid #debac5;
-    padding-top: 2px;
+    line-height: 1.2;
     text-align: center;
   }
 
@@ -713,11 +704,8 @@ class ShareManager {
           <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
           <div class="a5-biz-middle">
             <div class="a5-biz-phones">
-              <div>075 7559975 / 077 8052775</div>
+              <div>${this.escapeHtml(this.businessPhone)}</div>
             </div>
-          </div>
-          <div class="a5-biz-owner">
-            <span>${this.escapeHtml(this.proprietorName)}</span>
           </div>
         </div>
       </div>
