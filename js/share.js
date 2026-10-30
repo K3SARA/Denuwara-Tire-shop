@@ -297,7 +297,7 @@ class ShareManager {
     const totalSplit = this.splitRsCts(subTotal);
 
     const items = Array.isArray(b.items) ? b.items : [];
-    const totalRows = Math.max(19, items.length);
+    const totalRows = Math.max(22, items.length);
     let tableRowsHtml = '';
     for (let i = 0; i < totalRows; i++) {
       const rowNo = String(i + 1).padStart(2, '0');
@@ -766,16 +766,6 @@ class ShareManager {
           <div><strong>Paid:</strong> Rs. ${this.formatCurrency(received)}</div>
           <div><strong>Balance:</strong> Rs. ${this.formatCurrency(balance)}</div>
           <div><strong>Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
-        </div>
-        <div class="a5-sigs">
-          <div class="a5-sig-item">
-            <div class="line"></div>
-            <div>Customer's Signature</div>
-          </div>
-          <div class="a5-sig-item">
-            <div class="line"></div>
-            <div>Authorized Signature</div>
-          </div>
         </div>
       </div>
     </div>
