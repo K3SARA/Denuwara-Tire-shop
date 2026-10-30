@@ -563,14 +563,24 @@ class ShareManager {
   .col-qty { width: 11mm; text-align: center; }
   .col-desc { width: auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px !important; }
   .col-rate { width: 17mm; text-align: right; }
-  .col-amount { width: 23mm; }
+  .col-amount-head { padding: 2px 2px 1px; font-size: 11px; }
   .col-amt-rs { width: 16.5mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; padding-right: 3px !important; font-variant-numeric: tabular-nums; }
   .col-amt-cts { width: 6.5mm; text-align: center; color: #444; font-variant-numeric: tabular-nums; }
 
-  .amt-header-title { font-size: 11px; padding-bottom: 1px; }
-  .amt-sub-header { display: flex; border-top: 1px solid #7d1838; margin: 1px -2px -3px; }
-  .amt-sub-header span.amt-sub-rs { width: 16.5mm; text-align: center; font-size: 10px; padding: 1px 0; border-right: 0.5px solid #7d1838; flex: none; }
-  .amt-sub-header span.amt-sub-cts { width: 6.5mm; text-align: center; font-size: 10px; padding: 1px 0; flex: none; }
+  .a5-table th.th-sub-rs {
+    font-size: 10.5px;
+    padding: 1px 2px;
+    text-align: center;
+    border-top: 1px solid #7d1838;
+    border-right: 0.5px solid #7d1838;
+  }
+  .a5-table th.th-sub-cts {
+    font-size: 10.5px;
+    padding: 1px 2px;
+    text-align: center;
+    border-top: 1px solid #7d1838;
+    border-right: 1px solid #7d1838;
+  }
 
   .a5-tfoot-row td {
     border-top: 2px solid #7d1838;
@@ -717,17 +727,15 @@ class ShareManager {
         <table class="a5-table">
           <thead>
             <tr>
-              <th class="col-no">No.</th>
-              <th class="col-qty">Qty.</th>
-              <th class="col-desc">Description</th>
-              <th class="col-rate">Rate</th>
-              <th class="col-amount" colspan="2">
-                <div class="amt-header-title">Amount</div>
-                <div class="amt-sub-header">
-                  <span class="amt-sub-rs">Rs.</span>
-                  <span class="amt-sub-cts">Cts.</span>
-                </div>
-              </th>
+              <th class="col-no" rowspan="2">No.</th>
+              <th class="col-qty" rowspan="2">Qty.</th>
+              <th class="col-desc" rowspan="2">Description</th>
+              <th class="col-rate" rowspan="2">Rate</th>
+              <th class="col-amount-head" colspan="2">Amount</th>
+            </tr>
+            <tr class="amt-sub-tr">
+              <th class="col-amt-rs th-sub-rs">Rs.</th>
+              <th class="col-amt-cts th-sub-cts">Cts.</th>
             </tr>
           </thead>
           <tbody>
