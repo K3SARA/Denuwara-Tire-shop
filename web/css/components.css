@@ -600,3 +600,62 @@ html[data-theme="dark"] .global-loading-subtext {
   color: #9ca3af;
 }
 
+/* Cheque Image Upload & Preview */
+.cheque-image-upload-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cheque-image-preview-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  background: var(--bg-surface, #f8f9fa);
+  padding: 4px;
+}
+.cheque-image-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.cheque-image-preview:hover {
+  opacity: 0.9;
+}
+.btn-remove-cheque-image {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.92);
+  color: #fff;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-remove-cheque-image:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+html[data-theme="dark"] .cheque-image-preview-container {
+  background: #141a23;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+

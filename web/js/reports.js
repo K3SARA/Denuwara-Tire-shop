@@ -228,7 +228,8 @@ class ReportsView {
         chequeDate: payment.chequeDate || '',
         chequeNumber: payment.chequeNumber || '',
         chequeBank: payment.chequeBank || '',
-        chequeStatus: payment.chequeStatus || ''
+        chequeStatus: payment.chequeStatus || '',
+        chequeImage: payment.chequeImage || (String(payment.method || '').toLowerCase() === 'cheque' ? (bill.chequeImage || '') : '')
       }));
     }
 
@@ -241,7 +242,8 @@ class ReportsView {
       chequeDate: bill?.chequeDate || '',
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
-      chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : ''
+      chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : '',
+      chequeImage: method === 'cheque' ? (bill?.chequeImage || '') : ''
     }];
   }
 
@@ -448,6 +450,7 @@ class ReportsView {
           chequeDate: payment.chequeDate || '-',
           chequeNumber: payment.chequeNumber || '-',
           chequeBank: payment.chequeBank || '-',
+          chequeImage: payment.chequeImage || bill.chequeImage || '',
           status,
           isOverdue,
           label: `Cheque ${index + 1}`
@@ -468,7 +471,10 @@ class ReportsView {
       this.esc(this.fmtLkr(row.amount)),
       `<select class="cheque-status-select" data-cheque-bill-id="${this.esc(row.billId)}" data-cheque-payment-id="${this.esc(row.paymentId)}">
         ${['pending', 'deposited', 'cleared', 'bounced', 'returned'].map((status) => `<option value="${status}"${row.status === status ? ' selected' : ''}>${this.esc(status)}</option>`).join('')}
-      </select>`
+      </select>`,
+      row.chequeImage
+        ? `<button type="button" class="btn-tool" style="padding: 2px 8px; font-size: 0.75rem;" onclick="window.viewImageModal(this.dataset.img, this.dataset.title)" data-img="${this.esc(row.chequeImage)}" data-title="Cheque #${this.esc(row.chequeNumber)}">📷 View</button>`
+        : '-'
     ]);
 
     return `
@@ -481,7 +487,7 @@ class ReportsView {
         { label: 'Cheque Amount', value: this.fmtLkr(total) },
         { label: 'Overdue', value: overdue.toLocaleString() }
       ])}
-      ${this.simpleTable(['Bill No.', 'C.Name', 'Cheque Date', 'Cheque No.', 'Bank', 'Amount', 'Status'], rows)}
+      ${this.simpleTable(['Bill No.', 'C.Name', 'Cheque Date', 'Cheque No.', 'Bank', 'Amount', 'Status', 'Photo'], rows)}
     `;
   }
 

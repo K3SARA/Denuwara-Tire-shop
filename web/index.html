@@ -233,7 +233,7 @@
                   placeholder="Enter cheque number"
                 />
               </div>
-              <div class="input-group" style="margin-bottom: 0">
+              <div class="input-group">
                 <label>Bank</label>
                 <input
                   type="text"
@@ -241,6 +241,22 @@
                   class="input-field"
                   placeholder="Enter bank name"
                 />
+              </div>
+              <div class="input-group" style="margin-bottom: 0">
+                <label>Cheque Photo (Optional)</label>
+                <div class="cheque-image-upload-wrap">
+                  <input
+                    type="file"
+                    id="cheque-image-file"
+                    accept="image/*"
+                    class="input-field"
+                    style="padding: 8px 10px; font-size: 0.85rem;"
+                  />
+                  <div id="cheque-image-preview-container" class="cheque-image-preview-container hidden">
+                    <img id="cheque-image-preview" src="" alt="Cheque Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Cheque Photo')" />
+                    <button type="button" id="btn-remove-cheque-image" class="btn-remove-cheque-image" title="Remove Photo">&times;</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="input-group">
@@ -1378,6 +1394,19 @@
           >
             Cancel
           </button>
+        </div>
+      </div>
+
+      <!-- Image Viewer Modal -->
+      <div id="image-viewer-modal" class="modal-overlay" style="align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 580px; width: 92%; padding: 16px; text-align: center; border-radius: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 id="image-viewer-title" style="margin: 0; font-size: 1.05rem; font-weight: 700;">Cheque Photo</h3>
+            <button type="button" class="btn-tool" onclick="app.closeModal('image-viewer-modal')" style="padding: 4px 12px; font-size: 0.85rem;">Close</button>
+          </div>
+          <div style="max-height: 72vh; overflow: auto; display: flex; align-items: center; justify-content: center; background: #0b0f19; border-radius: 10px; padding: 6px;">
+            <img id="image-viewer-img" src="" alt="Cheque" style="max-width: 100%; max-height: 68vh; object-fit: contain; border-radius: 6px;" />
+          </div>
         </div>
       </div>
 

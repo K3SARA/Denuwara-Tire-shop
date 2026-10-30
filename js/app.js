@@ -658,6 +658,14 @@ window.app = new App();
 window.showLoading = (text, subtext) => window.app?.showLoading(text, subtext);
 window.hideLoading = () => window.app?.hideLoading();
 window.withLoading = (task, text, subtext) => window.app?.withLoading(task, text, subtext);
+window.viewImageModal = (src, title = 'Cheque Photo') => {
+  const img = document.getElementById('image-viewer-img');
+  const titleEl = document.getElementById('image-viewer-title');
+  if (!src) return;
+  if (img) img.src = src;
+  if (titleEl) titleEl.textContent = title;
+  window.app?.openModal('image-viewer-modal');
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   window.app.init();

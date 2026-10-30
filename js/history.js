@@ -398,6 +398,7 @@ class HistoryView {
             </div>
           </div>
           <div class="history-sale-actions">
+            ${(bill.chequeImage || bill.payments?.some((p) => p.chequeImage)) ? `<button class="history-icon-btn" data-history-action="view-cheque" data-bill-id="${bill.id}" title="View Cheque Photo" style="font-size: 1.05rem;">📷</button>` : ''}
             <button class="history-icon-btn" data-history-action="print" data-bill-id="${bill.id}" title="Print">${this.getPrintIcon()}</button>
             <button class="history-icon-btn" data-history-action="share" data-bill-id="${bill.id}" title="Share">${this.getShareIcon()}</button>
             <button class="history-pdf-btn" data-history-action="pdf" data-bill-id="${bill.id}">Pdf</button>
@@ -419,6 +420,13 @@ class HistoryView {
         const bill = this.bills.find((b) => Number(b.id) === billId);
         if (!bill) return;
 
+        if (action === 'view-cheque') {
+          const img = bill.chequeImage || bill.payments?.find((p) => p.chequeImage)?.chequeImage;
+          if (img) {
+            window.viewImageModal(img, `Cheque Photo - Bill #${bill.billNumber || bill.id}`);
+          }
+          return;
+        }
         if (action === 'print' || action === 'pdf') {
           window.share.currentBill = bill;
           window.share.printReceipt();

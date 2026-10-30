@@ -10,6 +10,7 @@ class Billing {
     this._saving = false;
     this.payments = [];
     this.splitPaymentsEnabled = false;
+    this.currentChequeImage = '';
   }
 
   async init() {
@@ -28,6 +29,27 @@ class Billing {
     document.getElementById('btn-clear-split-payments')?.addEventListener('click', () => this.disableSplitPayments());
     document.getElementById('cheque-amount')?.addEventListener('input', () => this.syncChequeAmountToReceived());
 
+    const chequeFileInput = document.getElementById('cheque-image-file');
+    if (chequeFileInput) {
+      chequeFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          try {
+            const compressed = await this.compressImageFile(file);
+            if (compressed) {
+              this.setChequeImage(compressed);
+            }
+          } catch (err) {
+            console.error('Failed to process cheque image:', err);
+            alert('Failed to read cheque image. Please try again.');
+          }
+        }
+      });
+    }
+    document.getElementById('btn-remove-cheque-image')?.addEventListener('click', () => {
+      this.setChequeImage('');
+    });
+
     this.addItem();
     this.toggleChequeDetails();
 
@@ -37,6 +59,56 @@ class Billing {
         e.returnValue = '';
       }
     });
+  }
+
+  async compressImageFile(file, maxWidth = 1280, maxHeight = 1280, quality = 0.78) {
+    if (!file || !file.type.startsWith('image/')) return null;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth || height > maxHeight) {
+            if (width / height > maxWidth / maxHeight) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  setChequeImage(base64) {
+    this.currentChequeImage = base64 || '';
+    const previewContainer = document.getElementById('cheque-image-preview-container');
+    const previewImg = document.getElementById('cheque-image-preview');
+    const fileInput = document.getElementById('cheque-image-file');
+    if (previewContainer && previewImg) {
+      if (this.currentChequeImage) {
+        previewImg.src = this.currentChequeImage;
+        previewContainer.classList.remove('hidden');
+      } else {
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+        if (fileInput) fileInput.value = '';
+      }
+    }
   }
 
   normalize(value) {
@@ -630,7 +702,8 @@ class Billing {
         chequeDate: payment.chequeDate || '',
         chequeNumber: payment.chequeNumber || '',
         chequeBank: payment.chequeBank || '',
-        chequeStatus: payment.chequeStatus || (String(payment.method || '').toLowerCase() === 'cheque' ? 'pending' : '')
+        chequeStatus: payment.chequeStatus || (String(payment.method || '').toLowerCase() === 'cheque' ? 'pending' : ''),
+        chequeImage: payment.chequeImage || (String(payment.method || '').toLowerCase() === 'cheque' ? (bill.chequeImage || '') : '')
       }));
     }
 
@@ -643,7 +716,8 @@ class Billing {
       chequeDate: bill?.chequeDate || '',
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
-      chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : ''
+      chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : '',
+      chequeImage: method === 'cheque' ? (bill?.chequeImage || '') : ''
     }];
   }
 
@@ -660,7 +734,8 @@ class Billing {
       chequeDate: seed.chequeDate || '',
       chequeNumber: seed.chequeNumber || '',
       chequeBank: seed.chequeBank || '',
-      chequeStatus: seed.chequeStatus || (seed.method === 'cheque' ? 'pending' : '')
+      chequeStatus: seed.chequeStatus || (seed.method === 'cheque' ? 'pending' : ''),
+      chequeImage: seed.chequeImage || ''
     };
   }
 
@@ -744,6 +819,7 @@ class Billing {
         payment.chequeNumber = '';
         payment.chequeBank = '';
         payment.chequeStatus = '';
+        payment.chequeImage = '';
       } else if (!payment.chequeStatus) {
         payment.chequeStatus = 'pending';
       }
@@ -787,6 +863,18 @@ class Billing {
               <label>Bank</label>
               <input type="text" class="input-field" placeholder="Bank" value="${this.escapeAttribute(payment.chequeBank)}" data-payment-field="chequeBank" data-payment-id="${this.escapeAttribute(payment.id)}">
             </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Cheque Photo (Optional)</label>
+              <div class="cheque-image-upload-wrap">
+                <input type="file" accept="image/*" class="input-field" style="padding: 6px 8px; font-size: 0.8rem;" data-split-cheque-file="${this.escapeAttribute(payment.id)}">
+                ${payment.chequeImage ? `
+                  <div class="cheque-image-preview-container">
+                    <img src="${this.escapeAttribute(payment.chequeImage)}" alt="Cheque Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Cheque Photo')">
+                    <button type="button" class="btn-remove-cheque-image" data-remove-split-cheque-image="${this.escapeAttribute(payment.id)}" title="Remove Photo">&times;</button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -798,6 +886,37 @@ class Billing {
     });
     list.querySelectorAll('[data-payment-remove]').forEach((button) => {
       button.addEventListener('click', () => this.removePaymentRow(button.getAttribute('data-payment-remove')));
+    });
+    list.querySelectorAll('[data-split-cheque-file]').forEach((fileInput) => {
+      fileInput.addEventListener('change', async (e) => {
+        const id = fileInput.getAttribute('data-split-cheque-file');
+        const file = e.target.files?.[0];
+        if (file) {
+          try {
+            const compressed = await this.compressImageFile(file);
+            if (compressed) {
+              const payment = this.payments.find((p) => p.id === id);
+              if (payment) {
+                payment.chequeImage = compressed;
+                this.renderPaymentRows();
+              }
+            }
+          } catch (err) {
+            console.error('Failed to process split cheque image:', err);
+            alert('Failed to read cheque image.');
+          }
+        }
+      });
+    });
+    list.querySelectorAll('[data-remove-split-cheque-image]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-remove-split-cheque-image');
+        const payment = this.payments.find((p) => p.id === id);
+        if (payment) {
+          payment.chequeImage = '';
+          this.renderPaymentRows();
+        }
+      });
     });
     list.querySelector('[data-add-payment-row]')?.addEventListener('click', () => this.addPaymentRow({ method: 'cash' }));
   }
@@ -830,7 +949,8 @@ class Billing {
       chequeDate: payment.method === 'cheque' ? payment.chequeDate : '',
       chequeNumber: payment.method === 'cheque' ? String(payment.chequeNumber || '').trim() : '',
       chequeBank: payment.method === 'cheque' ? String(payment.chequeBank || '').trim() : '',
-      chequeStatus: payment.method === 'cheque' ? (payment.chequeStatus || 'pending') : ''
+      chequeStatus: payment.method === 'cheque' ? (payment.chequeStatus || 'pending') : '',
+      chequeImage: payment.method === 'cheque' ? (payment.chequeImage || '') : ''
     })).filter((payment) => Money.isPositive(payment.amount) || payment.method === 'credit');
   }
 
@@ -860,7 +980,8 @@ class Billing {
       chequeDate: cheque?.chequeDate || '',
       chequeNumber: cheque?.chequeNumber || '',
       chequeBank: cheque?.chequeBank || '',
-      chequeStatus: cheque ? (cheque.chequeStatus || 'pending') : ''
+      chequeStatus: cheque ? (cheque.chequeStatus || 'pending') : '',
+      chequeImage: cheque?.chequeImage || this.currentChequeImage || ''
     };
   }
 
@@ -902,7 +1023,8 @@ class Billing {
         chequeAmount: 0,
         chequeDate: '',
         chequeNumber: '',
-        chequeBank: ''
+        chequeBank: '',
+        chequeImage: ''
       };
     }
 
@@ -911,7 +1033,8 @@ class Billing {
       chequeAmount,
       chequeDate: document.getElementById('cheque-date')?.value || '',
       chequeNumber: (document.getElementById('cheque-number')?.value || '').trim(),
-      chequeBank: (document.getElementById('cheque-bank')?.value || '').trim()
+      chequeBank: (document.getElementById('cheque-bank')?.value || '').trim(),
+      chequeImage: this.currentChequeImage || ''
     };
   }
 
@@ -1039,6 +1162,8 @@ class Billing {
     document.getElementById('cheque-date').value = chequePayment?.chequeDate || bill.chequeDate || '';
     document.getElementById('cheque-number').value = chequePayment?.chequeNumber || bill.chequeNumber || '';
     document.getElementById('cheque-bank').value = chequePayment?.chequeBank || bill.chequeBank || '';
+    const chequeImage = chequePayment?.chequeImage || bill.chequeImage || '';
+    this.setChequeImage(chequeImage);
     if (shouldUseSplit) this.enableSplitPayments(existingPayments);
     else this.disableSplitPayments();
 
@@ -1081,6 +1206,7 @@ class Billing {
     document.getElementById('cheque-date').value = '';
     document.getElementById('cheque-number').value = '';
     document.getElementById('cheque-bank').value = '';
+    this.setChequeImage('');
     this.toggleChequeDetails();
     this.addItem();
     this.renderOutstandingHint('');
@@ -1143,7 +1269,8 @@ class Billing {
       chequeAmount: primaryPayment.chequeAmount,
       chequeDate: primaryPayment.chequeDate,
       chequeNumber: primaryPayment.chequeNumber,
-      chequeBank: primaryPayment.chequeBank
+      chequeBank: primaryPayment.chequeBank,
+      chequeImage: primaryPayment.chequeImage || ''
     };
 
     const receivedAmount = payments.reduce((sum, payment) => (
@@ -1171,6 +1298,7 @@ class Billing {
       payments,
       ...chequeDetails,
       chequeStatus: primaryPayment.chequeStatus,
+      chequeImage: primaryPayment.chequeImage || '',
       receivedAmount,
       balanceAmount,
       changeAmount,
