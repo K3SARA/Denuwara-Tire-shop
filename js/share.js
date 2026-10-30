@@ -285,6 +285,7 @@ class ShareManager {
     const customer = isWalkIn ? '' : this.escapeHtml(rawCustomer);
     const phone = this.escapeHtml(b.customerPhone || '');
     const address = this.escapeHtml(b.customerAddress || '');
+    const customerInfo = [customer, address].filter(Boolean).join(' - ');
     const logoUrl = new URL('./icons/logo-print.png', window.location.href).href;
 
     const items = Array.isArray(b.items) ? b.items : [];
@@ -516,25 +517,23 @@ class ShareManager {
     color: #7d1838;
     padding: 0 1px;
   }
-  .a5-customer-row,
-  .a5-address-row {
+  .a5-customer-row {
     font-size: 13px;
     font-weight: 800;
     color: #7d1838;
     display: flex;
     align-items: baseline;
     width: 100%;
-    min-height: 18px;
-    margin-top: 3px;
-    margin-bottom: 3px;
+    min-height: 20px;
+    margin-top: 5px;
+    margin-bottom: 6px;
   }
   .a5-customer-row .label {
     flex-shrink: 0;
     padding-right: 4px;
     letter-spacing: 0.5px;
   }
-  .a5-customer-row .val,
-  .a5-address-row .val {
+  .a5-customer-row .val {
     color: #111;
     font-weight: 700;
     overflow: hidden;
@@ -542,12 +541,9 @@ class ShareManager {
     white-space: nowrap;
     flex: 1;
     border-bottom: 1.5px dotted #7d1838;
-    min-height: 16px;
+    min-height: 18px;
     padding-left: 2px;
     padding-bottom: 1px;
-  }
-  .a5-address-row {
-    margin-bottom: 6px;
   }
 
   .a5-biz-card {
@@ -831,10 +827,7 @@ class ShareManager {
 
       <div class="a5-customer-row">
         <span class="label">M/s.</span>
-        <span class="val">${customer}</span>
-      </div>
-      <div class="a5-address-row">
-        <span class="val">${address}</span>
+        <span class="val">${customerInfo}</span>
       </div>
 
       <div class="a5-table-wrap">
