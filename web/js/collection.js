@@ -3,6 +3,8 @@ class CollectionPage {
     this.bills = [];
     this.logs = [];
     this.bound = false;
+    this.activeTab = 'pending';
+    this.editingLog = null;
   }
 
   getQuery() {
@@ -10,11 +12,29 @@ class CollectionPage {
     return (input?.value || '').trim().toLowerCase();
   }
 
+  switchTab(tab) {
+    this.activeTab = tab;
+    const pendingBtn = document.getElementById('tab-collection-pending');
+    const completedBtn = document.getElementById('tab-collection-completed');
+    const listSection = document.getElementById('collection-list-section');
+    const completedCard = document.getElementById('collection-completed-card');
+    if (pendingBtn) pendingBtn.classList.toggle('active', tab === 'pending');
+    if (completedBtn) completedBtn.classList.toggle('active', tab === 'completed');
+    if (listSection) listSection.style.display = tab === 'completed' ? 'none' : 'block';
+    if (completedCard) completedCard.style.display = tab === 'pending' ? 'none' : 'block';
+  }
+
   toggleChequeDetails(billId) {
     const method = document.getElementById(`collect-method-${billId}`);
     const details = document.getElementById(`collect-cheque-details-${billId}`);
     if (!method || !details) return;
     details.classList.toggle('hidden', method.value !== 'cheque');
+  }
+
+  toggleEditChequeDetails(method) {
+    const details = document.getElementById('edit-collection-cheque-details');
+    if (!details) return;
+    details.classList.toggle('hidden', method !== 'cheque');
   }
 
   getChequeDetails(billId, method) {
@@ -76,6 +96,7 @@ class CollectionPage {
       chequeStatus: method === 'cheque' ? 'pending' : ''
     };
   }
+
   getDueBills() {
     const query = this.getQuery();
     return this.bills
@@ -91,6 +112,18 @@ class CollectionPage {
         return (bill.customerName || '').toLowerCase().includes(query);
       })
       .sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  getFilteredLogs() {
+    const query = this.getQuery();
+    if (!query) return this.logs;
+    return this.logs.filter((log) => {
+      const customer = (log.customerName || '').toLowerCase();
+      const billId = String(log.billId || '').toLowerCase();
+      const method = String(log.method || '').toLowerCase();
+      const chequeNumber = String(log.chequeNumber || '').toLowerCase();
+      return customer.includes(query) || billId.includes(query) || method.includes(query) || chequeNumber.includes(query);
+    });
   }
 
   async collectPayment(billId) {
@@ -131,6 +164,112 @@ class CollectionPage {
     await this.render();
     if (window.historyView && window.app.currentPage === 'history') await window.historyView.render();
     if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
+    if (window.billing) {
+      await window.billing.loadOutstandingDirectory();
+      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+    }
+  }
+
+  openEditModal(logId) {
+    const log = this.logs.find((l) => l.id === logId);
+    if (!log) return;
+    this.editingLog = log;
+
+    const customerEl = document.getElementById('edit-collection-customer');
+    const billInfoEl = document.getElementById('edit-collection-bill-info');
+    const amountEl = document.getElementById('edit-collection-amount');
+    const methodEl = document.getElementById('edit-collection-method');
+    const chequeDateEl = document.getElementById('edit-collection-cheque-date');
+    const chequeNumEl = document.getElementById('edit-collection-cheque-number');
+    const chequeBankEl = document.getElementById('edit-collection-cheque-bank');
+
+    if (customerEl) customerEl.textContent = log.customerName || 'Walk-in Customer';
+    const dateStr = new Date(log.timestamp).toLocaleString();
+    if (billInfoEl) billInfoEl.textContent = `Bill #${log.billId} • ${dateStr}`;
+    if (amountEl) amountEl.value = log.amount || 0;
+    if (methodEl) methodEl.value = (log.method || 'cash').toLowerCase();
+    if (chequeDateEl) chequeDateEl.value = log.chequeDate || '';
+    if (chequeNumEl) chequeNumEl.value = log.chequeNumber || '';
+    if (chequeBankEl) chequeBankEl.value = log.chequeBank || '';
+
+    this.toggleEditChequeDetails(methodEl ? methodEl.value : 'cash');
+
+    window.app?.openModal('collection-edit-modal');
+  }
+
+  closeEditModal() {
+    this.editingLog = null;
+    window.app?.closeModal('collection-edit-modal');
+  }
+
+  async saveCollectionEdit() {
+    if (!this.editingLog) return;
+    const log = this.editingLog;
+    const amountInput = document.getElementById('edit-collection-amount');
+    const methodInput = document.getElementById('edit-collection-method');
+    const amount = Money.clampZero(amountInput?.value || '0');
+    const method = methodInput?.value || 'cash';
+
+    if (!Money.isPositive(amount)) {
+      alert('Please enter a valid collection amount.');
+      return;
+    }
+
+    const chequeDetails = {
+      chequeDate: document.getElementById('edit-collection-cheque-date')?.value || '',
+      chequeNumber: (document.getElementById('edit-collection-cheque-number')?.value || '').trim(),
+      chequeBank: (document.getElementById('edit-collection-cheque-bank')?.value || '').trim()
+    };
+
+    if (method === 'cheque' && !this.validateChequeDetails(chequeDetails)) {
+      return;
+    }
+
+    try {
+      await window.db.updateCollectionPaymentAtomic({
+        logId: log.id,
+        billId: log.billId,
+        amount,
+        method,
+        chequeDetails
+      });
+    } catch (err) {
+      alert(err?.message || 'Failed to update collection.');
+      return;
+    }
+
+    this.closeEditModal();
+    await this.render();
+    if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
+    if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
+    if (window.billing) {
+      await window.billing.loadOutstandingDirectory();
+      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+    }
+  }
+
+  async deleteCollection() {
+    if (!this.editingLog) return;
+    const log = this.editingLog;
+    const formattedAmount = (Number(log.amount) || 0).toLocaleString();
+    if (!confirm(`Are you sure you want to delete this collection of LKR ${formattedAmount} for Bill #${log.billId}? The bill balance will be restored.`)) {
+      return;
+    }
+
+    try {
+      await window.db.deleteCollectionPaymentAtomic({
+        logId: log.id,
+        billId: log.billId
+      });
+    } catch (err) {
+      alert(err?.message || 'Failed to delete collection.');
+      return;
+    }
+
+    this.closeEditModal();
+    await this.render();
+    if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
+    if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
     if (window.billing) {
       await window.billing.loadOutstandingDirectory();
       window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
@@ -219,28 +358,45 @@ class CollectionPage {
 
   renderAuditTrail() {
     const trail = document.getElementById('collection-audit-list');
+    const pendingCount = document.getElementById('count-pending-collections');
+    const completedCount = document.getElementById('count-completed-collections');
+
+    if (pendingCount) pendingCount.textContent = this.getDueBills().length;
+    if (completedCount) completedCount.textContent = this.logs.length;
+
     if (!trail) return;
 
-    if (!this.logs.length) {
-      trail.innerHTML = '<div style="text-align:center; padding:12px; color:var(--text-muted)">No collection activity yet.</div>';
+    const filteredLogs = this.getFilteredLogs();
+    if (!filteredLogs.length) {
+      trail.innerHTML = '<div style="text-align:center; padding:16px; color:var(--text-muted)">No collection records found.</div>';
       return;
     }
 
     trail.innerHTML = '';
-    this.logs.slice(0, 30).forEach((log) => {
+    filteredLogs.slice(0, 50).forEach((log) => {
       const row = document.createElement('div');
       row.className = 'collection-log-row';
       const date = new Date(log.timestamp).toLocaleString();
-      const action = log.action || 'collection';
+      const action = log.action === 'collection_edited' ? 'Edited' : (log.action || 'Collection');
       row.innerHTML = `
-        <div class="collection-log-main">
-          <strong>${this.escapeHtml(log.customerName || 'Customer')}</strong> &bull; Bill #${this.escapeHtml(log.billId)}
+        <div class="collection-log-info" style="flex: 1;">
+          <div class="collection-log-main">
+            <strong>${this.escapeHtml(log.customerName || 'Customer')}</strong> &bull; Bill #${this.escapeHtml(log.billId)}
+          </div>
+          <div class="collection-log-sub">
+            ${this.escapeHtml(date)} &bull; ${this.escapeHtml(action)} &bull; <span style="text-transform: capitalize;">${this.escapeHtml(log.method || '-')}</span> &bull; <span class="amount-highlight">LKR ${(Number(log.amount) || 0).toLocaleString()}</span>${log.method === 'cheque' && log.chequeNumber ? ` &bull; Chq #${this.escapeHtml(log.chequeNumber)}` : ''}
+          </div>
         </div>
-        <div class="collection-log-sub">
-          ${this.escapeHtml(date)} &bull; ${this.escapeHtml(action)} &bull; ${this.escapeHtml(log.method || '-')} &bull; LKR ${(Number(log.amount) || 0).toLocaleString()}
-        </div>
+        <button type="button" class="btn-edit-collection" data-edit-log-id="${log.id}">Edit</button>
       `;
       trail.appendChild(row);
+    });
+
+    trail.querySelectorAll('[data-edit-log-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const logId = Number(btn.getAttribute('data-edit-log-id'));
+        this.openEditModal(logId);
+      });
     });
   }
 
@@ -249,7 +405,24 @@ class CollectionPage {
     const search = document.getElementById('collection-search');
     search?.addEventListener('input', () => {
       this.renderList(this.getDueBills());
+      this.renderAuditTrail();
     });
+
+    const editMethod = document.getElementById('edit-collection-method');
+    editMethod?.addEventListener('change', () => {
+      this.toggleEditChequeDetails(editMethod.value);
+    });
+
+    const btnSaveEdit = document.getElementById('btn-save-collection-edit');
+    btnSaveEdit?.addEventListener('click', async () => {
+      await this.saveCollectionEdit();
+    });
+
+    const btnDelete = document.getElementById('btn-delete-collection');
+    btnDelete?.addEventListener('click', async () => {
+      await this.deleteCollection();
+    });
+
     this.bound = true;
   }
 
@@ -264,6 +437,7 @@ class CollectionPage {
     this.logs = logs;
     this.renderList(this.getDueBills());
     this.renderAuditTrail();
+    this.switchTab(this.activeTab);
   }
 
   init() {

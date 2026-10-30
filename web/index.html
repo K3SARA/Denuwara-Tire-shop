@@ -448,7 +448,7 @@
           "
         >
           <div class="card history-filters">
-            <div class="input-group" style="margin-bottom: 0">
+            <div class="input-group" style="margin-bottom: 8px">
               <label>Search Customer</label>
               <input
                 type="text"
@@ -457,11 +457,33 @@
                 placeholder="Type customer name"
               />
             </div>
+            <div class="collection-tabs" style="display: flex; gap: 8px;">
+              <button
+                type="button"
+                id="tab-collection-pending"
+                class="btn-tool active"
+                style="flex: 1; text-align: center;"
+                onclick="collectionPage.switchTab('pending')"
+              >
+                Pending Due (<span id="count-pending-collections">0</span>)
+              </button>
+              <button
+                type="button"
+                id="tab-collection-completed"
+                class="btn-tool"
+                style="flex: 1; text-align: center;"
+                onclick="collectionPage.switchTab('completed')"
+              >
+                Completed (<span id="count-completed-collections">0</span>)
+              </button>
+            </div>
           </div>
-          <div id="collection-list" style="padding-bottom: 24px">
-            <!-- Collection injected via JS -->
+          <div id="collection-list-section">
+            <div id="collection-list" style="padding-bottom: 24px">
+              <!-- Collection injected via JS -->
+            </div>
           </div>
-          <div class="card">
+          <div id="collection-completed-card" class="card">
             <h3
               style="
                 font-size: 0.95rem;
@@ -469,7 +491,7 @@
                 color: var(--text-main);
               "
             >
-              Collection Audit Trail
+              Completed Collections &amp; Audit Trail
             </h3>
             <div id="collection-audit-list"></div>
           </div>
@@ -1280,6 +1302,82 @@
             </button>
           </div>
           <div id="customer-map"></div>
+        </div>
+      </div>
+
+      <!-- Edit Collection Modal -->
+      <div id="collection-edit-modal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-handle"></div>
+          <h2 style="margin-bottom: 20px; text-align: center">
+            Edit Collection
+          </h2>
+          <div style="background: var(--bg-surface, #f9f9f9); padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color, #eee);">
+            <div style="font-weight: 700; font-size: 0.95rem;" id="edit-collection-customer">Customer</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;" id="edit-collection-bill-info">Bill # &bull; Date</div>
+          </div>
+          <div class="input-group">
+            <label>Collected Amount (LKR)</label>
+            <input
+              type="number"
+              id="edit-collection-amount"
+              class="input-field"
+              placeholder="0"
+              step="0.01"
+            />
+          </div>
+          <div class="input-group">
+            <label>Payment Method</label>
+            <select id="edit-collection-method" class="input-field">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+          <div id="edit-collection-cheque-details" class="cheque-details hidden" style="margin-bottom: 16px;">
+            <div class="input-group">
+              <label>Cheque Date</label>
+              <input type="date" id="edit-collection-cheque-date" class="input-field" />
+            </div>
+            <div class="input-group">
+              <label>Cheque Number</label>
+              <input type="text" id="edit-collection-cheque-number" class="input-field" placeholder="Enter cheque number" />
+            </div>
+            <div class="input-group" style="margin-bottom: 0;">
+              <label>Bank</label>
+              <input type="text" id="edit-collection-cheque-bank" class="input-field" placeholder="Enter bank name" />
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button
+              id="btn-save-collection-edit"
+              class="btn-primary"
+              style="margin: 0; flex: 2"
+            >
+              Save Changes
+            </button>
+            <button
+              id="btn-delete-collection"
+              class="btn-primary"
+              style="margin: 0; flex: 1; background: #e53935; color: #fff;"
+            >
+              Delete
+            </button>
+          </div>
+          <button
+            class="btn-primary"
+            onclick="collectionPage.closeEditModal()"
+            style="
+              margin: 10px 0 0 0;
+              background: none;
+              color: var(--text-main);
+              font-weight: 400;
+              width: 100%;
+            "
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

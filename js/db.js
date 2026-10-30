@@ -534,6 +534,211 @@ class Database {
       tx.onabort = () => reject(new Error(abortMessage));
     });
   }
+
+  async updateCollectionPaymentAtomic({ logId, billId, amount, method = 'cash', chequeDetails = {} }) {
+    return new Promise((resolve, reject) => {
+      const numericBillId = Number(billId);
+      const numericLogId = Number(logId);
+      const newAmount = Money.round(amount);
+      if (!numericBillId || !numericLogId || newAmount <= 0) {
+        reject(new Error('Enter a valid collection amount.'));
+        return;
+      }
+
+      const now = Date.now();
+      const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const tx = this.db.transaction(['bills', 'collection_logs', 'audit_logs'], 'readwrite');
+      const billsStore = tx.objectStore('bills');
+      const logsStore = tx.objectStore('collection_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      let updatedBill = null;
+      let abortMessage = 'Failed to update collection.';
+
+      const logReq = logsStore.get(numericLogId);
+      logReq.onsuccess = () => {
+        const log = logReq.result;
+        if (!log) {
+          abortMessage = 'Collection log not found.';
+          tx.abort();
+          return;
+        }
+
+        const billReq = billsStore.get(numericBillId);
+        billReq.onsuccess = () => {
+          const bill = billReq.result;
+          if (!bill) {
+            abortMessage = 'Bill not found.';
+            tx.abort();
+            return;
+          }
+          if ((bill.billStatus || 'active') !== 'active') {
+            abortMessage = 'This bill is not active.';
+            tx.abort();
+            return;
+          }
+
+          const payments = [...this.getBillPaymentsForCollection(bill)];
+          let paymentIndex = -1;
+          if (log.paymentId) {
+            paymentIndex = payments.findIndex(p => p.id === log.paymentId);
+          }
+          if (paymentIndex === -1) {
+            paymentIndex = payments.findIndex(p => p.method === log.method && Money.round(p.amount) === Money.round(log.amount));
+          }
+          if (paymentIndex === -1 && payments.length > 0) {
+            paymentIndex = payments.length - 1;
+          }
+
+          if (paymentIndex === -1) {
+            abortMessage = 'Associated payment entry not found on bill.';
+            tx.abort();
+            return;
+          }
+
+          const oldPayment = payments[paymentIndex];
+          const oldAmount = Money.round(oldPayment.amount);
+
+          const otherPaymentsSum = payments.reduce((sum, p, idx) => idx === paymentIndex ? sum : Money.add(sum, p.amount), 0);
+          const maxAllowed = Money.clampZero(Money.subtract(bill.total, otherPaymentsSum));
+          if (Money.isGreaterThan(newAmount, maxAllowed)) {
+            abortMessage = `Amount exceeds bill total. Maximum allowed is LKR ${maxAllowed.toLocaleString()}.`;
+            tx.abort();
+            return;
+          }
+
+          const updatedPayment = {
+            ...oldPayment,
+            method: finalMethod,
+            amount: newAmount,
+            chequeDate: finalMethod === 'cheque' ? (chequeDetails.chequeDate || '') : '',
+            chequeNumber: finalMethod === 'cheque' ? (chequeDetails.chequeNumber || '') : '',
+            chequeBank: finalMethod === 'cheque' ? (chequeDetails.chequeBank || '') : '',
+            chequeStatus: finalMethod === 'cheque' ? (oldPayment.chequeStatus || 'pending') : ''
+          };
+          payments[paymentIndex] = updatedPayment;
+
+          const nextReceived = payments.reduce((sum, p) => Money.add(sum, p.amount), 0);
+          const nextBalance = Money.clampZero(Money.subtract(bill.total, nextReceived));
+          const nextChange = Money.clampZero(Money.subtract(nextReceived, bill.total));
+
+          updatedBill = {
+            ...bill,
+            receivedAmount: nextReceived,
+            balanceAmount: nextBalance,
+            changeAmount: nextChange,
+            payments: payments,
+            paymentMethod: payments.length > 1 ? 'multiple' : finalMethod,
+            paymentStatus: nextBalance > 0 ? 'due' : 'paid',
+            updated_at: now
+          };
+          billsStore.put(updatedBill);
+
+          const updatedLog = {
+            ...log,
+            amount: newAmount,
+            method: finalMethod,
+            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '' }),
+            action: 'collection_edited',
+            updated_at: now
+          };
+          logsStore.put(updatedLog);
+
+          auditStore.add({
+            action: 'collection_edit',
+            entity: 'bill',
+            entityId: numericBillId,
+            details: { logId: numericLogId, oldAmount, newAmount, oldMethod: log.method, newMethod: finalMethod },
+            timestamp: now
+          });
+        };
+      };
+
+      tx.oncomplete = () => resolve(updatedBill);
+      tx.onerror = () => reject(tx.error || new Error(abortMessage));
+      tx.onabort = () => reject(new Error(abortMessage));
+    });
+  }
+
+  async deleteCollectionPaymentAtomic({ logId, billId }) {
+    return new Promise((resolve, reject) => {
+      const numericBillId = Number(billId);
+      const numericLogId = Number(logId);
+      if (!numericBillId || !numericLogId) {
+        reject(new Error('Invalid collection details.'));
+        return;
+      }
+
+      const now = Date.now();
+      const tx = this.db.transaction(['bills', 'collection_logs', 'audit_logs'], 'readwrite');
+      const billsStore = tx.objectStore('bills');
+      const logsStore = tx.objectStore('collection_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      let updatedBill = null;
+      let abortMessage = 'Failed to delete collection.';
+
+      const logReq = logsStore.get(numericLogId);
+      logReq.onsuccess = () => {
+        const log = logReq.result;
+        if (!log) {
+          abortMessage = 'Collection log not found.';
+          tx.abort();
+          return;
+        }
+
+        const billReq = billsStore.get(numericBillId);
+        billReq.onsuccess = () => {
+          const bill = billReq.result;
+          if (!bill) {
+            abortMessage = 'Bill not found.';
+            tx.abort();
+            return;
+          }
+
+          const payments = [...this.getBillPaymentsForCollection(bill)];
+          let paymentIndex = -1;
+          if (log.paymentId) {
+            paymentIndex = payments.findIndex(p => p.id === log.paymentId);
+          }
+          if (paymentIndex === -1) {
+            paymentIndex = payments.findIndex(p => p.method === log.method && Money.round(p.amount) === Money.round(log.amount));
+          }
+          if (paymentIndex !== -1) {
+            payments.splice(paymentIndex, 1);
+          }
+
+          const nextReceived = payments.reduce((sum, p) => Money.add(sum, p.amount), 0);
+          const nextBalance = Money.clampZero(Money.subtract(bill.total, nextReceived));
+          const nextChange = Money.clampZero(Money.subtract(nextReceived, bill.total));
+
+          updatedBill = {
+            ...bill,
+            receivedAmount: nextReceived,
+            balanceAmount: nextBalance,
+            changeAmount: nextChange,
+            payments: payments,
+            paymentMethod: payments.length > 1 ? 'multiple' : (payments[0]?.method || 'cash'),
+            paymentStatus: nextBalance > 0 ? 'due' : 'paid',
+            updated_at: now
+          };
+          billsStore.put(updatedBill);
+          logsStore.delete(numericLogId);
+
+          auditStore.add({
+            action: 'collection_delete',
+            entity: 'bill',
+            entityId: numericBillId,
+            details: { logId: numericLogId, deletedAmount: log.amount, deletedMethod: log.method },
+            timestamp: now
+          });
+        };
+      };
+
+      tx.oncomplete = () => resolve(updatedBill);
+      tx.onerror = () => reject(tx.error || new Error(abortMessage));
+      tx.onabort = () => reject(new Error(abortMessage));
+    });
+  }
+
   async updateBillWithStockAndCollectionLog({ billId, updates, stockDeltas = [], collectionLog = null, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(billId);
@@ -1238,6 +1443,8 @@ const REMOTE_DB_METHODS = [
   'cancelBillAndReturnStock',
   'saveBillWithStockAndCollectionLog',
   'collectBillPaymentAtomic',
+  'updateCollectionPaymentAtomic',
+  'deleteCollectionPaymentAtomic',
   'updateBillWithStockAndCollectionLog',
   'getProducts',
   'getCustomers',
