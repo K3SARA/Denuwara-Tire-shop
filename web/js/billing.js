@@ -1140,6 +1140,10 @@ class Billing {
       this.isPaymentReceivedNow(payment) ? Money.add(sum, payment.amount) : sum
     ), 0);
     const total = Money.round(this.currentTotal);
+    const customerKey = this.normalizeCustomerName(customerName);
+    const previousDue = (customerKey && this.customerOutstandingMap)
+      ? Money.clampZero(this.customerOutstandingMap.get(customerKey) || 0)
+      : 0;
     const balanceAmount = Money.clampZero(Money.subtract(total, receivedAmount));
     const changeAmount = Money.clampZero(Money.subtract(receivedAmount, total));
     const paymentStatus = Money.isPositive(balanceAmount) ? 'due' : 'paid';
@@ -1150,6 +1154,8 @@ class Billing {
       customerAddress,
       items: mappedItems,
       total,
+      previousDue,
+      dueAmount: previousDue,
       paymentMethod,
       markAsCredit,
       payments,

@@ -287,9 +287,36 @@ class ShareManager {
     const address = this.escapeHtml(b.customerAddress || '');
     const logoUrl = new URL('./icons/logo-print.png', window.location.href).href;
 
-    const subTotal = Money.round(b.total);
+    const items = Array.isArray(b.items) ? b.items : [];
+    const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+
+    const billValue = Money.round(
+      b.itemsTotal !== undefined
+        ? b.itemsTotal
+        : items.reduce((sum, item) => {
+            const q = Number(item.qty) || 0;
+            const p = Number(item.price) || 0;
+            return Money.add(sum, Money.multiply(p, q));
+          }, 0) || b.total || 0
+    );
+    const billValueSplit = this.splitRsCts(billValue);
+
+    const dueAmount = Money.round(
+      b.previousDue !== undefined
+        ? b.previousDue
+        : (b.dueAmount !== undefined ? b.dueAmount : 0)
+    );
+    const dueSplit = this.splitRsCts(dueAmount);
+
+    const totalAmount = Money.add(billValue, dueAmount);
+    const totalSplit = this.splitRsCts(totalAmount);
+
     const received = Money.round(b.receivedAmount || 0);
-    const balance = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(subTotal, received));
+    const paidSplit = this.splitRsCts(received);
+
+    const balance = Money.clampZero(Money.subtract(totalAmount, received));
+    const balSplit = this.splitRsCts(balance);
+
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
     const paymentStatus = billStatus === 'active'
@@ -297,17 +324,15 @@ class ShareManager {
       : (b.paymentStatus || billStatus);
     const paymentLabel = paymentMethod ? localizedMethodLabel(paymentMethod) : '-';
 
-    const totalSplit = this.splitRsCts(subTotal);
-
-    const items = Array.isArray(b.items) ? b.items : [];
-    const totalRows = Math.max(22, items.length);
+    const totalRows = Math.max(22, items.length + 2);
+    const itemSlots = totalRows - 2;
     let tableRowsHtml = '';
-    for (let i = 0; i < totalRows; i++) {
+
+    for (let i = 0; i < itemSlots; i++) {
       const rowNo = String(i + 1).padStart(2, '0');
       const item = items[i];
       if (item) {
         const qty = Number(item.qty) || 0;
-        const unit = item.unit ? ` ${this.escapeHtml(item.unit)}` : '';
         const price = Number(item.price) || 0;
         const amount = Money.multiply(price, qty);
         const amtSplit = this.splitRsCts(amount);
@@ -332,6 +357,30 @@ class ShareManager {
           </tr>`;
       }
     }
+
+    // Row 21: Bill value
+    const rowNo21 = String(totalRows - 1).padStart(2, '0');
+    tableRowsHtml += `
+      <tr class="summary-val-row a5-row-bill-value">
+        <td class="col-no">${rowNo21}</td>
+        <td class="col-qty">&nbsp;</td>
+        <td class="col-desc" style="font-weight: 800; color: #111;">Bill value</td>
+        <td class="col-rate">&nbsp;</td>
+        <td class="col-amt-rs" style="font-weight: 800; color: #111;">${billValueSplit.rs}</td>
+        <td class="col-amt-cts" style="font-weight: 800;">${billValueSplit.cts}</td>
+      </tr>`;
+
+    // Row 22: Due Amount
+    const rowNo22 = String(totalRows).padStart(2, '0');
+    tableRowsHtml += `
+      <tr class="summary-val-row a5-row-due">
+        <td class="col-no">${rowNo22}</td>
+        <td class="col-qty">&nbsp;</td>
+        <td class="col-desc" style="font-weight: 800; color: #7d1838;">Due Amount</td>
+        <td class="col-rate">&nbsp;</td>
+        <td class="col-amt-rs" style="font-weight: 800; color: #7d1838;">${dueAmount > 0 ? dueSplit.rs : '-'}</td>
+        <td class="col-amt-cts" style="font-weight: 800; color: #7d1838;">${dueAmount > 0 ? dueSplit.cts : '-'}</td>
+      </tr>`;
 
     const showToolbar = Boolean(options.showToolbar);
     const appUrl = this.escapeHtml(options.appUrl || this.getAppReturnUrl());
@@ -588,24 +637,84 @@ class ShareManager {
   }
 
   .a5-tfoot-row td {
-    border-top: 2px solid #7d1838;
-    height: 24px;
-    font-weight: 900;
-    font-size: 12.5px;
-    background: #faf4f6;
+    height: 20px;
+    vertical-align: middle;
   }
-  .a5-total-label {
-    text-align: right;
+  .a5-tfoot-total td {
+    border-top: 2px solid #7d1838;
+    border-bottom: 1px solid #7d1838;
+    background: #faf4f6;
+    font-weight: 900;
+  }
+  .ft-total-qty {
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 900;
     color: #7d1838;
-    padding-right: 8px;
+  }
+  .ft-desc-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .ft-inv-block {
+    font-size: 11px;
+    font-weight: 800;
+    color: #7d1838;
     letter-spacing: 0.5px;
   }
+  .ft-inv-val {
+    color: #111;
+    font-weight: 900;
+    font-size: 11.5px;
+    margin-left: 3px;
+  }
+  .ft-total-title {
+    font-size: 12px;
+    font-weight: 900;
+    color: #7d1838;
+    letter-spacing: 0.5px;
+    text-align: right;
+  }
   .ft-total-rs {
-    font-size: 13px;
+    font-size: 12.5px;
+    font-weight: 900;
     color: #111;
   }
   .ft-total-cts {
+    font-size: 11.5px;
+    font-weight: 900;
+  }
+
+  .a5-tfoot-paid td {
+    border-top: 0.5px dotted #debac5;
+    border-bottom: 0.5px dotted #debac5;
+    background: #fff;
+    height: 19px;
+  }
+  .a5-tfoot-balance td {
+    border-top: 0.5px dotted #debac5;
+    border-bottom: 2px solid #7d1838;
+    background: #faf4f6;
+    height: 19px;
+  }
+  .ft-sub-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #7d1838;
+    letter-spacing: 0.3px;
+  }
+  .ft-sub-rs {
     font-size: 12px;
+    font-weight: 800;
+    color: #111;
+  }
+  .ft-sub-cts {
+    font-size: 11px;
+    font-weight: 800;
   }
 
   .a5-watermark {
@@ -756,11 +865,35 @@ class ShareManager {
             ${tableRowsHtml}
           </tbody>
           <tfoot>
-            <tr class="a5-tfoot-row">
-              <td class="col-no">${String(invoiceNo).slice(-2) || '01'}</td>
-              <td class="a5-total-label" colspan="3">${t('totalAmount')}</td>
+            <tr class="a5-tfoot-row a5-tfoot-total">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty ft-total-qty">${totalQty}</td>
+              <td class="col-desc-footer" colspan="2">
+                <div class="ft-desc-flex">
+                  <span class="ft-inv-block"><strong>NO</strong> &nbsp;<span class="ft-inv-val">${invoiceNo}</span></span>
+                  <span class="ft-total-title">${t('totalAmount')}</span>
+                </div>
+              </td>
               <td class="col-amt-rs ft-total-rs">${totalSplit.rs}</td>
               <td class="col-amt-cts ft-total-cts">${totalSplit.cts}</td>
+            </tr>
+            <tr class="a5-tfoot-row a5-tfoot-paid">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title">Paid amount</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs">${paidSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts">${paidSplit.cts}</td>
+            </tr>
+            <tr class="a5-tfoot-row a5-tfoot-balance">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title">Balance Amount</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs">${balSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts">${balSplit.cts}</td>
             </tr>
           </tfoot>
         </table>
@@ -769,9 +902,7 @@ class ShareManager {
       <div class="a5-bottom-section">
         <div class="a5-meta-summary">
           <div><strong>Status:</strong> ${this.escapeHtml(localizeStatus(paymentStatus)).toUpperCase()}</div>
-          <div><strong>Paid:</strong> Rs. ${this.formatCurrency(received)}</div>
-          <div><strong>Balance:</strong> Rs. ${this.formatCurrency(balance)}</div>
-          <div><strong>Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
+          <div><strong>Payment Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
         </div>
       </div>
     </div>
