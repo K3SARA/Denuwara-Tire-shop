@@ -120,30 +120,32 @@ class Auth {
 
       const creds = this.getStoredCredentials();
 
-      if (!creds.savedUser) {
-        // First time setup — no lockout applies
-        await this.saveCredentials(user, pass);
-        localStorage.removeItem(ATTEMPTS_KEY);
-        localStorage.removeItem(LOCKED_UNTIL_KEY);
-        this.login();
-      } else {
-        if (await this.verifyCredentials(user, pass, creds)) {
+      await window.app?.withLoading(async () => {
+        if (!creds.savedUser) {
+          // First time setup — no lockout applies
+          await this.saveCredentials(user, pass);
           localStorage.removeItem(ATTEMPTS_KEY);
           localStorage.removeItem(LOCKED_UNTIL_KEY);
-          loginError.textContent = '';
           this.login();
         } else {
-          const attempts = getAttempts() + 1;
-          localStorage.setItem(ATTEMPTS_KEY, String(attempts));
-          const remaining = LOCK_AFTER - attempts;
-          if (attempts >= LOCK_AFTER) {
-            localStorage.setItem(LOCKED_UNTIL_KEY, String(Date.now() + LOCK_SECONDS * 1000));
-            startLockCountdown();
+          if (await this.verifyCredentials(user, pass, creds)) {
+            localStorage.removeItem(ATTEMPTS_KEY);
+            localStorage.removeItem(LOCKED_UNTIL_KEY);
+            loginError.textContent = '';
+            this.login();
           } else {
-            loginError.textContent = `Incorrect credentials. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`;
+            const attempts = getAttempts() + 1;
+            localStorage.setItem(ATTEMPTS_KEY, String(attempts));
+            const remaining = LOCK_AFTER - attempts;
+            if (attempts >= LOCK_AFTER) {
+              localStorage.setItem(LOCKED_UNTIL_KEY, String(Date.now() + LOCK_SECONDS * 1000));
+              startLockCountdown();
+            } else {
+              loginError.textContent = `Incorrect credentials. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`;
+            }
           }
         }
-      }
+      }, 'Logging in...', 'Verifying credentials');
     });
 
     ['auth-user', 'auth-pass'].forEach((id) => {

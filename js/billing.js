@@ -1089,6 +1089,16 @@ class Billing {
 
   async generateBill() {
     if (this._saving) return;
+    const isEdit = Boolean(this.editBillId);
+    return await window.app.withLoading(
+      () => this._generateBillInternal(),
+      isEdit ? 'Updating bill...' : 'Saving bill...',
+      'Updating stock and invoice records'
+    );
+  }
+
+  async _generateBillInternal() {
+    if (this._saving) return;
     this._saving = true;
     const _genBtn = document.getElementById('btn-generate-bill');
     if (_genBtn) _genBtn.disabled = true;

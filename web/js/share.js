@@ -1371,6 +1371,11 @@ class ShareManager {
       return;
     }
 
+    if (window.app?.showLoading) {
+      window.app.showLoading('Preparing receipt print...', 'Generating formatted document');
+      setTimeout(() => window.app?.hideLoading(), 1200);
+    }
+
     // Purge all previous receipt keys to prevent localStorage from filling up.
     Object.keys(localStorage)
       .filter((k) => k.startsWith('receipt-'))

@@ -228,8 +228,6 @@ class HistoryView {
 
   async cancelOrReturnBill(billId, action) {
     if (this._processing) return;
-    this._processing = true;
-    try {
     const bill = await window.db.getBillById(Number(billId));
     if (!bill) return;
 
@@ -242,60 +240,62 @@ class HistoryView {
     const confirmed = confirm(`Are you sure you want to ${verb} bill #${bill.id}? Stock will be adjusted automatically.`);
     if (!confirmed) return;
 
-    const received = Money.round(bill.receivedAmount || 0);
-    const updated = await window.db.cancelBillAndReturnStock({
-      billId: bill.id,
-      updates: {
-        billStatus: action === 'return' ? 'returned' : 'cancelled',
-        paymentStatus: action === 'return' ? 'returned' : 'cancelled',
-        balanceAmount: 0,
-        receivedAmount: 0,
-        changeAmount: 0,
-        closedAt: new Date().getTime()
-      },
-      itemsToReturn: bill.items || []
-    });
+    this._processing = true;
+    await window.app.withLoading(async () => {
+      try {
+        const received = Money.round(bill.receivedAmount || 0);
+        const updated = await window.db.cancelBillAndReturnStock({
+          billId: bill.id,
+          updates: {
+            billStatus: action === 'return' ? 'returned' : 'cancelled',
+            paymentStatus: action === 'return' ? 'returned' : 'cancelled',
+            balanceAmount: 0,
+            receivedAmount: 0,
+            changeAmount: 0,
+            closedAt: new Date().getTime()
+          },
+          itemsToReturn: bill.items || []
+        });
 
-    if (Money.isPositive(received)) {
-      await window.db.addCollectionLog({
-        billId: bill.id,
-        customerName: bill.customerName || 'Walk-in Customer',
-        amount: received,
-        method: bill.paymentMethod || 'cash',
-        action: action === 'return' ? 'bill_return' : 'bill_cancel',
-        direction: 'refund_pending',
-        beforeReceived: received,
-        afterReceived: 0
-      });
-    }
+        if (Money.isPositive(received)) {
+          await window.db.addCollectionLog({
+            billId: bill.id,
+            customerName: bill.customerName || 'Walk-in Customer',
+            amount: received,
+            method: bill.paymentMethod || 'cash',
+            action: action === 'return' ? 'bill_return' : 'bill_cancel',
+            direction: 'refund_pending',
+            beforeReceived: received,
+            afterReceived: 0
+          });
+        }
 
-    if (updated) {
-      window.share.currentBill = updated;
-    }
-    await window.db.addAuditLog({
-      action: action === 'return' ? 'bill_return' : 'bill_cancel',
-      entity: 'bill',
-      entityId: bill.id,
-      details: { customerName: bill.customerName || '', total: bill.total || 0 }
-    });
+        if (updated) {
+          window.share.currentBill = updated;
+        }
+        await window.db.addAuditLog({
+          action: action === 'return' ? 'bill_return' : 'bill_cancel',
+          entity: 'bill',
+          entityId: bill.id,
+          details: { customerName: bill.customerName || '', total: bill.total || 0 }
+        });
 
-    await this.render();
-    if (window.inventory) await window.inventory.render();
-    if (window.collectionPage && window.app.currentPage === 'collection') await window.collectionPage.render();
-    if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
-    if (window.billing) {
-      await window.billing.loadOutstandingDirectory();
-      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
-    }
-    } finally {
-      this._processing = false;
-    }
+        await this.render();
+        if (window.inventory) await window.inventory.render();
+        if (window.collectionPage && window.app.currentPage === 'collection') await window.collectionPage.render();
+        if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
+        if (window.billing) {
+          await window.billing.loadOutstandingDirectory();
+          window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+        }
+      } finally {
+        this._processing = false;
+      }
+    }, action === 'return' ? 'Processing return...' : 'Cancelling bill...', 'Updating stock and invoice status');
   }
 
   async deleteBill(billId) {
     if (this._processing) return;
-    this._processing = true;
-    try {
     const bill = await window.db.getBillById(Number(billId));
     if (!bill) return;
 
@@ -305,40 +305,42 @@ class HistoryView {
     const shouldReturnStock = confirm('Return stock to inventory?');
     if (shouldReturnStock === null) return; // User cancelled
 
-    // Write the audit log BEFORE deleting so the action is always recorded
-    // even if the app closes immediately after the delete completes.
-    await window.db.addAuditLog({
-      action: 'bill_delete',
-      entity: 'bill',
-      entityId: bill.id,
-      details: { customerName: bill.customerName || '', total: bill.total || 0, returnStock: shouldReturnStock }
-    });
+    this._processing = true;
+    await window.app.withLoading(async () => {
+      try {
+        await window.db.addAuditLog({
+          action: 'bill_delete',
+          entity: 'bill',
+          entityId: bill.id,
+          details: { customerName: bill.customerName || '', total: bill.total || 0, returnStock: shouldReturnStock }
+        });
 
-    const deleted = await window.db.deleteBillAndReturnStock({
-      billId: bill.id,
-      returnStock: Boolean(shouldReturnStock)
-    });
-    if (!deleted) {
-      alert('Failed to delete bill.');
-      return;
-    }
+        const deleted = await window.db.deleteBillAndReturnStock({
+          billId: bill.id,
+          returnStock: Boolean(shouldReturnStock)
+        });
+        if (!deleted) {
+          alert('Failed to delete bill.');
+          return;
+        }
 
-    if (window.share.currentBill && Number(window.share.currentBill.id) === Number(bill.id)) {
-      window.share.currentBill = null;
-    }
+        if (window.share.currentBill && Number(window.share.currentBill.id) === Number(bill.id)) {
+          window.share.currentBill = null;
+        }
 
-    await this.render();
-    if (window.inventory) await window.inventory.render();
-    if (window.collectionPage && window.app.currentPage === 'collection') await window.collectionPage.render();
-    if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
-    if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
-    if (window.billing) {
-      await window.billing.loadOutstandingDirectory();
-      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
-    }
-    } finally {
-      this._processing = false;
-    }
+        await this.render();
+        if (window.inventory) await window.inventory.render();
+        if (window.collectionPage && window.app.currentPage === 'collection') await window.collectionPage.render();
+        if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
+        if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
+        if (window.billing) {
+          await window.billing.loadOutstandingDirectory();
+          window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+        }
+      } finally {
+        this._processing = false;
+      }
+    }, 'Deleting bill...', 'Removing invoice records');
   }
 
   renderBillsList(bills) {

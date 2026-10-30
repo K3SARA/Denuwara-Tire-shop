@@ -187,110 +187,112 @@ class Inventory {
       reason = 'New product setup';
     }
 
-    for (const update of updates) {
-      const previous = this.products.find((product) => Number(product.id) === Number(update.id));
-      await window.db.updateProduct(update.id, {
-        name: update.name,
-        stock: update.stock,
-        billingPrice: update.billingPrice,
-        invoicePrice: update.invoicePrice,
-        reorderLevel: update.reorderLevel
-      });
-      const changed = previous && (
-        (previous.name || '') !== update.name
-        || Number(previous.stock || 0) !== Number(update.stock || 0)
-        || Number(previous.billingPrice || 0) !== Number(update.billingPrice || 0)
-        || Number(previous.invoicePrice || 0) !== Number(update.invoicePrice || 0)
-        || Number(previous.reorderLevel || 5) !== Number(update.reorderLevel || 5)
-      );
-      if (changed) {
-        await window.db.addInventoryLog({
-          productId: update.id,
-          productName: update.name,
-          action: 'manual_adjustment',
-          reason,
-          before: {
-            name: previous.name,
-            stock: previous.stock,
-            billingPrice: previous.billingPrice,
-            invoicePrice: previous.invoicePrice,
-            reorderLevel: previous.reorderLevel
-          },
-          after: update,
-          addedQty: Math.max(0, Number(update.stock || 0) - Number(previous.stock || 0)),
+    await window.app.withLoading(async () => {
+      for (const update of updates) {
+        const previous = this.products.find((product) => Number(product.id) === Number(update.id));
+        await window.db.updateProduct(update.id, {
+          name: update.name,
+          stock: update.stock,
           billingPrice: update.billingPrice,
-          invoicePrice: update.invoicePrice
+          invoicePrice: update.invoicePrice,
+          reorderLevel: update.reorderLevel
         });
-      }
-    }
-    await window.db.addAuditLog({
-      action: 'inventory_save',
-      entity: 'inventory',
-      details: { updatedProducts: updates.length, reason }
-    });
-
-    if (newProduct.name) {
-      const existing = this.products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
-      if (existing) {
-        const addedQty = Math.max(0, newProduct.stock);
-        await window.db.updateProduct(existing.id, {
-          stock: Math.max(0, (parseFloat(existing.stock) || 0) + addedQty),
-          billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
-          invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0)
-        });
-        if (addedQty > 0) {
-          await window.db.addInventoryLog({
-            productId: existing.id,
-            productName: existing.name,
-            addedQty,
-            billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
-            invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0),
-            action: 'restock'
-          });
-          await window.db.addAuditLog({
-            action: 'inventory_restock',
-            entity: 'product',
-            entityId: existing.id,
-            details: { productName: existing.name, addedQty, reason }
-          });
-        }
-      } else {
-        const result = await window.db.addProduct(
-          newProduct.name,
-          newProduct.stock,
-          newProduct.billingPrice,
-          newProduct.invoicePrice,
-          newProduct.reorderLevel
+        const changed = previous && (
+          (previous.name || '') !== update.name
+          || Number(previous.stock || 0) !== Number(update.stock || 0)
+          || Number(previous.billingPrice || 0) !== Number(update.billingPrice || 0)
+          || Number(previous.invoicePrice || 0) !== Number(update.invoicePrice || 0)
+          || Number(previous.reorderLevel || 5) !== Number(update.reorderLevel || 5)
         );
-        if (!result?.ok) {
-          alert(result?.error || 'Failed to add product.');
-          return;
-        }
-        if (newProduct.stock > 0) {
-          const products = await window.db.getProducts();
-          const created = products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
+        if (changed) {
           await window.db.addInventoryLog({
-            productId: created?.id || null,
-            productName: newProduct.name,
-            addedQty: Math.max(0, newProduct.stock),
-            billingPrice: newProduct.billingPrice,
-            invoicePrice: newProduct.invoicePrice,
-            action: 'new_product'
+            productId: update.id,
+            productName: update.name,
+            action: 'manual_adjustment',
+            reason,
+            before: {
+              name: previous.name,
+              stock: previous.stock,
+              billingPrice: previous.billingPrice,
+              invoicePrice: previous.invoicePrice,
+              reorderLevel: previous.reorderLevel
+            },
+            after: update,
+            addedQty: Math.max(0, Number(update.stock || 0) - Number(previous.stock || 0)),
+            billingPrice: update.billingPrice,
+            invoicePrice: update.invoicePrice
           });
         }
-        await window.db.addAuditLog({
-          action: 'product_create',
-          entity: 'product',
-          details: { productName: newProduct.name, stock: newProduct.stock, reason }
-        });
       }
-    }
+      await window.db.addAuditLog({
+        action: 'inventory_save',
+        entity: 'inventory',
+        details: { updatedProducts: updates.length, reason }
+      });
 
-    this.isEditing = false;
-    this.hasChanges = false;
-    this.clearNewProductInputs();
-    await this.refreshBillingProducts();
-    await this.render();
+      if (newProduct.name) {
+        const existing = this.products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
+        if (existing) {
+          const addedQty = Math.max(0, newProduct.stock);
+          await window.db.updateProduct(existing.id, {
+            stock: Math.max(0, (parseFloat(existing.stock) || 0) + addedQty),
+            billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
+            invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0)
+          });
+          if (addedQty > 0) {
+            await window.db.addInventoryLog({
+              productId: existing.id,
+              productName: existing.name,
+              addedQty,
+              billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
+              invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0),
+              action: 'restock'
+            });
+            await window.db.addAuditLog({
+              action: 'inventory_restock',
+              entity: 'product',
+              entityId: existing.id,
+              details: { productName: existing.name, addedQty, reason }
+            });
+          }
+        } else {
+          const result = await window.db.addProduct(
+            newProduct.name,
+            newProduct.stock,
+            newProduct.billingPrice,
+            newProduct.invoicePrice,
+            newProduct.reorderLevel
+          );
+          if (!result?.ok) {
+            alert(result?.error || 'Failed to add product.');
+            return;
+          }
+          if (newProduct.stock > 0) {
+            const products = await window.db.getProducts();
+            const created = products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
+            await window.db.addInventoryLog({
+              productId: created?.id || null,
+              productName: newProduct.name,
+              addedQty: Math.max(0, newProduct.stock),
+              billingPrice: newProduct.billingPrice,
+              invoicePrice: newProduct.invoicePrice,
+              action: 'new_product'
+            });
+          }
+          await window.db.addAuditLog({
+            action: 'product_create',
+            entity: 'product',
+            details: { productName: newProduct.name, stock: newProduct.stock, reason }
+          });
+        }
+      }
+
+      this.isEditing = false;
+      this.hasChanges = false;
+      this.clearNewProductInputs();
+      await this.refreshBillingProducts();
+      await this.render();
+    }, 'Saving inventory...', 'Updating products and stock');
   }
 
   async addProduct() {
@@ -328,21 +330,23 @@ class Inventory {
     const confirmed = confirm(`Delete product "${product.name}" from current inventory? Old bills and inventory add logs will stay unchanged.`);
     if (!confirmed) return;
 
-    const deleted = await window.db.deleteProduct(product.id);
-    if (!deleted) {
-      alert('Failed to delete product.');
-      return;
-    }
+    await window.app.withLoading(async () => {
+      const deleted = await window.db.deleteProduct(product.id);
+      if (!deleted) {
+        alert('Failed to delete product.');
+        return;
+      }
 
-    this.hasChanges = false;
-    await window.db.addAuditLog({
-      action: 'product_archive',
-      entity: 'product',
-      entityId: product.id,
-      details: { productName: product.name }
-    });
-    await this.refreshBillingProducts();
-    await this.render();
+      this.hasChanges = false;
+      await window.db.addAuditLog({
+        action: 'product_archive',
+        entity: 'product',
+        entityId: product.id,
+        details: { productName: product.name }
+      });
+      await this.refreshBillingProducts();
+      await this.render();
+    }, 'Deleting product...', 'Updating inventory');
   }
 
   async restoreProduct(productId) {
@@ -357,20 +361,22 @@ class Inventory {
     const confirmed = confirm(`Restore product "${product.name}" to active inventory?`);
     if (!confirmed) return;
 
-    const restored = await window.db.restoreProduct(product.id);
-    if (!restored) {
-      alert('Failed to restore product.');
-      return;
-    }
+    await window.app.withLoading(async () => {
+      const restored = await window.db.restoreProduct(product.id);
+      if (!restored) {
+        alert('Failed to restore product.');
+        return;
+      }
 
-    await window.db.addAuditLog({
-      action: 'product_restore',
-      entity: 'product',
-      entityId: product.id,
-      details: { productName: product.name }
-    });
-    await this.refreshBillingProducts();
-    await this.render();
+      await window.db.addAuditLog({
+        action: 'product_restore',
+        entity: 'product',
+        entityId: product.id,
+        details: { productName: product.name }
+      });
+      await this.refreshBillingProducts();
+      await this.render();
+    }, 'Restoring product...', 'Updating active inventory');
   }
 
   showProductHistory(productId) {

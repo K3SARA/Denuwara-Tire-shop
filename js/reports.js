@@ -1561,6 +1561,10 @@ class ReportsView {
   }
 
   printSelectedReport() {
+    if (window.app?.showLoading) {
+      window.app.showLoading('Preparing report print...', 'Generating PDF document');
+      setTimeout(() => window.app?.hideLoading(), 1200);
+    }
     const { reportType } = this.getInputs();
     const selected = reportType?.value || 'sales';
     if (selected === 'cheques') {

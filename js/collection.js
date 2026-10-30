@@ -142,32 +142,34 @@ class CollectionPage {
 
     const newPayment = this.createCollectionPayment(method, amount, chequeDetails);
 
-    try {
-      await window.db.collectBillPaymentAtomic({
-        billId,
-        amount,
-        method,
-        chequeDetails,
-        payment: newPayment,
-        auditLog: {
-          action: 'collection_create',
-          entity: 'bill',
-          details: { amount, method }
-        }
-      });
-    } catch (error) {
-      alert(error?.message || 'Failed to collect payment. Please refresh and try again.');
-      await this.render();
-      return;
-    }
+    await window.app.withLoading(async () => {
+      try {
+        await window.db.collectBillPaymentAtomic({
+          billId,
+          amount,
+          method,
+          chequeDetails,
+          payment: newPayment,
+          auditLog: {
+            action: 'collection_create',
+            entity: 'bill',
+            details: { amount, method }
+          }
+        });
+      } catch (error) {
+        alert(error?.message || 'Failed to collect payment. Please refresh and try again.');
+        await this.render();
+        return;
+      }
 
-    await this.render();
-    if (window.historyView && window.app.currentPage === 'history') await window.historyView.render();
-    if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
-    if (window.billing) {
-      await window.billing.loadOutstandingDirectory();
-      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
-    }
+      await this.render();
+      if (window.historyView && window.app.currentPage === 'history') await window.historyView.render();
+      if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
+      if (window.billing) {
+        await window.billing.loadOutstandingDirectory();
+        window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+      }
+    }, 'Recording collection...', 'Updating bill and balance');
   }
 
   openEditModal(logId) {
@@ -225,27 +227,29 @@ class CollectionPage {
       return;
     }
 
-    try {
-      await window.db.updateCollectionPaymentAtomic({
-        logId: log.id,
-        billId: log.billId,
-        amount,
-        method,
-        chequeDetails
-      });
-    } catch (err) {
-      alert(err?.message || 'Failed to update collection.');
-      return;
-    }
+    await window.app.withLoading(async () => {
+      try {
+        await window.db.updateCollectionPaymentAtomic({
+          logId: log.id,
+          billId: log.billId,
+          amount,
+          method,
+          chequeDetails
+        });
+      } catch (err) {
+        alert(err?.message || 'Failed to update collection.');
+        return;
+      }
 
-    this.closeEditModal();
-    await this.render();
-    if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
-    if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
-    if (window.billing) {
-      await window.billing.loadOutstandingDirectory();
-      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
-    }
+      this.closeEditModal();
+      await this.render();
+      if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
+      if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
+      if (window.billing) {
+        await window.billing.loadOutstandingDirectory();
+        window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+      }
+    }, 'Updating collection...', 'Recalculating bill payments');
   }
 
   async deleteCollection() {
@@ -256,24 +260,26 @@ class CollectionPage {
       return;
     }
 
-    try {
-      await window.db.deleteCollectionPaymentAtomic({
-        logId: log.id,
-        billId: log.billId
-      });
-    } catch (err) {
-      alert(err?.message || 'Failed to delete collection.');
-      return;
-    }
+    await window.app.withLoading(async () => {
+      try {
+        await window.db.deleteCollectionPaymentAtomic({
+          logId: log.id,
+          billId: log.billId
+        });
+      } catch (err) {
+        alert(err?.message || 'Failed to delete collection.');
+        return;
+      }
 
-    this.closeEditModal();
-    await this.render();
-    if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
-    if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
-    if (window.billing) {
-      await window.billing.loadOutstandingDirectory();
-      window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
-    }
+      this.closeEditModal();
+      await this.render();
+      if (window.historyView && window.app?.currentPage === 'history') await window.historyView.render();
+      if (window.customersPage && window.app?.currentPage === 'customers') await window.customersPage.render();
+      if (window.billing) {
+        await window.billing.loadOutstandingDirectory();
+        window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+      }
+    }, 'Deleting collection...', 'Restoring bill balance');
   }
 
   renderList(bills) {

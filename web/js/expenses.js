@@ -98,48 +98,52 @@ class ExpensesPage {
       return;
     }
 
-    if (editId) {
-      const updated = await window.db.updateExpense(editId, { name, amount, category, date, note });
-      if (!updated) {
-        alert('Failed to update expense.');
-        return;
+    await window.app.withLoading(async () => {
+      if (editId) {
+        const updated = await window.db.updateExpense(editId, { name, amount, category, date, note });
+        if (!updated) {
+          alert('Failed to update expense.');
+          return;
+        }
+        await window.db.addAuditLog({
+          action: 'expense_update',
+          entity: 'expense',
+          entityId: Number(editId),
+          details: { name, amount, category }
+        });
+      } else {
+        const result = await window.db.addExpense({ name, amount, category, date, note });
+        if (!result.ok) {
+          alert(result.error || 'Failed to add expense.');
+          return;
+        }
+        await window.db.addAuditLog({
+          action: 'expense_create',
+          entity: 'expense',
+          entityId: result.id,
+          details: { name, amount, category }
+        });
       }
-      await window.db.addAuditLog({
-        action: 'expense_update',
-        entity: 'expense',
-        entityId: Number(editId),
-        details: { name, amount, category }
-      });
-    } else {
-      const result = await window.db.addExpense({ name, amount, category, date, note });
-      if (!result.ok) {
-        alert(result.error || 'Failed to add expense.');
-        return;
-      }
-      await window.db.addAuditLog({
-        action: 'expense_create',
-        entity: 'expense',
-        entityId: result.id,
-        details: { name, amount, category }
-      });
-    }
 
-    this.clearForm();
-    await this.render();
+      this.clearForm();
+      await this.render();
+    }, editId ? 'Updating expense...' : 'Saving expense...', 'Updating expense records');
   }
 
   async deleteExpense(id) {
     const confirmed = confirm('Delete this expense?');
     if (!confirmed) return;
 
-    await window.db.deleteExpense(id);
-    await window.db.addAuditLog({
-      action: 'expense_delete',
-      entity: 'expense',
-      entityId: Number(id),
-      details: {}
-    });
-    await this.render();
+    await window.app.withLoading(async () => {
+      await window.db.deleteExpense(id);
+      await window.db.addAuditLog({
+        action: 'expense_delete',
+        entity: 'expense',
+        entityId: Number(id),
+        details: {}
+      });
+      await this.render();
+    }, 'Deleting expense...', 'Updating expense records');
   }
 
   editExpense(id) {

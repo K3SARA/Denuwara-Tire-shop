@@ -857,37 +857,39 @@ class CustomersPage {
       return;
     }
 
-    if (this.selectedCustomerId) {
-      const existingCustomer = this.customers.find((customer) => Number(customer.id) === Number(this.selectedCustomerId));
-      await window.db.updateCustomer(this.selectedCustomerId, { name, phone, address });
-      const renamedBills = await window.db.renameCustomerInBills(existingCustomer?.name || '', { name, phone, address });
-      await window.db.addAuditLog({
-        action: 'customer_update',
-        entity: 'customer',
-        entityId: this.selectedCustomerId,
-        details: { name, renamedBills }
-      });
-    } else {
-      const result = await window.db.addCustomer(name, phone, address);
-      if (!result?.ok) {
-        alert(result?.error || 'Failed to add customer.');
-        return;
+    await window.app.withLoading(async () => {
+      if (this.selectedCustomerId) {
+        const existingCustomer = this.customers.find((customer) => Number(customer.id) === Number(this.selectedCustomerId));
+        await window.db.updateCustomer(this.selectedCustomerId, { name, phone, address });
+        const renamedBills = await window.db.renameCustomerInBills(existingCustomer?.name || '', { name, phone, address });
+        await window.db.addAuditLog({
+          action: 'customer_update',
+          entity: 'customer',
+          entityId: this.selectedCustomerId,
+          details: { name, renamedBills }
+        });
+      } else {
+        const result = await window.db.addCustomer(name, phone, address);
+        if (!result?.ok) {
+          alert(result?.error || 'Failed to add customer.');
+          return;
+        }
+        await window.db.addAuditLog({
+          action: 'customer_create',
+          entity: 'customer',
+          entityId: result.id,
+          details: { name }
+        });
       }
-      await window.db.addAuditLog({
-        action: 'customer_create',
-        entity: 'customer',
-        entityId: result.id,
-        details: { name }
-      });
-    }
 
-    this.closeEditModal();
-    await this.render();
+      this.closeEditModal();
+      await this.render();
 
-    if (window.billing) {
-      await window.billing.loadCustomerDirectory();
-      await window.billing.loadOutstandingDirectory();
-    }
+      if (window.billing) {
+        await window.billing.loadCustomerDirectory();
+        await window.billing.loadOutstandingDirectory();
+      }
+    }, 'Saving customer...', 'Updating customer directory');
   }
 
   async deleteCustomer(customerId) {
@@ -903,23 +905,25 @@ class CustomersPage {
     const confirmed = confirm(message);
     if (!confirmed) return;
 
-    const deleted = await window.db.deleteCustomer(customer.id);
-    if (!deleted) {
-      alert('Failed to delete customer.');
-      return;
-    }
+    await window.app.withLoading(async () => {
+      const deleted = await window.db.deleteCustomer(customer.id);
+      if (!deleted) {
+        alert('Failed to delete customer.');
+        return;
+      }
 
-    await window.db.addAuditLog({
-      action: 'customer_delete',
-      entity: 'customer',
-      entityId: customer.id,
-      details: { name: customer.name || '' }
-    });
-    await this.render();
-    if (window.billing) {
-      await window.billing.loadCustomerDirectory();
-      await window.billing.loadOutstandingDirectory();
-    }
+      await window.db.addAuditLog({
+        action: 'customer_delete',
+        entity: 'customer',
+        entityId: customer.id,
+        details: { name: customer.name || '' }
+      });
+      await this.render();
+      if (window.billing) {
+        await window.billing.loadCustomerDirectory();
+        await window.billing.loadOutstandingDirectory();
+      }
+    }, 'Deleting customer...', 'Updating customer directory');
   }
 
   renderList(customers) {

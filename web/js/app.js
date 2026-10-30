@@ -4,9 +4,135 @@ class App {
     this.isReady = false;
     this.theme = localStorage.getItem('lynkbay_theme') || 'light';
     this.applyTheme(this.theme);
+    this._loadingCount = 0;
+    this._loadingTimeout = null;
+    this._buttonsBound = false;
+  }
+
+  showLoading(text = 'Loading...', subtext = 'Please wait...') {
+    this._loadingCount = (this._loadingCount || 0) + 1;
+    const overlay = document.getElementById('global-loading-screen');
+    const textEl = document.getElementById('global-loading-text');
+    const subtextEl = document.getElementById('global-loading-subtext');
+
+    if (textEl && text) textEl.textContent = text;
+    if (subtextEl) {
+      subtextEl.textContent = subtext || '';
+      subtextEl.style.display = subtext ? 'block' : 'none';
+    }
+
+    if (overlay) {
+      overlay.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        overlay.classList.add('show');
+      });
+    }
+
+    if (this._loadingTimeout) clearTimeout(this._loadingTimeout);
+    this._loadingTimeout = setTimeout(() => {
+      this.forceHideLoading();
+    }, 25000);
+  }
+
+  hideLoading() {
+    this._loadingCount = Math.max(0, (this._loadingCount || 1) - 1);
+    if (this._loadingCount === 0) {
+      if (this._loadingTimeout) clearTimeout(this._loadingTimeout);
+      const overlay = document.getElementById('global-loading-screen');
+      if (overlay) {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+          if (this._loadingCount === 0) {
+            overlay.classList.add('hidden');
+          }
+        }, 210);
+      }
+    }
+  }
+
+  forceHideLoading() {
+    this._loadingCount = 0;
+    if (this._loadingTimeout) clearTimeout(this._loadingTimeout);
+    const overlay = document.getElementById('global-loading-screen');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.classList.add('hidden');
+    }
+  }
+
+  async withLoading(task, text = 'Loading...', subtext = 'Please wait...') {
+    this.showLoading(text, subtext);
+    try {
+      if (typeof task === 'function') {
+        return await task();
+      }
+      return await task;
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  bindGlobalButtonFeedback() {
+    if (this._buttonsBound) return;
+    this._buttonsBound = true;
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .btn-primary, .btn-secondary, .btn-tool, .nav-item, .icon-btn, .logout-btn, [role="button"], input[type="button"], input[type="submit"]');
+      if (!btn) return;
+
+      if (
+        btn.hasAttribute('data-no-loading') ||
+        btn.classList.contains('modal-handle') ||
+        btn.classList.contains('clear-input-btn') ||
+        btn.classList.contains('theme-toggle') ||
+        btn.id === 'theme-toggle'
+      ) {
+        return;
+      }
+
+      if (this._loadingCount > 0) return;
+
+      let text = btn.getAttribute('data-loading-text');
+      if (!text) {
+        const rawText = (btn.textContent || btn.value || '').trim().replace(/\s+/g, ' ');
+        if (rawText && rawText.length > 0 && rawText.length < 28 && !/^[0-9+-\s]*$/.test(rawText)) {
+          const lower = rawText.toLowerCase();
+          if (lower === 'collect') text = 'Recording collection...';
+          else if (lower === 'edit' || lower.includes('edit')) text = 'Loading editor...';
+          else if (lower === 'save' || lower.includes('save')) text = 'Saving changes...';
+          else if (lower === 'delete' || lower.includes('delete')) text = 'Deleting...';
+          else if (lower === 'cancel' || lower.includes('cancel')) text = 'Processing...';
+          else if (lower === 'print' || lower.includes('print')) text = 'Preparing print...';
+          else if (lower.includes('pdf')) text = 'Generating PDF...';
+          else if (lower.includes('backup')) text = 'Processing backup...';
+          else if (lower.includes('restore')) text = 'Restoring data...';
+          else text = `${rawText}...`;
+        } else {
+          text = 'Loading...';
+        }
+      }
+
+      const timer = setTimeout(() => {
+        if (this._loadingCount === 0) {
+          this.showLoading(text, 'Please wait...');
+          setTimeout(() => {
+            if (this._loadingCount > 0) {
+              this.hideLoading();
+            }
+          }, 450);
+        }
+      }, 60);
+
+      requestAnimationFrame(() => {
+        if (this._loadingCount === 0) {
+          clearTimeout(timer);
+        }
+      });
+    }, true);
   }
 
   async init() {
+    this.bindGlobalButtonFeedback();
     try {
       await window.db.init();
       await window.db.syncCustomersFromBills();
@@ -122,7 +248,7 @@ class App {
     return true;
   }
 
-  navigate(pageId) {
+  async navigate(pageId) {
     if (pageId !== 'login' && window.auth && !window.auth.isAuthenticated) {
       pageId = 'login';
     }
@@ -131,56 +257,71 @@ class App {
       this.previousPage = this.currentPage;
     }
 
-    document.querySelectorAll('.page').forEach(page => {
-      page.classList.remove('active');
-    });
-    const page = document.getElementById(`${pageId}-page`);
-    if (page) {
-      page.classList.add('active');
-      this.currentPage = pageId;
+    const pageNames = {
+      billing: 'Billing',
+      inventory: 'Inventory',
+      customers: 'Customers',
+      collection: 'Collection',
+      expenses: 'Expenses',
+      reports: 'Reports',
+      history: 'History',
+      settings: 'Settings',
+      login: 'Login'
+    };
+    const title = pageNames[pageId] || 'Page';
 
-      const navBottom = document.getElementById('nav-bottom');
-      if (navBottom) {
-        navBottom.classList.toggle('hidden', pageId === 'login');
-      }
-      
-      // Sync bottom nav
-      document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
+    return await this.withLoading(async () => {
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
       });
-      const navItem = document.getElementById(`nav-${pageId}`);
-      if (navItem) navItem.classList.add('active');
+      const page = document.getElementById(`${pageId}-page`);
+      if (page) {
+        page.classList.add('active');
+        this.currentPage = pageId;
 
-      if (pageId === 'history' && window.historyView) {
-        window.historyView.render();
-      }
-      if (pageId === 'inventory' && window.inventory) {
-        window.inventory.render();
-      }
-      if (pageId === 'customers' && window.customersPage) {
-        window.customersPage.render();
-      }
-      if (pageId === 'collection' && window.collectionPage) {
-        window.collectionPage.render();
-      }
-      if (pageId === 'reports' && window.reportsView) {
-        window.reportsView.render();
-      }
-      if (pageId === 'expenses' && window.expensesPage) {
-        window.expensesPage.render();
-      }
-      if (pageId === 'billing') {
-        this.updateBackupReminder();
-        if (window.billing) {
-          window.billing.refreshProducts();
-          window.billing.loadCustomerDirectory();
-          window.billing.loadOutstandingDirectory();
+        const navBottom = document.getElementById('nav-bottom');
+        if (navBottom) {
+          navBottom.classList.toggle('hidden', pageId === 'login');
+        }
+        
+        // Sync bottom nav
+        document.querySelectorAll('.nav-item').forEach(item => {
+          item.classList.remove('active');
+        });
+        const navItem = document.getElementById(`nav-${pageId}`);
+        if (navItem) navItem.classList.add('active');
+
+        if (pageId === 'history' && window.historyView) {
+          await window.historyView.render();
+        }
+        if (pageId === 'inventory' && window.inventory) {
+          await window.inventory.render();
+        }
+        if (pageId === 'customers' && window.customersPage) {
+          await window.customersPage.render();
+        }
+        if (pageId === 'collection' && window.collectionPage) {
+          await window.collectionPage.render();
+        }
+        if (pageId === 'reports' && window.reportsView) {
+          await window.reportsView.render();
+        }
+        if (pageId === 'expenses' && window.expensesPage) {
+          await window.expensesPage.render();
+        }
+        if (pageId === 'billing') {
+          this.updateBackupReminder();
+          if (window.billing) {
+            await window.billing.refreshProducts();
+            await window.billing.loadCustomerDirectory();
+            await window.billing.loadOutstandingDirectory();
+          }
+        }
+        if (pageId === 'settings') {
+          this.renderSettings();
         }
       }
-      if (pageId === 'settings') {
-        this.renderSettings();
-      }
-    }
+    }, `Loading ${title}...`, 'Rendering data');
   }
 
   bindBackupButtons() {
@@ -514,6 +655,9 @@ class App {
 }
 
 window.app = new App();
+window.showLoading = (text, subtext) => window.app?.showLoading(text, subtext);
+window.hideLoading = () => window.app?.hideLoading();
+window.withLoading = (task, text, subtext) => window.app?.withLoading(task, text, subtext);
 
 document.addEventListener('DOMContentLoaded', () => {
   window.app.init();
