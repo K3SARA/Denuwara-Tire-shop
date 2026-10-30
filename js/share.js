@@ -725,6 +725,14 @@ class ShareManager {
       <div class="a5-table-wrap">
         <div class="a5-watermark">${invoiceNo}</div>
         <table class="a5-table">
+          <colgroup>
+            <col class="col-no" />
+            <col class="col-qty" />
+            <col class="col-desc" />
+            <col class="col-rate" />
+            <col class="col-amt-rs" />
+            <col class="col-amt-cts" />
+          </colgroup>
           <thead>
             <tr>
               <th class="col-no" rowspan="2">No.</th>
