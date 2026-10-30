@@ -704,7 +704,7 @@ class ShareManager {
           </div>
           <div class="a5-customer-row">
             <span class="label">M/s.</span>
-            <span class="val">${customer}${phone ? ` &bull; ${phone}` : ''}</span>
+            <span class="val">${customer}</span>
           </div>
         </div>
 
@@ -1098,7 +1098,6 @@ class ShareManager {
       <div>${t('billNo')}</div><div>${invoiceNo}</div>
       <div>${t('date')}</div><div>${this.escapeHtml(dateStr)} ${this.escapeHtml(timeStr)}</div>
       <div>${t('billTo')}</div><div>${customer}</div>
-      ${phone ? `<div>${t('phone')}</div><div>${phone}</div>` : ''}
       ${address ? `<div>${t('address')}</div><div>${address}</div>` : ''}
     </div>
 
