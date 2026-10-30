@@ -311,7 +311,7 @@ class ShareManager {
         tableRowsHtml += `
           <tr>
             <td class="col-no">${rowNo}</td>
-            <td class="col-qty">${qty}${unit}</td>
+            <td class="col-qty">${qty}</td>
             <td class="col-desc">${this.escapeHtml(item.name)}</td>
             <td class="col-rate">${price > 0 ? this.formatCurrency(price) : ''}</td>
             <td class="col-amt-rs">${amtSplit.rs}</td>
