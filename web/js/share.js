@@ -564,19 +564,19 @@ class ShareManager {
   .col-desc { width: auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px !important; }
   .col-rate { width: 17mm; text-align: right; }
   .col-amount-head { padding: 2px 2px 1px; font-size: 11px; }
-  .col-amt-rs { width: 16.5mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; padding-right: 3px !important; font-variant-numeric: tabular-nums; }
+  .col-amt-rs { width: 14mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; padding-right: 2px !important; font-variant-numeric: tabular-nums; }
   .col-amt-cts { width: 6.5mm; text-align: center; color: #444; font-variant-numeric: tabular-nums; }
 
   .a5-table th.th-sub-rs {
-    font-size: 10.5px;
-    padding: 1px 2px;
+    font-size: 10px;
+    padding: 1px 1px;
     text-align: center;
     border-top: 1px solid #7d1838;
     border-right: 0.5px solid #7d1838;
   }
   .a5-table th.th-sub-cts {
-    font-size: 10.5px;
-    padding: 1px 2px;
+    font-size: 10px;
+    padding: 1px 1px;
     text-align: center;
     border-top: 1px solid #7d1838;
     border-right: 1px solid #7d1838;
