@@ -588,8 +588,8 @@ class ShareManager {
     flex-shrink: 0;
   }
   .a5-biz-logo svg {
-    width: 23px;
-    height: 23px;
+    width: 28px;
+    height: 28px;
     display: block;
   }
   .a5-biz-phones {
@@ -838,9 +838,9 @@ class ShareManager {
           <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
           <div class="a5-biz-contact-row">
             <div class="a5-biz-logo">
-              <svg viewBox="0 0 28 28" width="23" height="23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg viewBox="0 0 28 28" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M 14 3 C 8.5 3 4 7.5 4 13 C 4 14.9 4.5 16.7 5.4 18.2 L 3.8 23.8 L 9.6 22.3 C 10.9 23 12.4 23.4 14 23.4 C 19.5 23.4 24 18.8 24 13 C 24 7.3 19.5 3 14 3 Z" stroke="#7d1838" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="#fff" />
-                <text x="14" y="17.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="12" fill="#7d1838">D</text>
+                <text x="14" y="17.4" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="13" fill="#7d1838">D</text>
               </svg>
             </div>
             <div class="a5-biz-phones">
