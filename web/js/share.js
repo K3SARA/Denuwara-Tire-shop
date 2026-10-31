@@ -367,10 +367,9 @@ class ShareManager {
     }
 
     // Row 21: Bill value
-    const rowNo21 = String(totalRows - 1).padStart(2, '0');
     tableRowsHtml += `
       <tr class="summary-val-row a5-row-bill-value">
-        <td class="col-no">${rowNo21}</td>
+        <td class="col-no">&nbsp;</td>
         <td class="col-qty">&nbsp;</td>
         <td class="col-desc" style="font-weight: 800; color: #111;">Bill value</td>
         <td class="col-rate">&nbsp;</td>
@@ -379,10 +378,9 @@ class ShareManager {
       </tr>`;
 
     // Row 22: Due Amount
-    const rowNo22 = String(totalRows).padStart(2, '0');
     tableRowsHtml += `
       <tr class="summary-val-row a5-row-due">
-        <td class="col-no">${rowNo22}</td>
+        <td class="col-no">&nbsp;</td>
         <td class="col-qty">&nbsp;</td>
         <td class="col-desc" style="font-weight: 800; color: #7d1838;">Due Amount</td>
         <td class="col-rate">&nbsp;</td>
