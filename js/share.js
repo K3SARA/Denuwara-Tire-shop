@@ -512,10 +512,8 @@ class ShareManager {
     color: #111;
     background: #fff;
   }
-  .a5-dsep {
-    font-weight: bold;
-    color: #7d1838;
-    padding: 0 1px;
+  .a5-dbox.a5-dbox-gap {
+    margin-left: 4px;
   }
   .a5-customer-row {
     font-size: 13px;
@@ -806,10 +804,8 @@ class ShareManager {
             <span>Date</span>
             <div class="a5-date-boxes">
               <span class="a5-dbox">${dStr[0]}</span><span class="a5-dbox">${dStr[1]}</span>
-              <span class="a5-dsep">/</span>
-              <span class="a5-dbox">${mStr[0]}</span><span class="a5-dbox">${mStr[1]}</span>
-              <span class="a5-dsep">/</span>
-              <span class="a5-dbox">${yStr[0]}</span><span class="a5-dbox">${yStr[1]}</span><span class="a5-dbox">${yStr[2]}</span><span class="a5-dbox">${yStr[3]}</span>
+              <span class="a5-dbox a5-dbox-gap">${mStr[0]}</span><span class="a5-dbox">${mStr[1]}</span>
+              <span class="a5-dbox a5-dbox-gap">${yStr[0]}</span><span class="a5-dbox">${yStr[1]}</span><span class="a5-dbox">${yStr[2]}</span><span class="a5-dbox">${yStr[3]}</span>
             </div>
           </div>
         </div>
@@ -1042,7 +1038,10 @@ class ShareManager {
       return ['due', 'paid', 'active', 'cancelled', 'refunded'].includes(key) ? t(key) : (status || '-');
     };
     const dateObj = b.timestamp ? new Date(b.timestamp) : new Date();
-    const dateStr = dateObj.toLocaleDateString();
+    const dStr80 = String(dateObj.getDate()).padStart(2, '0');
+    const mStr80 = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const yStr80 = String(dateObj.getFullYear());
+    const dateStr = `${yStr80}-${mStr80}-${dStr80}`;
     const timeStr = dateObj.toLocaleTimeString();
     const invoiceNo = this.escapeHtml(b.billNumber || b.id || dateObj.getTime());
     const customer = this.escapeHtml(b.customerName || t('walkInCustomer'));
