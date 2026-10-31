@@ -610,7 +610,7 @@ class ShareManager {
   .col-no { width: 7.5mm; text-align: center; color: #7d1838; font-weight: 700; font-size: 10.5px; }
   .col-qty { width: 11mm; text-align: center; }
   .col-desc { width: auto; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px !important; }
-  .col-rate { width: 17mm; text-align: right; }
+  .col-rate { width: 12mm; text-align: right; padding-right: 3px !important; }
   .col-amount-head { padding: 2px 2px 1px; font-size: 11px; }
   .col-amt-rs { width: 14mm; text-align: right; border-right: 0.5px dotted #7d1838 !important; padding-right: 2px !important; font-variant-numeric: tabular-nums; }
   .col-amt-cts { width: 6.5mm; text-align: center; color: #444; font-variant-numeric: tabular-nums; }
