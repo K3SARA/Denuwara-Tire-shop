@@ -66,8 +66,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>${safeTitle}</title>
 <style>
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 400;
+    src: local('SamsungOne'), local('Samsung One'),
+         url('fonts/SamsungOne-400.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 700;
+    src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
+         url('fonts/SamsungOne-700.woff2') format('woff2');
+  }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; background: #f3f4f6; color: #111; font-family: Arial, sans-serif; }
+  html, body { height: 100%; margin: 0; background: #f3f4f6; color: #111; font-family: 'SamsungOne', 'Samsung One', Arial, sans-serif; }
   body { display: flex; flex-direction: column; }
   .pdf-actions {
     position: sticky;

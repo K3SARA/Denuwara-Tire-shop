@@ -481,7 +481,19 @@ class Inventory {
 <title>Inventory Report</title>
 <style>
   @page { size: A4; margin: 12mm; }
-  body { font-family: Arial, sans-serif; color: #111; font-size: 12px; }
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 400;
+    src: local('SamsungOne'), local('Samsung One'),
+         url('fonts/SamsungOne-400.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 700;
+    src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
+         url('fonts/SamsungOne-700.woff2') format('woff2');
+  }
+  body { font-family: 'SamsungOne', 'Samsung One', Arial, sans-serif; color: #111; font-size: 12px; }
   h1 { font-size: 20px; margin: 0 0 6px; }
   .meta { margin-bottom: 14px; color: #555; }
   table { width: 100%; border-collapse: collapse; }

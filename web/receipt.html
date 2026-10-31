@@ -5,10 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Receipt</title>
   <style>
+    @font-face {
+      font-family: 'SamsungOne';
+      font-weight: 400;
+      src: local('SamsungOne'), local('Samsung One'),
+           url('fonts/SamsungOne-400.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'SamsungOne';
+      font-weight: 700;
+      src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
+           url('fonts/SamsungOne-700.woff2') format('woff2');
+    }
     body {
       margin: 0;
       padding: 20px;
-      font-family: Arial, sans-serif;
+      font-family: 'SamsungOne', 'Samsung One', Arial, sans-serif;
       color: #111;
       background: #fff;
     }
@@ -16,7 +28,7 @@
 </head>
 <body>
   <p>Loading receipt...</p>
-  <script src="js/share.js?v=116"></script>
-  <script src="js/receipt-preview.js?v=116"></script>
+  <script src="js/share.js?v=118"></script>
+  <script src="js/receipt-preview.js?v=118"></script>
 </body>
 </html>

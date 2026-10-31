@@ -6,7 +6,7 @@ const webDir = path.join(root, 'web');
 fs.rmSync(webDir, { recursive: true, force: true });
 fs.mkdirSync(webDir, { recursive: true });
 
-const include = ['css', 'icons', 'js', 'vendor', 'index.html', 'manifest.json', 'receipt.html', 'receipt-print.html', 'sw.js', '_headers'];
+const include = ['css', 'fonts', 'icons', 'js', 'vendor', 'index.html', 'manifest.json', 'receipt.html', 'receipt-print.html', 'sw.js', '_headers'];
 
 for (const name of include) {
   const src = path.join(root, name);

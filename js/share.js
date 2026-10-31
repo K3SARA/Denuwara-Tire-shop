@@ -400,6 +400,18 @@ class ShareManager {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${this.escapeHtml(t('receiptTitle'))} - ${invoiceNo}</title>
 <style>
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 400;
+    src: local('SamsungOne'), local('Samsung One'),
+         url('fonts/SamsungOne-400.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 700;
+    src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
+         url('fonts/SamsungOne-700.woff2') format('woff2');
+  }
   @page {
     size: A5 portrait;
     margin: 4mm 6mm;
@@ -409,7 +421,7 @@ class ShareManager {
     margin: 0;
     padding: 0;
     background: #eceef1;
-    font-family: Arial, 'Segoe UI', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
+    font-family: 'SamsungOne', 'Samsung One', Arial, 'Segoe UI', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
     color: #111;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -489,7 +501,7 @@ class ShareManager {
     letter-spacing: 2px;
     line-height: 1;
     margin-bottom: 6px;
-    font-family: 'Arial Black', Arial, sans-serif;
+    font-family: 'SamsungOne', 'Samsung One', 'Arial Black', Arial, sans-serif;
   }
   .a5-date-row {
     display: flex;
@@ -1151,10 +1163,22 @@ class ShareManager {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${this.escapeHtml(t('receiptTitle'))}</title>
 <style>
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 400;
+    src: local('SamsungOne'), local('Samsung One'),
+         url('fonts/SamsungOne-400.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'SamsungOne';
+    font-weight: 700;
+    src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
+         url('fonts/SamsungOne-700.woff2') format('woff2');
+  }
   @page { margin: 0; }
   * { box-sizing: border-box; }
   html, body { width: 80mm; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', 'Noto Sans', 'Latha', 'Iskoola Pota', Arial, sans-serif; font-size: 15px; font-weight: 800; line-height: 1.25; color: #000; }
+  body { font-family: 'SamsungOne', 'Samsung One', 'Noto Sans Tamil', 'Noto Sans Sinhala', 'Noto Sans', 'Latha', 'Iskoola Pota', Arial, sans-serif; font-size: 15px; font-weight: 800; line-height: 1.25; color: #000; }
   body.print-mode { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .receipt { width: 80mm; margin: 0; padding: 2mm 2.5mm; }
   .receipt, .receipt * { font-weight: 800; overflow-wrap: anywhere; word-break: break-word; }
