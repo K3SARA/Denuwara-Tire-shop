@@ -287,6 +287,13 @@ class ShareManager {
     const address = this.escapeHtml(b.customerAddress || '');
     const customerInfo = [customer, address].filter(Boolean).join(' - ');
     const logoUrl = new URL('./icons/logo-print.png', window.location.href).href;
+    const phoneList = String(this.businessPhone || '')
+      .split(/\s*[\/\n]\s*/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const phonesHtml = phoneList.length > 0
+      ? phoneList.map((p) => `<div>${this.escapeHtml(p)}</div>`).join('')
+      : `<div>${this.escapeHtml(this.businessPhone)}</div>`;
 
     const items = Array.isArray(b.items) ? b.items : [];
     const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
@@ -567,15 +574,31 @@ class ShareManager {
     margin-top: 1px;
     line-height: 1.15;
   }
-  .a5-biz-middle {
-    margin-top: 2px;
+  .a5-biz-contact-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 3px;
+  }
+  .a5-biz-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .a5-biz-logo svg {
+    width: 23px;
+    height: 23px;
+    display: block;
   }
   .a5-biz-phones {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 800;
     color: #111;
-    line-height: 1.2;
-    text-align: center;
+    line-height: 1.25;
+    text-align: left;
+    letter-spacing: 0.3px;
   }
 
   .a5-table-wrap {
@@ -813,9 +836,15 @@ class ShareManager {
         <div class="a5-biz-card">
           <div class="a5-biz-name">${this.escapeHtml(this.businessName)}</div>
           <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
-          <div class="a5-biz-middle">
+          <div class="a5-biz-contact-row">
+            <div class="a5-biz-logo">
+              <svg viewBox="0 0 28 28" width="23" height="23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 14 3 C 8.5 3 4 7.5 4 13 C 4 14.9 4.5 16.7 5.4 18.2 L 3.8 23.8 L 9.6 22.3 C 10.9 23 12.4 23.4 14 23.4 C 19.5 23.4 24 18.8 24 13 C 24 7.3 19.5 3 14 3 Z" stroke="#7d1838" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="#fff" />
+                <text x="14" y="17.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="12" fill="#7d1838">D</text>
+              </svg>
+            </div>
             <div class="a5-biz-phones">
-              <div>${this.escapeHtml(this.businessPhone)}</div>
+              ${phonesHtml}
             </div>
           </div>
         </div>
