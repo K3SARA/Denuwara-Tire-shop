@@ -437,6 +437,7 @@ class ShareManager {
     border-bottom: 1px solid #ddd;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     justify-content: center;
+    flex-wrap: wrap;
   }
   .screen-actions button {
     border: 1px solid #7d1838;
@@ -464,24 +465,79 @@ class ShareManager {
     color: #fff;
     border-color: #333;
   }
+  body.clean-screenshot-mode .screen-actions {
+    display: none !important;
+  }
+  .exit-clean-btn {
+    display: none;
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.78);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  body.clean-screenshot-mode .exit-clean-btn {
+    display: block;
+  }
 
   .a5-container-wrap {
-    padding: 16px 8px;
+    padding: 12px 6px;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .a5-scale-viewport {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    position: relative;
+    margin: 0 auto;
+    overflow: visible;
   }
 
   .receipt-a5 {
     width: 140mm;
+    min-width: 140mm;
+    max-width: 140mm;
     background: #fff;
     border: 2px solid #7d1838;
     padding: 5mm 6mm 4mm;
     position: relative;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     box-sizing: border-box;
+    transform-origin: top center;
+    flex-shrink: 0;
+  }
+
+  @media screen and (max-width: 600px) {
+    .screen-actions {
+      padding: 6px 8px;
+      gap: 4px;
+    }
+    .screen-actions button {
+      padding: 6px 8px;
+      font-size: 11px;
+      border-radius: 5px;
+    }
+    .a5-container-wrap {
+      padding: 6px 3px;
+    }
   }
 
   .a5-top {
@@ -806,14 +862,28 @@ class ShareManager {
       padding: 0 !important;
       background: #fff !important;
     }
-    .screen-actions { display: none !important; }
-    .a5-container-wrap { padding: 0 !important; }
+    .screen-actions, .exit-clean-btn { display: none !important; }
+    .a5-container-wrap {
+      padding: 0 !important;
+      display: block !important;
+      width: auto !important;
+      max-width: none !important;
+      overflow: visible !important;
+    }
+    .a5-scale-viewport {
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
     .receipt-a5 {
       width: 136mm !important;
+      min-width: 136mm !important;
       max-width: 136mm !important;
       margin: 0 auto !important;
       box-shadow: none !important;
       border: 1.5px solid #7d1838 !important;
+      transform: none !important;
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
@@ -825,12 +895,14 @@ class ShareManager {
   ${showToolbar ? `<div class="screen-actions">
     <button class="primary-btn" onclick="printReceiptView()">${t('print')}</button>
     <button onclick="toggleReceiptFormat()">Switch to 80mm</button>
+    <button onclick="toggleCleanView()" title="Hide toolbar for screenshot">Full View</button>
     <button onclick="editBillInApp()">${t('editBill')}</button>
     <button class="back-btn" onclick="backToApp()">${t('backToApp')}</button>
   </div>` : ''}
 
   <div class="a5-container-wrap">
-    <div class="receipt receipt-a5">
+    <div class="a5-scale-viewport" id="a5-scale-viewport">
+      <div class="receipt receipt-a5">
       <div class="a5-top">
         <div class="a5-top-left">
           <div class="a5-main-title">${this.escapeHtml(t('receiptTitle'))}</div>
@@ -936,12 +1008,74 @@ class ShareManager {
       </div>
     </div>
   </div>
+  </div>
+  <button class="exit-clean-btn" onclick="toggleCleanView()">Show Menu</button>
 
   <script>
     const BILL_DATA = ${billPayload};
     const APP_URL = '${appUrl}';
     const RETURN_PAGE = '${returnPage}';
     const RECEIPT_NAV_KEY = '${this.getReceiptNavKey()}';
+
+    function fitA5ToScreen() {
+      const receipt = document.querySelector('.receipt-a5');
+      const viewport = document.getElementById('a5-scale-viewport');
+      if (!receipt) return;
+
+      receipt.style.transform = 'none';
+      if (viewport) {
+        viewport.style.width = '';
+        viewport.style.height = '';
+      }
+
+      const naturalWidth = receipt.offsetWidth || 530;
+      const naturalHeight = receipt.offsetHeight || 750;
+      const availableWidth = Math.max(260, (window.innerWidth || document.documentElement.clientWidth || 360) - 12);
+      const toolbar = document.querySelector('.screen-actions');
+      const toolbarHeight = (toolbar && toolbar.offsetHeight && window.getComputedStyle(toolbar).display !== 'none') ? toolbar.offsetHeight : 0;
+      const availableHeight = Math.max(300, (window.innerHeight || document.documentElement.clientHeight || 640) - toolbarHeight - 16);
+
+      if (window.innerWidth < 600 || availableWidth < naturalWidth) {
+        const scaleWidth = availableWidth / naturalWidth;
+        const isPortrait = window.innerHeight >= window.innerWidth;
+        const scaleHeight = availableHeight / naturalHeight;
+        const scale = isPortrait
+          ? Math.min(1, scaleWidth, Math.max(0.48, scaleHeight))
+          : Math.min(1, scaleWidth);
+
+        const scaledWidth = Math.ceil(naturalWidth * scale);
+        const scaledHeight = Math.ceil(naturalHeight * scale);
+
+        receipt.style.transform = 'scale(' + scale + ')';
+        receipt.style.transformOrigin = 'top center';
+
+        if (viewport) {
+          viewport.style.width = scaledWidth + 'px';
+          viewport.style.height = scaledHeight + 'px';
+          viewport.style.overflow = 'hidden';
+        }
+      } else {
+        receipt.style.transform = 'none';
+        if (viewport) {
+          viewport.style.width = 'auto';
+          viewport.style.height = 'auto';
+          viewport.style.overflow = 'visible';
+        }
+      }
+    }
+
+    function toggleCleanView() {
+      document.body.classList.toggle('clean-screenshot-mode');
+      setTimeout(fitA5ToScreen, 40);
+    }
+
+    window.addEventListener('resize', fitA5ToScreen);
+    window.addEventListener('orientationchange', fitA5ToScreen);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fitA5ToScreen);
+    } else {
+      setTimeout(fitA5ToScreen, 20);
+    }
 
     function toggleReceiptFormat() {
       try {
@@ -1178,10 +1312,54 @@ class ShareManager {
   }
   @page { margin: 0; }
   * { box-sizing: border-box; }
-  html, body { width: 80mm; margin: 0; padding: 0; }
-  body { font-family: 'SamsungOne', 'Samsung One', 'Noto Sans Tamil', 'Noto Sans Sinhala', 'Noto Sans', 'Latha', 'Iskoola Pota', Arial, sans-serif; font-size: 15px; font-weight: 800; line-height: 1.25; color: #000; }
-  body.print-mode { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .receipt { width: 80mm; margin: 0; padding: 2mm 2.5mm; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #eceef1;
+    width: 100%;
+  }
+  body {
+    font-family: 'SamsungOne', 'Samsung One', 'Noto Sans Tamil', 'Noto Sans Sinhala', 'Noto Sans', 'Latha', 'Iskoola Pota', Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #000;
+  }
+  body.print-mode {
+    background: #eceef1;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .thermal-container-wrap {
+    padding: 12px 6px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .thermal-scale-viewport {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    position: relative;
+    margin: 0 auto;
+    overflow: visible;
+  }
+  .receipt {
+    width: 80mm;
+    min-width: 80mm;
+    max-width: 80mm;
+    background: #fff;
+    margin: 0 auto;
+    padding: 2mm 2.5mm;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    box-sizing: border-box;
+    transform-origin: top center;
+    flex-shrink: 0;
+  }
   .receipt, .receipt * { font-weight: 800; overflow-wrap: anywhere; word-break: break-word; }
   .center { text-align: center; }
   .header { padding-top: 1mm; }
@@ -1216,24 +1394,72 @@ class ShareManager {
     top: 0;
     z-index: 10;
     background: #fff;
-    padding: 10px;
+    padding: 10px 14px;
     display: flex;
     gap: 8px;
     border-bottom: 1px solid #ddd;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     justify-content: center;
+    flex-wrap: wrap;
   }
   .screen-actions button {
     border: 1px solid #000;
     background: #fff;
     color: #000;
-    padding: 8px 10px;
+    padding: 8px 12px;
     font-size: 13px;
-    border-radius: 8px;
+    font-weight: 700;
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.2s;
+  }
+  .screen-actions button:hover {
+    background: #f0f0f0;
+  }
+  .screen-actions .primary-btn {
+    background: #000;
+    color: #fff;
   }
   .screen-actions .back-btn {
-    background: #111;
+    background: #333;
     color: #fff;
+    border-color: #333;
+  }
+  body.clean-screenshot-mode .screen-actions {
+    display: none !important;
+  }
+  .exit-clean-btn {
+    display: none;
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.78);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  body.clean-screenshot-mode .exit-clean-btn {
+    display: block;
+  }
+  @media screen and (max-width: 600px) {
+    .screen-actions {
+      padding: 6px 8px;
+      gap: 4px;
+    }
+    .screen-actions button {
+      padding: 6px 8px;
+      font-size: 11px;
+      border-radius: 5px;
+    }
+    .thermal-container-wrap {
+      padding: 6px 3px;
+    }
   }
   @media print {
     html, body {
@@ -1248,24 +1474,42 @@ class ShareManager {
     body {
       display: block !important;
     }
+    .screen-actions, .exit-clean-btn { display: none !important; }
+    .thermal-container-wrap {
+      padding: 0 !important;
+      display: block !important;
+      width: auto !important;
+      overflow: visible !important;
+    }
+    .thermal-scale-viewport {
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
     .receipt {
       width: 80mm !important;
+      min-width: 80mm !important;
       max-width: 80mm !important;
       margin: 0 !important;
       padding: 2mm 2.5mm !important;
+      box-shadow: none !important;
+      transform: none !important;
     }
-    .screen-actions { display: none !important; }
   }
 </style>
 </head>
 <body class="print-mode">
   ${showToolbar ? `<div class="screen-actions">
-    <button onclick="printReceiptView()">${t('print')}</button>
+    <button class="primary-btn" onclick="printReceiptView()">${t('print')}</button>
     <button onclick="toggleReceiptFormat()">Switch to A5</button>
+    <button onclick="toggleCleanView()" title="Hide toolbar for screenshot">Full View</button>
     <button onclick="editBillInApp()">${t('editBill')}</button>
     <button class="back-btn" onclick="backToApp()">${t('backToApp')}</button>
   </div>` : ''}
-  <div class="receipt">
+  <div class="thermal-container-wrap">
+    <div class="thermal-scale-viewport" id="thermal-scale-viewport">
+      <div class="receipt">
     <div class="center header">
       <div class="business-name"><strong>${this.escapeHtml(this.businessName)}</strong></div>
       <div class="header-line"><strong>${this.escapeHtml(this.proprietorName)}</strong></div>
@@ -1312,11 +1556,65 @@ class ShareManager {
       <div>${t('poweredBy')}</div>
     </div>
   </div>
+  </div>
+  </div>
+  <button class="exit-clean-btn" onclick="toggleCleanView()">Show Menu</button>
   <script>
     const BILL_DATA = ${billPayload};
     const APP_URL = '${appUrl}';
     const RETURN_PAGE = '${returnPage}';
     const RECEIPT_NAV_KEY = '${this.getReceiptNavKey()}';
+
+    function fitThermalToScreen() {
+      const receipt = document.querySelector('.receipt');
+      const viewport = document.getElementById('thermal-scale-viewport');
+      if (!receipt) return;
+
+      receipt.style.transform = 'none';
+      if (viewport) {
+        viewport.style.width = '';
+        viewport.style.height = '';
+      }
+
+      const naturalWidth = receipt.offsetWidth || 302;
+      const naturalHeight = receipt.offsetHeight || 500;
+      const availableWidth = Math.max(240, (window.innerWidth || document.documentElement.clientWidth || 360) - 12);
+
+      if (availableWidth < naturalWidth) {
+        const scale = availableWidth / naturalWidth;
+        const scaledWidth = Math.ceil(naturalWidth * scale);
+        const scaledHeight = Math.ceil(naturalHeight * scale);
+
+        receipt.style.transform = 'scale(' + scale + ')';
+        receipt.style.transformOrigin = 'top center';
+
+        if (viewport) {
+          viewport.style.width = scaledWidth + 'px';
+          viewport.style.height = scaledHeight + 'px';
+          viewport.style.overflow = 'hidden';
+        }
+      } else {
+        receipt.style.transform = 'none';
+        if (viewport) {
+          viewport.style.width = 'auto';
+          viewport.style.height = 'auto';
+          viewport.style.overflow = 'visible';
+        }
+      }
+    }
+
+    function toggleCleanView() {
+      document.body.classList.toggle('clean-screenshot-mode');
+      setTimeout(fitThermalToScreen, 40);
+    }
+
+    window.addEventListener('resize', fitThermalToScreen);
+    window.addEventListener('orientationchange', fitThermalToScreen);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fitThermalToScreen);
+    } else {
+      setTimeout(fitThermalToScreen, 20);
+    }
 
     function toggleReceiptFormat() {
       try {

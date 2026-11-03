@@ -818,6 +818,205 @@ class Database {
     });
   }
 
+  async collectCustomerOpeningBalanceAtomic({ customerId, amount, method = 'cash', chequeDetails = {}, auditLog = null }) {
+    return new Promise((resolve, reject) => {
+      const numericId = Number(customerId);
+      const collectAmount = Money.round(amount);
+      if (!numericId || collectAmount <= 0) {
+        reject(new Error('Enter a valid collection amount.'));
+        return;
+      }
+
+      const now = new Date().getTime();
+      const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const tx = this.db.transaction(['customers', 'collection_logs', 'audit_logs'], 'readwrite');
+      const customersStore = tx.objectStore('customers');
+      const logsStore = tx.objectStore('collection_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      let abortMessage = 'Failed to collect payment.';
+
+      const custReq = customersStore.get(numericId);
+      custReq.onsuccess = () => {
+        const customer = custReq.result;
+        if (!customer) {
+          abortMessage = 'Customer not found.';
+          tx.abort();
+          return;
+        }
+
+        const currentBalance = Money.clampZero(customer.openingBalance || 0);
+        if (Money.isGreaterThan(collectAmount, currentBalance)) {
+          abortMessage = `Amount is greater than opening due. Maximum collectable is LKR ${currentBalance.toLocaleString()}.`;
+          tx.abort();
+          return;
+        }
+
+        const nextBalance = Money.clampZero(Money.subtract(currentBalance, collectAmount));
+        const updatedCustomer = {
+          ...customer,
+          openingBalance: nextBalance,
+          updated_at: now
+        };
+        customersStore.put(updatedCustomer);
+
+        logsStore.add({
+          billId: `OB-${numericId}`,
+          customerId: numericId,
+          customerName: customer.name || 'Customer',
+          isOpeningBalance: true,
+          amount: collectAmount,
+          method: finalMethod,
+          ...(finalMethod === 'cheque' ? chequeDetails : {}),
+          action: 'opening_collection',
+          beforeReceived: currentBalance,
+          afterReceived: nextBalance,
+          timestamp: now
+        });
+
+        auditStore.add({
+          action: 'collection_opening_create',
+          entity: 'customer',
+          entityId: numericId,
+          details: { amount: collectAmount, method: finalMethod, nextBalance },
+          timestamp: now
+        });
+      };
+
+      tx.oncomplete = () => resolve({ ok: true });
+      tx.onerror = () => reject(tx.error || new Error(abortMessage));
+      tx.onabort = () => reject(new Error(abortMessage));
+    });
+  }
+
+  async updateOpeningBalanceCollectionAtomic({ logId, customerId, amount, method = 'cash', chequeDetails = {} }) {
+    return new Promise((resolve, reject) => {
+      const numericLogId = Number(logId);
+      const numericCustomerId = Number(customerId);
+      const newAmount = Money.round(amount);
+      if (!numericLogId || !numericCustomerId || newAmount <= 0) {
+        reject(new Error('Enter a valid collection amount.'));
+        return;
+      }
+
+      const now = Date.now();
+      const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const tx = this.db.transaction(['customers', 'collection_logs', 'audit_logs'], 'readwrite');
+      const customersStore = tx.objectStore('customers');
+      const logsStore = tx.objectStore('collection_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      let abortMessage = 'Failed to update opening collection.';
+
+      const logReq = logsStore.get(numericLogId);
+      logReq.onsuccess = () => {
+        const log = logReq.result;
+        if (!log) {
+          abortMessage = 'Collection log not found.';
+          tx.abort();
+          return;
+        }
+
+        const custReq = customersStore.get(numericCustomerId);
+        custReq.onsuccess = () => {
+          const customer = custReq.result;
+          if (!customer) {
+            abortMessage = 'Customer not found.';
+            tx.abort();
+            return;
+          }
+
+          const oldAmount = Money.round(log.amount || 0);
+          const currentBalance = Money.clampZero(customer.openingBalance || 0);
+          const availableBalance = Money.add(currentBalance, oldAmount);
+
+          if (Money.isGreaterThan(newAmount, availableBalance)) {
+            abortMessage = `Amount exceeds available opening debt. Maximum allowed is LKR ${availableBalance.toLocaleString()}.`;
+            tx.abort();
+            return;
+          }
+
+          const nextBalance = Money.clampZero(Money.subtract(availableBalance, newAmount));
+          customer.openingBalance = nextBalance;
+          customer.updated_at = now;
+          customersStore.put(customer);
+
+          const updatedLog = {
+            ...log,
+            amount: newAmount,
+            method: finalMethod,
+            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '' }),
+            action: 'collection_edited',
+            updated_at: now
+          };
+          logsStore.put(updatedLog);
+
+          auditStore.add({
+            action: 'collection_opening_edit',
+            entity: 'customer',
+            entityId: numericCustomerId,
+            details: { logId: numericLogId, oldAmount, newAmount, nextBalance },
+            timestamp: now
+          });
+        };
+      };
+
+      tx.oncomplete = () => resolve({ ok: true });
+      tx.onerror = () => reject(tx.error || new Error(abortMessage));
+      tx.onabort = () => reject(new Error(abortMessage));
+    });
+  }
+
+  async deleteOpeningBalanceCollectionAtomic({ logId, customerId }) {
+    return new Promise((resolve, reject) => {
+      const numericLogId = Number(logId);
+      const numericCustomerId = Number(customerId);
+      if (!numericLogId || !numericCustomerId) {
+        reject(new Error('Invalid collection details.'));
+        return;
+      }
+
+      const now = Date.now();
+      const tx = this.db.transaction(['customers', 'collection_logs', 'audit_logs'], 'readwrite');
+      const customersStore = tx.objectStore('customers');
+      const logsStore = tx.objectStore('collection_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      let abortMessage = 'Failed to delete opening collection.';
+
+      const logReq = logsStore.get(numericLogId);
+      logReq.onsuccess = () => {
+        const log = logReq.result;
+        if (!log) {
+          abortMessage = 'Collection log not found.';
+          tx.abort();
+          return;
+        }
+
+        const custReq = customersStore.get(numericCustomerId);
+        custReq.onsuccess = () => {
+          const customer = custReq.result;
+          if (customer) {
+            customer.openingBalance = Money.add(customer.openingBalance || 0, log.amount || 0);
+            customer.updated_at = now;
+            customersStore.put(customer);
+          }
+
+          logsStore.delete(numericLogId);
+
+          auditStore.add({
+            action: 'collection_opening_delete',
+            entity: 'customer',
+            entityId: numericCustomerId,
+            details: { logId: numericLogId, restoredAmount: log.amount },
+            timestamp: now
+          });
+        };
+      };
+
+      tx.oncomplete = () => resolve({ ok: true });
+      tx.onerror = () => reject(tx.error || new Error(abortMessage));
+      tx.onabort = () => reject(new Error(abortMessage));
+    });
+  }
+
   async updateCustomer(id, updates) {
     return new Promise((resolve) => {
       const tx = this.db.transaction('customers', 'readwrite');
@@ -826,7 +1025,11 @@ class Database {
       req.onsuccess = (e) => {
         let customer = e.target.result;
         if (customer) {
-          customer = { ...customer, ...updates, updated_at: new Date().getTime() };
+          const sanitizedUpdates = { ...updates };
+          if ('openingBalance' in sanitizedUpdates) {
+            sanitizedUpdates.openingBalance = Money.clampZero(Money.round(sanitizedUpdates.openingBalance || 0));
+          }
+          customer = { ...customer, ...sanitizedUpdates, updated_at: new Date().getTime() };
           store.put(customer);
         }
         resolve();
@@ -865,7 +1068,7 @@ class Database {
     });
   }
 
-  async addCustomer(name, phone = '', address = '') {
+  async addCustomer(name, phone = '', address = '', openingBalance = 0) {
     const normalizedName = String(name || '').trim();
     if (!normalizedName) {
       return { ok: false, error: 'Customer name is required.' };
@@ -877,6 +1080,8 @@ class Database {
       return { ok: false, error: 'Customer already exists.' };
     }
 
+    const parsedOpeningBalance = Money.clampZero(Money.round(openingBalance || 0));
+
     return new Promise((resolve) => {
       const tx = this.db.transaction('customers', 'readwrite');
       const store = tx.objectStore('customers');
@@ -885,6 +1090,7 @@ class Database {
         name: normalizedName,
         phone: (phone || '').trim(),
         address: (address || '').trim(),
+        openingBalance: parsedOpeningBalance,
         created_at: now,
         updated_at: now
       });
@@ -903,7 +1109,7 @@ class Database {
     });
   }
 
-  async upsertCustomerByName(name, phone = '', address = '') {
+  async upsertCustomerByName(name, phone = '', address = '', openingBalance = undefined) {
     return new Promise((resolve) => {
       const normalizedName = (name || '').trim();
       if (!normalizedName) {
@@ -924,12 +1130,16 @@ class Database {
           const next = { ...existing, updated_at: now };
           if (phone && !(existing.phone || '').trim()) next.phone = phone;
           if (address && !(existing.address || '').trim()) next.address = address;
+          if (openingBalance !== undefined) {
+            next.openingBalance = Money.clampZero(Money.round(openingBalance || 0));
+          }
           store.put(next);
         } else {
           store.add({
             name: normalizedName,
             phone: (phone || '').trim(),
             address: (address || '').trim(),
+            openingBalance: openingBalance !== undefined ? Money.clampZero(Money.round(openingBalance || 0)) : 0,
             created_at: now,
             updated_at: now
           });
@@ -1445,6 +1655,9 @@ const REMOTE_DB_METHODS = [
   'collectBillPaymentAtomic',
   'updateCollectionPaymentAtomic',
   'deleteCollectionPaymentAtomic',
+  'collectCustomerOpeningBalanceAtomic',
+  'updateOpeningBalanceCollectionAtomic',
+  'deleteOpeningBalanceCollectionAtomic',
   'updateBillWithStockAndCollectionLog',
   'getProducts',
   'getCustomers',

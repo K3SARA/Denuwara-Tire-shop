@@ -1304,6 +1304,16 @@ class ReportsView {
     let dueBills = 0;
     let totalDue = 0;
 
+    (this.customers || []).forEach((c) => {
+      const key = (c.name || '').trim();
+      if (!key || key.toLowerCase() === 'walk-in customer') return;
+      const op = Money.clampZero(c.openingBalance || 0);
+      if (Money.isPositive(op)) {
+        totalDue = Money.add(totalDue, op);
+        dueMap.set(key, op);
+      }
+    });
+
     active.forEach((bill) => {
       const t = this.getBillTotals(bill);
       if (!Money.isPositive(t.balance)) return;
@@ -1538,6 +1548,15 @@ class ReportsView {
     const active = rangeBills.filter((b) => (b.billStatus || 'active') === 'active');
     const map = new Map();
 
+    (this.customers || []).forEach((c) => {
+      const key = (c.name || '').trim();
+      if (!key || key.toLowerCase() === 'walk-in customer') return;
+      const op = Money.clampZero(c.openingBalance || 0);
+      if (Money.isPositive(op)) {
+        map.set(key, { bills: 0, sales: 0, received: 0, due: op });
+      }
+    });
+
     active.forEach((bill) => {
       const key = (bill.customerName || 'Walk-in Customer').trim() || 'Walk-in Customer';
       if (!map.has(key)) {
@@ -1716,18 +1735,20 @@ class ReportsView {
     if (!view) return;
     view.innerHTML = '<div class="report-loading">Loading report...</div>';
 
-    const [bills, products, logs, expenses, auditLogs] = await Promise.all([
+    const [bills, products, logs, expenses, auditLogs, customers] = await Promise.all([
       window.db.getBills(),
       window.db.getProducts(),
       window.db.getCollectionLogs(),
       window.db.getExpenses(),
-      window.db.getAuditLogs()
+      window.db.getAuditLogs(),
+      window.db.getCustomers()
     ]);
     this.bills = bills;
     this.products = products;
     this.logs = logs;
     this.expenses = expenses;
     this.auditLogs = auditLogs;
+    this.customers = customers;
 
     const range = this.getRange();
     const rangeBills = this.bills.filter((bill) => this.inRange(bill.timestamp || 0, range));

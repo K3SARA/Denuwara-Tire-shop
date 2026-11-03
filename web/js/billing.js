@@ -239,10 +239,22 @@ class Billing {
   }
 
   async loadOutstandingDirectory() {
-    const bills = await window.db.getBills();
+    const [bills, customers] = await Promise.all([
+      window.db.getBills(),
+      window.db.getCustomers()
+    ]);
     const map = new Map();
 
-    bills.forEach((bill) => {
+    (customers || []).forEach((customer) => {
+      const key = this.normalizeCustomerName(customer.name);
+      if (!key || key === 'walk-in customer') return;
+      const op = Money.clampZero(customer.openingBalance || 0);
+      if (Money.isPositive(op)) {
+        map.set(key, op);
+      }
+    });
+
+    (bills || []).forEach((bill) => {
       if (bill.billStatus && bill.billStatus !== 'active') return;
 
       const key = this.normalizeCustomerName(bill.customerName);

@@ -1211,13 +1211,24 @@
               placeholder="07XXXXXXXX"
             />
           </div>
-          <div class="input-group" style="margin-bottom: 12px">
+          <div class="input-group">
             <label>Address</label>
             <input
               type="text"
               id="edit-customer-address"
               class="input-field"
               placeholder="Customer address"
+            />
+          </div>
+          <div class="input-group" style="margin-bottom: 12px">
+            <label for="edit-customer-opening-balance">Opening Outstanding (LKR)</label>
+            <input
+              type="number"
+              id="edit-customer-opening-balance"
+              class="input-field"
+              placeholder="0.00"
+              min="0"
+              step="any"
             />
           </div>
           <div class="customer-location-panel">
@@ -1316,6 +1327,128 @@
             </button>
           </div>
           <div id="customer-map"></div>
+        </div>
+      </div>
+
+      <!-- Customer Profile Modal -->
+      <div id="customer-profile-modal" class="modal-overlay">
+        <div class="modal-content customer-profile-modal-content">
+          <div class="profile-header">
+            <div class="profile-avatar-wrap">
+              <div id="profile-avatar" class="profile-avatar">CU</div>
+              <div class="profile-title-block">
+                <div class="profile-badge-row">
+                  <span class="profile-kicker">Customer Profile</span>
+                  <span id="profile-status-badge" class="profile-status-badge">Active</span>
+                </div>
+                <h2 id="profile-customer-name" class="profile-customer-name">-</h2>
+                <div class="profile-meta-row">
+                  <span id="profile-customer-phone" class="profile-meta-item">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span id="profile-phone-text">-</span>
+                  </span>
+                  <span id="profile-customer-address" class="profile-meta-item">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span id="profile-address-text">-</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="profile-header-actions">
+              <button type="button" id="profile-btn-edit" class="btn-profile-tool" title="Edit Customer Details">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Edit</span>
+              </button>
+              <button type="button" class="btn-profile-close" onclick="customersPage.closeProfileModal()" title="Close profile" aria-label="Close profile">
+                &times;
+              </button>
+            </div>
+          </div>
+
+          <div class="profile-scroll-body">
+            <!-- Financial Snapshot Metrics -->
+            <div class="profile-stats-grid">
+              <div class="profile-stat-card profile-stat-paid">
+                <span class="stat-label">Total Paid to Date</span>
+                <span id="profile-stat-paid-amount" class="stat-value">LKR 0</span>
+                <span id="profile-stat-paid-count" class="stat-sub">0 payments</span>
+              </div>
+              <div id="profile-due-card" class="profile-stat-card profile-stat-due">
+                <span class="stat-label">Total Outstanding Due</span>
+                <span id="profile-stat-due-amount" class="stat-value">LKR 0</span>
+                <span id="profile-stat-due-status" class="stat-sub">No pending balance</span>
+              </div>
+              <div class="profile-stat-card">
+                <span class="stat-label">Opening Due</span>
+                <span id="profile-stat-opening-amount" class="stat-value">LKR 0</span>
+                <span class="stat-sub">Initial balance</span>
+              </div>
+              <div class="profile-stat-card">
+                <span class="stat-label">Total Invoices</span>
+                <span id="profile-stat-invoices-count" class="stat-value">0</span>
+                <span id="profile-stat-invoices-total" class="stat-sub">Total billed: LKR 0</span>
+              </div>
+            </div>
+
+            <!-- Quick action if due balance exists -->
+            <div id="profile-quick-actions" class="profile-quick-actions hidden">
+              <button type="button" id="profile-btn-collect-due" class="btn-profile-action">
+                Collect Outstanding Payment
+              </button>
+            </div>
+
+            <!-- Payment History Section -->
+            <div class="profile-history-section">
+              <div class="profile-history-toolbar">
+                <div class="profile-history-title-wrap">
+                  <h3 class="profile-section-heading">Payment History</h3>
+                  <span id="profile-records-badge" class="profile-count-pill">0 Records</span>
+                </div>
+                <div class="profile-filter-tabs">
+                  <button type="button" class="profile-tab-btn active" data-method-filter="all">All</button>
+                  <button type="button" class="profile-tab-btn" data-method-filter="cash">Cash</button>
+                  <button type="button" class="profile-tab-btn" data-method-filter="cheque">Cheque</button>
+                  <button type="button" class="profile-tab-btn" data-method-filter="bank">Bank</button>
+                  <button type="button" class="profile-tab-btn" data-method-filter="card">Card</button>
+                </div>
+              </div>
+
+              <div class="profile-search-wrap">
+                <input
+                  type="text"
+                  id="profile-payment-search"
+                  class="input-field profile-search-input"
+                  placeholder="Search payments by reference, date, amount, cheque #..."
+                />
+              </div>
+
+              <div class="profile-table-container">
+                <table class="profile-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Date &amp; Time</th>
+                      <th>Reference</th>
+                      <th>Method</th>
+                      <th style="text-align: right;">Amount Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody id="profile-payments-tbody">
+                    <!-- Rows injected dynamically via JS -->
+                  </tbody>
+                </table>
+                <div id="profile-empty-state" class="profile-empty-state hidden">
+                  <div class="profile-empty-icon">&#128179;</div>
+                  <div class="profile-empty-text">No payment records found</div>
+                  <div class="profile-empty-sub">Any payments made for invoices or opening balance will appear here.</div>
+                </div>
+              </div>
+
+              <div class="profile-footer-bar">
+                <span id="profile-footer-summary" class="profile-footer-text">Showing 0 payments</span>
+                <span id="profile-footer-total" class="profile-footer-total">Total: LKR 0</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

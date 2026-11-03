@@ -55,7 +55,7 @@ class CustomersPage {
   }
 
   downloadImportTemplate() {
-    const content = '\uFEFFName,Phone,Address\r\nKamal Perera,0771234567,Matale\r\nNimal Silva,0712345678,"Kandy, Sri Lanka"\r\n';
+    const content = '\uFEFFName,Phone,Address,Opening Outstanding\r\nKamal Perera,0771234567,Matale,5000\r\nNimal Silva,0712345678,"Kandy, Sri Lanka",0\r\n';
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -157,6 +157,9 @@ class CustomersPage {
       const nameIndex = findHeader(['name', 'customername', 'fullname', 'customer']);
       const phoneIndex = findHeader(['phone', 'phonenumber', 'mobile', 'mobilenumber', 'telephone', 'contact', 'contactnumber']);
       const addressIndex = findHeader(['address', 'customeraddress', 'residentialaddress']);
+      const openingBalanceIndex = findHeader([
+        'openingbalance', 'openingoutstand', 'openingoutstanding', 'openingdue', 'balance', 'outstanding', 'due'
+      ]);
       if (nameIndex < 0) {
         throw new Error('A Name or Customer Name column is required. Use the Download CSV Template button for the correct format.');
       }
@@ -170,6 +173,8 @@ class CustomersPage {
         const name = String(cells[nameIndex] || '').trim();
         const phone = phoneIndex >= 0 ? String(cells[phoneIndex] || '').trim() : '';
         const address = addressIndex >= 0 ? String(cells[addressIndex] || '').trim() : '';
+        const rawOpening = openingBalanceIndex >= 0 ? String(cells[openingBalanceIndex] || '').trim() : '';
+        const openingBalance = rawOpening ? Money.clampZero(parseFloat(rawOpening) || 0) : 0;
         const line = index + 2;
         let status = 'ready';
         let reason = 'Ready to import';
@@ -196,7 +201,7 @@ class CustomersPage {
           }
         }
 
-        rows.push({ line, name, phone, address, status, reason });
+        rows.push({ line, name, phone, address, openingBalance, status, reason });
       });
 
       if (!rows.length) throw new Error('No customer rows were found in this CSV.');
@@ -234,11 +239,12 @@ class CustomersPage {
         <td>${this.escapeHtml(row.name || '—')}</td>
         <td>${this.escapeHtml(row.phone || '—')}</td>
         <td>${this.escapeHtml(row.address || '—')}</td>
+        <td>${row.openingBalance ? `LKR ${row.openingBalance.toLocaleString()}` : '0.00'}</td>
         <td><span class="customer-import-status ${row.status}">${this.escapeHtml(row.reason)}</span></td>
       </tr>`).join('');
     preview.innerHTML = `
       <table>
-        <thead><tr><th>CSV row</th><th>Name</th><th>Phone</th><th>Address</th><th>Result</th></tr></thead>
+        <thead><tr><th>CSV row</th><th>Name</th><th>Phone</th><th>Address</th><th>Opening Outstand</th><th>Result</th></tr></thead>
         <tbody>${body}</tbody>
       </table>
       ${this.importRows.length > 100 ? `<p class="customer-import-help">Showing first 100 of ${this.importRows.length} rows. All rows are included in the counts.</p>` : ''}`;
@@ -268,7 +274,7 @@ class CustomersPage {
     try {
       for (const row of readyRows) {
         try {
-          const result = await window.db.addCustomer(row.name, row.phone, row.address);
+          const result = await window.db.addCustomer(row.name, row.phone, row.address, row.openingBalance || 0);
           if (!result?.ok) {
             failed += 1;
             row.status = 'duplicate';
@@ -336,6 +342,10 @@ class CustomersPage {
 
   getEditIcon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  }
+
+  getProfileIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
   }
 
   hasLocation(customer) {
@@ -728,7 +738,17 @@ class CustomersPage {
 
   computeOutstandingMap() {
     const map = new Map();
-    this.bills.forEach((bill) => {
+
+    (this.customers || []).forEach((c) => {
+      const key = (c.name || '').trim().toLowerCase();
+      if (!key || key === 'walk-in customer') return;
+      const op = Money.clampZero(c.openingBalance || 0);
+      if (Money.isPositive(op)) {
+        map.set(key, op);
+      }
+    });
+
+    (this.bills || []).forEach((bill) => {
       if (bill.billStatus && bill.billStatus !== 'active') return;
       const key = (bill.customerName || '').trim().toLowerCase();
       if (!key || key === 'walk-in customer') return;
@@ -807,10 +827,16 @@ class CustomersPage {
     const nameInput = document.getElementById('edit-customer-name');
     const phoneInput = document.getElementById('edit-customer-phone');
     const addressInput = document.getElementById('edit-customer-address');
+    const openingBalanceInput = document.getElementById('edit-customer-opening-balance');
 
     if (nameInput) nameInput.value = customer.name || '';
     if (phoneInput) phoneInput.value = customer.phone || '';
     if (addressInput) addressInput.value = customer.address || '';
+    if (openingBalanceInput) {
+      openingBalanceInput.value = (customer.openingBalance !== undefined && customer.openingBalance !== null && customer.openingBalance > 0)
+        ? customer.openingBalance
+        : '';
+    }
     this.updateLocationControls();
 
     app.openModal('customer-edit-modal');
@@ -823,10 +849,12 @@ class CustomersPage {
     const nameInput = document.getElementById('edit-customer-name');
     const phoneInput = document.getElementById('edit-customer-phone');
     const addressInput = document.getElementById('edit-customer-address');
+    const openingBalanceInput = document.getElementById('edit-customer-opening-balance');
 
     if (nameInput) nameInput.value = '';
     if (phoneInput) phoneInput.value = '';
     if (addressInput) addressInput.value = '';
+    if (openingBalanceInput) openingBalanceInput.value = '';
     this.updateLocationControls();
 
     app.openModal('customer-edit-modal');
@@ -841,6 +869,8 @@ class CustomersPage {
     const name = (document.getElementById('edit-customer-name')?.value || '').trim();
     const phone = (document.getElementById('edit-customer-phone')?.value || '').trim();
     const address = (document.getElementById('edit-customer-address')?.value || '').trim();
+    const openingBalanceInput = document.getElementById('edit-customer-opening-balance');
+    const openingBalance = Money.clampZero(parseFloat(openingBalanceInput?.value || 0));
 
     if (!name) {
       alert('Customer name is required.');
@@ -860,16 +890,16 @@ class CustomersPage {
     await window.app.withLoading(async () => {
       if (this.selectedCustomerId) {
         const existingCustomer = this.customers.find((customer) => Number(customer.id) === Number(this.selectedCustomerId));
-        await window.db.updateCustomer(this.selectedCustomerId, { name, phone, address });
+        await window.db.updateCustomer(this.selectedCustomerId, { name, phone, address, openingBalance });
         const renamedBills = await window.db.renameCustomerInBills(existingCustomer?.name || '', { name, phone, address });
         await window.db.addAuditLog({
           action: 'customer_update',
           entity: 'customer',
           entityId: this.selectedCustomerId,
-          details: { name, renamedBills }
+          details: { name, openingBalance, renamedBills }
         });
       } else {
-        const result = await window.db.addCustomer(name, phone, address);
+        const result = await window.db.addCustomer(name, phone, address, openingBalance);
         if (!result?.ok) {
           alert(result?.error || 'Failed to add customer.');
           return;
@@ -878,7 +908,7 @@ class CustomersPage {
           action: 'customer_create',
           entity: 'customer',
           entityId: result.id,
-          details: { name }
+          details: { name, openingBalance }
         });
       }
 
@@ -926,6 +956,325 @@ class CustomersPage {
     }, 'Deleting customer...', 'Updating customer directory');
   }
 
+  async openProfileModal(customerId) {
+    const customer = this.customers.find((c) => Number(c.id) === Number(customerId));
+    if (!customer) return;
+
+    this.profileCustomerId = Number(customerId);
+    this.profileActiveFilter = 'all';
+
+    // Set header information
+    const avatar = document.getElementById('profile-avatar');
+    const nameEl = document.getElementById('profile-customer-name');
+    const phoneEl = document.getElementById('profile-phone-text');
+    const addrEl = document.getElementById('profile-address-text');
+    const editBtn = document.getElementById('profile-btn-edit');
+
+    if (nameEl) nameEl.textContent = customer.name || 'Customer';
+    if (avatar) {
+      const parts = String(customer.name || '').trim().split(/\s+/);
+      const initials = parts.length > 1
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : (parts[0] ? parts[0].slice(0, 2).toUpperCase() : 'CU');
+      avatar.textContent = initials;
+    }
+    if (phoneEl) phoneEl.textContent = customer.phone || 'No phone number';
+    if (addrEl) addrEl.textContent = customer.address || 'No address provided';
+
+    if (editBtn) {
+      editBtn.onclick = () => {
+        this.closeProfileModal();
+        this.openEditModal(customer.id);
+      };
+    }
+
+    // Load fresh bills and collection logs
+    const [bills, logs] = await Promise.all([
+      window.db.getBills(),
+      window.db.getCollectionLogs()
+    ]);
+
+    const normName = String(customer.name || '').trim().toLowerCase();
+
+    // Filter customer's bills
+    const customerBills = bills.filter((b) => {
+      const bName = String(b.customerName || '').trim().toLowerCase();
+      return bName === normName;
+    });
+
+    const billMap = new Map();
+    customerBills.forEach((b) => {
+      billMap.set(String(b.id), b);
+      if (b.billNumber) billMap.set(String(b.billNumber), b);
+    });
+
+    // Filter collection logs for this customer
+    const customerLogs = logs.filter((log) => {
+      if (log.customerId && Number(log.customerId) === Number(customer.id)) return true;
+      if (log.customerName && String(log.customerName).trim().toLowerCase() === normName) return true;
+      if (log.billId && billMap.has(String(log.billId))) return true;
+      if (log.billNumber && billMap.has(String(log.billNumber))) return true;
+      return false;
+    });
+
+    // Build unified payment records
+    const records = [];
+    const processedBillIds = new Set();
+
+    // 1. Logs from collection_logs
+    for (const log of customerLogs) {
+      const amt = Number(log.amount) || 0;
+      if (amt <= 0) continue;
+
+      const matchedBill = log.billId ? billMap.get(String(log.billId)) : (log.billNumber ? billMap.get(String(log.billNumber)) : null);
+      if (matchedBill && (log.action === 'invoice_payment' || !log.action)) {
+        processedBillIds.add(String(matchedBill.id));
+      }
+
+      const billRef = log.isOpeningBalance
+        ? 'Opening Balance'
+        : (matchedBill?.billNumber ? `Bill #${matchedBill.billNumber}` : (log.billNumber ? `Bill #${log.billNumber}` : (log.billId ? `Bill #${log.billId}` : '-')));
+
+      const typeLabel = log.isOpeningBalance
+        ? 'Opening Due'
+        : (log.action === 'invoice_payment' ? 'Invoice Payment' : (log.action === 'opening_collection' ? 'Opening Due' : 'Collection'));
+
+      const typeClass = log.isOpeningBalance
+        ? 'type-opening'
+        : (log.action === 'invoice_payment' ? 'type-invoice' : (log.action === 'opening_collection' ? 'type-opening' : 'type-collection'));
+
+      records.push({
+        id: `log-${log.id || log.timestamp}`,
+        timestamp: Number(log.timestamp || Date.now()),
+        ref: billRef,
+        billId: log.billId,
+        type: typeLabel,
+        typeClass: typeClass,
+        method: String(log.method || log.paymentMethod || 'cash').toLowerCase(),
+        amount: amt,
+        chequeNumber: log.chequeNumber || '',
+        chequeBank: log.chequeBank || '',
+        chequeDate: log.chequeDate || '',
+        notes: log.notes || ''
+      });
+    }
+
+    // 2. Direct bills that may not have logs recorded (e.g. legacy/direct bills)
+    for (const bill of customerBills) {
+      if (bill.billStatus === 'cancelled' || bill.billStatus === 'refunded') continue;
+      const rec = Number(bill.receivedAmount) || 0;
+      if (rec <= 0 || processedBillIds.has(String(bill.id))) continue;
+
+      if (Array.isArray(bill.payments) && bill.payments.length > 0) {
+        bill.payments.forEach((p, idx) => {
+          const pAmt = Number(p.amount) || 0;
+          if (pAmt > 0) {
+            records.push({
+              id: `bill-${bill.id}-p-${idx}`,
+              timestamp: Number(bill.timestamp || Date.now()),
+              ref: bill.billNumber ? `Bill #${bill.billNumber}` : `Bill #${bill.id}`,
+              billId: bill.id,
+              type: 'Invoice Payment',
+              typeClass: 'type-invoice',
+              method: String(p.method || bill.paymentMethod || 'cash').toLowerCase(),
+              amount: pAmt,
+              chequeNumber: p.chequeNumber || bill.chequeNumber || '',
+              chequeBank: p.chequeBank || bill.chequeBank || '',
+              chequeDate: p.chequeDate || bill.chequeDate || '',
+              notes: ''
+            });
+          }
+        });
+      } else {
+        records.push({
+          id: `bill-${bill.id}-rec`,
+          timestamp: Number(bill.timestamp || Date.now()),
+          ref: bill.billNumber ? `Bill #${bill.billNumber}` : `Bill #${bill.id}`,
+          billId: bill.id,
+          type: 'Invoice Payment',
+          typeClass: 'type-invoice',
+          method: String(bill.paymentMethod || 'cash').toLowerCase(),
+          amount: rec,
+          chequeNumber: bill.chequeNumber || '',
+          chequeBank: bill.chequeBank || '',
+          chequeDate: bill.chequeDate || '',
+          notes: ''
+        });
+      }
+    }
+
+    // Sort descending by date (most recent first)
+    records.sort((a, b) => b.timestamp - a.timestamp);
+    this.currentProfileRecords = records;
+
+    // Financial Metrics Calculation
+    const totalPaid = records.reduce((sum, r) => Money.add(sum, r.amount), 0);
+    const openingDue = Money.clampZero(customer.openingBalance || 0);
+
+    const activeBills = customerBills.filter((b) => b.billStatus !== 'cancelled' && b.billStatus !== 'refunded');
+    const billsTotalAmount = activeBills.reduce((sum, b) => Money.add(sum, b.total || 0), 0);
+    const billsOutstanding = activeBills.reduce((sum, b) => {
+      const bal = typeof b.balanceAmount === 'number' ? b.balanceAmount : Money.subtract(b.total || 0, b.receivedAmount || 0);
+      return Money.add(sum, Money.clampZero(bal));
+    }, 0);
+
+    const totalOutstanding = Money.add(openingDue, billsOutstanding);
+
+    // Update stat cards
+    const paidEl = document.getElementById('profile-stat-paid-amount');
+    const paidCountEl = document.getElementById('profile-stat-paid-count');
+    const dueEl = document.getElementById('profile-stat-due-amount');
+    const dueStatusEl = document.getElementById('profile-stat-due-status');
+    const dueCardEl = document.getElementById('profile-due-card');
+    const openingEl = document.getElementById('profile-stat-opening-amount');
+    const invoicesCountEl = document.getElementById('profile-stat-invoices-count');
+    const invoicesTotalEl = document.getElementById('profile-stat-invoices-total');
+    const quickActionsEl = document.getElementById('profile-quick-actions');
+    const collectDueBtn = document.getElementById('profile-btn-collect-due');
+
+    if (paidEl) paidEl.textContent = `LKR ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (paidCountEl) paidCountEl.textContent = `${records.length} payment${records.length === 1 ? '' : 's'}`;
+
+    if (dueEl) {
+      if (totalOutstanding > 0) {
+        dueEl.textContent = `LKR ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (dueStatusEl) dueStatusEl.textContent = 'Pending balance';
+        if (dueCardEl) {
+          dueCardEl.classList.remove('settled');
+          dueCardEl.classList.add('profile-stat-due');
+        }
+      } else {
+        dueEl.textContent = 'Settled ✓';
+        if (dueStatusEl) dueStatusEl.textContent = 'No outstanding due';
+        if (dueCardEl) {
+          dueCardEl.classList.add('settled');
+        }
+      }
+    }
+
+    if (openingEl) openingEl.textContent = `LKR ${openingDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (invoicesCountEl) invoicesCountEl.textContent = String(activeBills.length);
+    if (invoicesTotalEl) invoicesTotalEl.textContent = `Total billed: LKR ${billsTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    if (quickActionsEl && collectDueBtn) {
+      if (totalOutstanding > 0) {
+        quickActionsEl.classList.remove('hidden');
+        collectDueBtn.onclick = () => {
+          this.closeProfileModal();
+          app.navigate('collection');
+          const searchInput = document.getElementById('collection-search');
+          if (searchInput) {
+            searchInput.value = customer.name || '';
+            window.collectionPage?.render();
+          }
+        };
+      } else {
+        quickActionsEl.classList.add('hidden');
+      }
+    }
+
+    // Reset search & filter tabs
+    const searchInput = document.getElementById('profile-payment-search');
+    if (searchInput) searchInput.value = '';
+
+    document.querySelectorAll('.profile-tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-method-filter') === 'all');
+    });
+
+    this.renderProfilePaymentRows(records);
+
+    // Open modal
+    window.app?.openModal('customer-profile-modal');
+  }
+
+  closeProfileModal() {
+    window.app?.closeModal('customer-profile-modal');
+  }
+
+  renderProfilePaymentRows(records) {
+    const tbody = document.getElementById('profile-payments-tbody');
+    const emptyState = document.getElementById('profile-empty-state');
+    const recordsBadge = document.getElementById('profile-records-badge');
+    const summaryEl = document.getElementById('profile-footer-summary');
+    const totalEl = document.getElementById('profile-footer-total');
+
+    if (recordsBadge) recordsBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+    if (summaryEl) summaryEl.textContent = `Showing ${records.length} payment${records.length === 1 ? '' : 's'}`;
+
+    const totalFiltered = records.reduce((sum, r) => Money.add(sum, r.amount), 0);
+    if (totalEl) totalEl.textContent = `Total: LKR ${totalFiltered.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    if (!tbody) return;
+
+    if (!records.length) {
+      tbody.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    tbody.innerHTML = records.map((r) => {
+      const d = new Date(r.timestamp);
+      const dateStr = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+      let methodDetail = '';
+      if (r.method === 'cheque' && (r.chequeNumber || r.chequeBank)) {
+        methodDetail = `<div class="rec-cheque-details">Chq #${this.escapeHtml(r.chequeNumber || '-')}${r.chequeBank ? ` &bull; ${this.escapeHtml(r.chequeBank)}` : ''}</div>`;
+      }
+
+      return `
+        <tr>
+          <td>
+            <div class="rec-date-main">${this.escapeHtml(dateStr)}</div>
+            <div class="rec-date-sub">${this.escapeHtml(timeStr)}</div>
+          </td>
+          <td>
+            <div class="rec-ref-pill">${this.escapeHtml(r.ref)}</div>
+            <div style="margin-top: 3px;"><span class="rec-type-badge ${r.typeClass}">${this.escapeHtml(r.type)}</span></div>
+          </td>
+          <td>
+            <span class="rec-method-badge">${this.escapeHtml(r.method)}</span>
+            ${methodDetail}
+          </td>
+          <td style="text-align: right;">
+            <span class="rec-paid-amt">+ LKR ${r.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  filterProfilePayments() {
+    if (!Array.isArray(this.currentProfileRecords)) return;
+    const query = (document.getElementById('profile-payment-search')?.value || '').trim().toLowerCase();
+    const methodFilter = this.profileActiveFilter || 'all';
+
+    const filtered = this.currentProfileRecords.filter((r) => {
+      if (methodFilter !== 'all' && r.method !== methodFilter) return false;
+      if (!query) return true;
+
+      const dateStr = new Date(r.timestamp).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).toLowerCase();
+      const ref = String(r.ref || '').toLowerCase();
+      const type = String(r.type || '').toLowerCase();
+      const method = String(r.method || '').toLowerCase();
+      const amount = String(r.amount || '').toLowerCase();
+      const cheque = String(r.chequeNumber || '').toLowerCase();
+      const bank = String(r.chequeBank || '').toLowerCase();
+
+      return ref.includes(query) ||
+             dateStr.includes(query) ||
+             type.includes(query) ||
+             method.includes(query) ||
+             amount.includes(query) ||
+             cheque.includes(query) ||
+             bank.includes(query);
+    });
+
+    this.renderProfilePaymentRows(filtered);
+  }
+
   renderList(customers) {
     const list = document.getElementById('customers-list');
     if (!list) return;
@@ -952,12 +1301,13 @@ class CustomersPage {
 
       return `
         <tr>
-          <td class="customers-name-cell"><button class="customers-name-btn" data-edit-customer-id="${c.id}">${this.escapeHtml(c.name || '-')}</button></td>
+          <td class="customers-name-cell"><button class="customers-name-btn" data-profile-customer-id="${c.id}" title="View Profile & Payments">${this.escapeHtml(c.name || '-')}</button></td>
           <td class="customers-phone-cell">${this.escapeHtml(phone)}</td>
           <td class="customers-added-cell">${this.escapeHtml(addedAt)}</td>
           <td class="customers-location-cell">${locationButton}</td>
           <td class="customers-outstanding-cell">${outstanding}</td>
           <td class="customers-action-cell">
+            <button class="customers-profile-btn" data-profile-customer-id="${c.id}" title="View Profile & Payments" aria-label="View Profile & Payments">${this.getProfileIcon()}</button>
             <button class="customers-edit-btn" data-edit-customer-id="${c.id}" title="Edit customer" aria-label="Edit customer">${this.getEditIcon()}</button>
             <button class="customers-delete-btn" data-delete-customer-id="${c.id}" title="Delete customer" aria-label="Delete customer">${this.getDeleteIcon()}</button>
           </td>
@@ -984,6 +1334,13 @@ class CustomersPage {
         </table>
       </div>
     `;
+
+    list.querySelectorAll('[data-profile-customer-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const customerId = Number(btn.getAttribute('data-profile-customer-id'));
+        this.openProfileModal(customerId);
+      });
+    });
 
     list.querySelectorAll('[data-edit-customer-id]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1077,6 +1434,20 @@ class CustomersPage {
         event.preventDefault();
         await this.searchManualMapLocation();
       }
+    });
+
+    const profileSearchInput = document.getElementById('profile-payment-search');
+    profileSearchInput?.addEventListener('input', () => {
+      this.filterProfilePayments();
+    });
+
+    document.querySelectorAll('.profile-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.profile-tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.profileActiveFilter = btn.getAttribute('data-method-filter') || 'all';
+        this.filterProfilePayments();
+      });
     });
 
     this.bound = true;

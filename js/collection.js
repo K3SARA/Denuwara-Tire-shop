@@ -2,6 +2,7 @@ class CollectionPage {
   constructor() {
     this.bills = [];
     this.logs = [];
+    this.customers = [];
     this.bound = false;
     this.activeTab = 'pending';
     this.editingLog = null;
@@ -99,7 +100,7 @@ class CollectionPage {
 
   getDueBills() {
     const query = this.getQuery();
-    return this.bills
+    const billItems = this.bills
       .filter((bill) => {
         if ((bill.billStatus || 'active') !== 'active') return false;
 
@@ -111,7 +112,39 @@ class CollectionPage {
         if (!query) return true;
         return (bill.customerName || '').toLowerCase().includes(query);
       })
-      .sort((a, b) => b.timestamp - a.timestamp);
+      .map((bill) => ({
+        ...bill,
+        isOpeningBalance: false,
+        keyId: String(bill.id),
+        balance: typeof bill.balanceAmount === 'number'
+          ? Money.clampZero(bill.balanceAmount)
+          : Money.clampZero(Money.subtract(Money.round(bill.total), Money.round(bill.receivedAmount || 0)))
+      }));
+
+    const openingItems = (this.customers || [])
+      .filter((c) => {
+        const op = Money.clampZero(c.openingBalance || 0);
+        if (!Money.isPositive(op)) return false;
+        if (!query) return true;
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        return name.includes(query) || phone.includes(query);
+      })
+      .map((c) => ({
+        id: `ob-${c.id}`,
+        customerId: c.id,
+        customerName: c.name,
+        customerPhone: c.phone,
+        customerAddress: c.address,
+        isOpeningBalance: true,
+        keyId: `ob-${c.id}`,
+        total: Money.round(c.openingBalance),
+        receivedAmount: 0,
+        balance: Money.round(c.openingBalance),
+        timestamp: c.created_at || Date.now()
+      }));
+
+    return [...openingItems, ...billItems].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   }
 
   getFilteredLogs() {
@@ -122,7 +155,8 @@ class CollectionPage {
       const billId = String(log.billId || '').toLowerCase();
       const method = String(log.method || '').toLowerCase();
       const chequeNumber = String(log.chequeNumber || '').toLowerCase();
-      return customer.includes(query) || billId.includes(query) || method.includes(query) || chequeNumber.includes(query);
+      const isOpening = log.isOpeningBalance ? 'opening balance' : '';
+      return customer.includes(query) || billId.includes(query) || method.includes(query) || chequeNumber.includes(query) || isOpening.includes(query);
     });
   }
 
@@ -172,6 +206,43 @@ class CollectionPage {
     }, 'Recording collection...', 'Updating bill and balance');
   }
 
+  async collectOpeningPayment(customerId, keyId) {
+    const amountInput = document.getElementById(`collect-amount-${keyId}`);
+    const methodInput = document.getElementById(`collect-method-${keyId}`);
+    const amount = Money.clampZero(amountInput?.value || '0');
+    const method = methodInput?.value || 'cash';
+    const chequeDetails = this.getChequeDetails(keyId, method);
+
+    if (!Money.isPositive(amount)) {
+      alert('Enter a valid collection amount.');
+      return;
+    }
+
+    if (method === 'cheque' && !this.validateChequeDetails(chequeDetails)) return;
+
+    await window.app.withLoading(async () => {
+      try {
+        await window.db.collectCustomerOpeningBalanceAtomic({
+          customerId,
+          amount,
+          method,
+          chequeDetails
+        });
+      } catch (error) {
+        alert(error?.message || 'Failed to collect payment. Please refresh and try again.');
+        await this.render();
+        return;
+      }
+
+      await this.render();
+      if (window.customersPage && window.app.currentPage === 'customers') await window.customersPage.render();
+      if (window.billing) {
+        await window.billing.loadOutstandingDirectory();
+        window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+      }
+    }, 'Recording collection...', 'Updating customer opening balance');
+  }
+
   openEditModal(logId) {
     const log = this.logs.find((l) => l.id === logId);
     if (!log) return;
@@ -187,7 +258,11 @@ class CollectionPage {
 
     if (customerEl) customerEl.textContent = log.customerName || 'Walk-in Customer';
     const dateStr = new Date(log.timestamp).toLocaleString();
-    if (billInfoEl) billInfoEl.textContent = `Bill #${log.billId} • ${dateStr}`;
+    if (billInfoEl) {
+      billInfoEl.textContent = log.isOpeningBalance
+        ? `Opening Balance • ${dateStr}`
+        : `Bill #${log.billId} • ${dateStr}`;
+    }
     if (amountEl) amountEl.value = log.amount || 0;
     if (methodEl) methodEl.value = (log.method || 'cash').toLowerCase();
     if (chequeDateEl) chequeDateEl.value = log.chequeDate || '';
@@ -229,13 +304,23 @@ class CollectionPage {
 
     await window.app.withLoading(async () => {
       try {
-        await window.db.updateCollectionPaymentAtomic({
-          logId: log.id,
-          billId: log.billId,
-          amount,
-          method,
-          chequeDetails
-        });
+        if (log.isOpeningBalance) {
+          await window.db.updateOpeningBalanceCollectionAtomic({
+            logId: log.id,
+            customerId: log.customerId,
+            amount,
+            method,
+            chequeDetails
+          });
+        } else {
+          await window.db.updateCollectionPaymentAtomic({
+            logId: log.id,
+            billId: log.billId,
+            amount,
+            method,
+            chequeDetails
+          });
+        }
       } catch (err) {
         alert(err?.message || 'Failed to update collection.');
         return;
@@ -249,23 +334,33 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
-    }, 'Updating collection...', 'Recalculating bill payments');
+    }, 'Updating collection...', 'Recalculating payments');
   }
 
   async deleteCollection() {
     if (!this.editingLog) return;
     const log = this.editingLog;
     const formattedAmount = (Number(log.amount) || 0).toLocaleString();
-    if (!confirm(`Are you sure you want to delete this collection of LKR ${formattedAmount} for Bill #${log.billId}? The bill balance will be restored.`)) {
+    const targetDesc = log.isOpeningBalance
+      ? `Opening Balance of ${log.customerName || 'Customer'}`
+      : `Bill #${log.billId}`;
+    if (!confirm(`Are you sure you want to delete this collection of LKR ${formattedAmount} for ${targetDesc}? The balance will be restored.`)) {
       return;
     }
 
     await window.app.withLoading(async () => {
       try {
-        await window.db.deleteCollectionPaymentAtomic({
-          logId: log.id,
-          billId: log.billId
-        });
+        if (log.isOpeningBalance) {
+          await window.db.deleteOpeningBalanceCollectionAtomic({
+            logId: log.id,
+            customerId: log.customerId
+          });
+        } else {
+          await window.db.deleteCollectionPaymentAtomic({
+            logId: log.id,
+            billId: log.billId
+          });
+        }
       } catch (err) {
         alert(err?.message || 'Failed to delete collection.');
         return;
@@ -279,68 +374,87 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
-    }, 'Deleting collection...', 'Restoring bill balance');
+    }, 'Deleting collection...', 'Restoring balance');
   }
 
-  renderList(bills) {
+  renderList(items) {
     const list = document.getElementById('collection-list');
     if (!list) return;
 
-    if (bills.length === 0) {
+    if (!items || items.length === 0) {
       list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">No pending collections.</div>';
       return;
     }
 
     list.innerHTML = '';
-    bills.forEach((bill) => {
-      const total = Money.round(bill.total);
-      const received = Money.round(bill.receivedAmount || 0);
-      const balance = typeof bill.balanceAmount === 'number'
-        ? Money.clampZero(bill.balanceAmount)
-        : Money.clampZero(Money.subtract(total, received));
-      const dateStr = new Date(bill.timestamp).toLocaleString();
+    items.forEach((item) => {
+      const isOpening = Boolean(item.isOpeningBalance);
+      const keyId = item.keyId || String(item.id);
+      const total = Money.round(item.total);
+      const received = Money.round(item.receivedAmount || 0);
+      const balance = typeof item.balanceAmount === 'number'
+        ? Money.clampZero(item.balanceAmount)
+        : (typeof item.balance === 'number' ? Money.clampZero(item.balance) : Money.clampZero(Money.subtract(total, received)));
+      const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Customer Profile';
+      const subtitle = isOpening
+        ? `${this.escapeHtml(dateStr)} | Customer Opening Balance`
+        : `${this.escapeHtml(dateStr)} | Bill #${this.escapeHtml(item.id)}`;
+
+      const headerTitle = isOpening
+        ? `<div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-weight:600;">${this.escapeHtml(item.customerName || 'Customer')}</div>
+            <span style="background:#e0f2fe; color:#0369a1; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">Opening Balance</span>
+          </div>`
+        : `<div style="font-weight:600;">${this.escapeHtml(item.customerName || 'Walk-in Customer')}</div>`;
+
+      const statsGrid = isOpening
+        ? `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div><div class="history-date">Opening Due</div><div style="font-weight:600;">LKR ${balance.toLocaleString()}</div></div>
+            <div><div class="history-date">Customer Phone</div><div style="font-weight:600;">${this.escapeHtml(item.customerPhone || '-')}</div></div>
+          </div>`
+        : `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div><div class="history-date">Total</div><div style="font-weight:600;">${total.toLocaleString()}</div></div>
+            <div><div class="history-date">Received</div><div style="font-weight:600;">${received.toLocaleString()}</div></div>
+            <div><div class="history-date">Balance</div><div style="font-weight:600;">${balance.toLocaleString()}</div></div>
+          </div>`;
 
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <div style="font-weight:600;">${this.escapeHtml(bill.customerName || 'Walk-in Customer')}</div>
+          ${headerTitle}
           <div class="collection-badge">Due LKR ${balance.toLocaleString()}</div>
         </div>
-        <div class="history-date" style="margin-bottom:12px;">${this.escapeHtml(dateStr)} | Bill #${this.escapeHtml(bill.id)}</div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
-          <div><div class="history-date">Total</div><div style="font-weight:600;">${total.toLocaleString()}</div></div>
-          <div><div class="history-date">Received</div><div style="font-weight:600;">${received.toLocaleString()}</div></div>
-          <div><div class="history-date">Balance</div><div style="font-weight:600;">${balance.toLocaleString()}</div></div>
-        </div>
+        <div class="history-date" style="margin-bottom:12px;">${subtitle}</div>
+        ${statsGrid}
         <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:end;">
           <div class="input-group" style="margin-bottom:0;">
             <label>Collect Amount</label>
-            <input type="number" id="collect-amount-${bill.id}" class="input-field" placeholder="0" step="0.01">
+            <input type="number" id="collect-amount-${keyId}" class="input-field" placeholder="0" step="0.01">
           </div>
           <div class="input-group" style="margin-bottom:0;">
             <label>Method</label>
-            <select id="collect-method-${bill.id}" class="input-field">
+            <select id="collect-method-${keyId}" class="input-field">
               <option value="cash">Cash</option>
               <option value="card">Card</option>
               <option value="bank">Bank</option>
               <option value="cheque">Cheque</option>
             </select>
           </div>
-          <button class="btn-primary" style="margin:0; width:auto; padding:10px 16px;" data-collect-id="${bill.id}">Collect</button>
+          <button class="btn-primary" style="margin:0; width:auto; padding:10px 16px;" data-collect-key="${keyId}" data-is-opening="${isOpening}" data-customer-id="${item.customerId || ''}">Collect</button>
         </div>
-        <div id="collect-cheque-details-${bill.id}" class="cheque-details hidden" style="margin-top:10px;">
+        <div id="collect-cheque-details-${keyId}" class="cheque-details hidden" style="margin-top:10px;">
           <div class="input-group">
             <label>Cheque Date</label>
-            <input type="date" id="collect-cheque-date-${bill.id}" class="input-field">
+            <input type="date" id="collect-cheque-date-${keyId}" class="input-field">
           </div>
           <div class="input-group">
             <label>Cheque Number</label>
-            <input type="text" id="collect-cheque-number-${bill.id}" class="input-field" placeholder="Enter cheque number">
+            <input type="text" id="collect-cheque-number-${keyId}" class="input-field" placeholder="Enter cheque number">
           </div>
           <div class="input-group" style="margin-bottom:0;">
             <label>Bank</label>
-            <input type="text" id="collect-cheque-bank-${bill.id}" class="input-field" placeholder="Enter bank name">
+            <input type="text" id="collect-cheque-bank-${keyId}" class="input-field" placeholder="Enter bank name">
           </div>
         </div>
       `;
@@ -349,15 +463,22 @@ class CollectionPage {
 
     list.querySelectorAll('[id^="collect-method-"]').forEach((select) => {
       select.addEventListener('change', () => {
-        const billId = Number(select.id.replace('collect-method-', ''));
-        this.toggleChequeDetails(billId);
+        const keyId = select.id.replace('collect-method-', '');
+        this.toggleChequeDetails(keyId);
       });
     });
 
-    list.querySelectorAll('[data-collect-id]').forEach((btn) => {
+    list.querySelectorAll('[data-collect-key]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const billId = Number(btn.getAttribute('data-collect-id'));
-        await this.collectPayment(billId);
+        const keyId = btn.getAttribute('data-collect-key');
+        const isOpening = btn.getAttribute('data-is-opening') === 'true';
+        if (isOpening) {
+          const customerId = Number(btn.getAttribute('data-customer-id'));
+          await this.collectOpeningPayment(customerId, keyId);
+        } else {
+          const billId = Number(keyId);
+          await this.collectPayment(billId);
+        }
       });
     });
   }
@@ -383,11 +504,14 @@ class CollectionPage {
       const row = document.createElement('div');
       row.className = 'collection-log-row';
       const date = new Date(log.timestamp).toLocaleString();
-      const action = log.action === 'collection_edited' ? 'Edited' : (log.action || 'Collection');
+      const action = log.action === 'collection_edited' ? 'Edited' : (log.action === 'opening_collection' ? 'Opening Collection' : (log.action || 'Collection'));
+      const billTag = log.isOpeningBalance
+        ? '<span style="background:#e0f2fe; color:#0369a1; font-size:11px; padding:1px 6px; border-radius:10px; font-weight:600;">Opening Balance</span>'
+        : `Bill #${this.escapeHtml(log.billId)}`;
       row.innerHTML = `
         <div class="collection-log-info" style="flex: 1;">
           <div class="collection-log-main">
-            <strong>${this.escapeHtml(log.customerName || 'Customer')}</strong> &bull; Bill #${this.escapeHtml(log.billId)}
+            <strong>${this.escapeHtml(log.customerName || 'Customer')}</strong> &bull; ${billTag}
           </div>
           <div class="collection-log-sub">
             ${this.escapeHtml(date)} &bull; ${this.escapeHtml(action)} &bull; <span style="text-transform: capitalize;">${this.escapeHtml(log.method || '-')}</span> &bull; <span class="amount-highlight">LKR ${(Number(log.amount) || 0).toLocaleString()}</span>${log.method === 'cheque' && log.chequeNumber ? ` &bull; Chq #${this.escapeHtml(log.chequeNumber)}` : ''}
@@ -438,9 +562,14 @@ class CollectionPage {
       list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">Loading...</div>';
     }
     this.bind();
-    const [bills, logs] = await Promise.all([window.db.getBills(), window.db.getCollectionLogs()]);
+    const [bills, logs, customers] = await Promise.all([
+      window.db.getBills(),
+      window.db.getCollectionLogs(),
+      window.db.getCustomers()
+    ]);
     this.bills = bills;
     this.logs = logs;
+    this.customers = customers;
     this.renderList(this.getDueBills());
     this.renderAuditTrail();
     this.switchTab(this.activeTab);
