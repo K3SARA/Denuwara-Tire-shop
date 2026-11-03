@@ -51,6 +51,14 @@ class ReportsView {
       this.setNoteStatus(payload?.savedAt
         ? `Saved ${new Date(payload.savedAt).toLocaleString()}`
         : 'No saved note');
+      const hint = document.getElementById('reports-notes-hint');
+      if (hint) {
+        hint.innerHTML = payload?.text ? 'Saved note available &#x25BE;' : 'Tap to view / edit &#x25BE;';
+      }
+      if (window.innerWidth >= 900) {
+        const notesCard = document.getElementById('reports-notes-card');
+        if (notesCard) notesCard.open = true;
+      }
       this.notesLoaded = true;
     } catch (error) {
       console.error('Failed to load report notes:', error);
@@ -68,6 +76,10 @@ class ReportsView {
     try {
       await window.db.saveSetting('reports_quick_note', payload);
       this.setNoteStatus(`Saved ${new Date(payload.savedAt).toLocaleString()}`);
+      const hint = document.getElementById('reports-notes-hint');
+      if (hint) {
+        hint.innerHTML = payload.text ? 'Saved note available &#x25BE;' : 'Tap to view / edit &#x25BE;';
+      }
     } catch (error) {
       console.error('Failed to save report notes:', error);
       alert('Unable to save note. Please try again.');
@@ -81,6 +93,10 @@ class ReportsView {
     try {
       await window.db.saveSetting('reports_quick_note', { text: '', savedAt: new Date().toISOString() });
       this.setNoteStatus('Note cleared');
+      const hint = document.getElementById('reports-notes-hint');
+      if (hint) {
+        hint.innerHTML = 'Tap to view / edit &#x25BE;';
+      }
     } catch (error) {
       console.error('Failed to clear report notes:', error);
       alert('Unable to clear note. Please try again.');
@@ -1706,9 +1722,15 @@ class ReportsView {
   }
 
   toggleCustomDates() {
-    const { period, customWrap } = this.getInputs();
+    const { period, customWrap, from, to } = this.getInputs();
     if (!customWrap || !period) return;
-    customWrap.classList.toggle('hidden', period.value !== 'custom');
+    const isCustom = period.value === 'custom';
+    customWrap.classList.toggle('hidden', !isCustom);
+    if (isCustom) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (from && !from.value) from.value = today;
+      if (to && !to.value) to.value = today;
+    }
   }
 
   bind() {

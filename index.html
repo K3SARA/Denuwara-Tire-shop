@@ -680,7 +680,7 @@
           </button>
         </header>
         <div class="reports-shell">
-          <div class="card reports-controls">
+          <div class="card reports-controls reports-controls-filter-card">
             <div class="reports-controls-grid">
               <div class="input-group" style="margin-bottom: 0">
                 <label>Report</label>
@@ -714,7 +714,7 @@
             <div
               id="reports-custom-dates"
               class="reports-controls-grid hidden"
-              style="margin-top: 10px"
+              style="margin-top: 8px"
             >
               <div class="input-group" style="margin-bottom: 0">
                 <label>From</label>
@@ -726,41 +726,52 @@
               </div>
             </div>
           </div>
-          <div class="card reports-controls">
-            <div class="input-group" style="margin-bottom: 10px">
-              <label>Quick Notes</label>
-              <textarea
-                id="reports-quick-note"
-                class="input-field"
-                rows="4"
-                placeholder="Write short notes here..."
-              ></textarea>
-            </div>
-            <div
-              style="
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                justify-content: space-between;
-              "
-            >
+          <details class="card reports-controls reports-notes-card" id="reports-notes-card">
+            <summary class="reports-notes-summary">
+              <div class="reports-notes-summary-title">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Quick Notes</span>
+              </div>
+              <span class="reports-notes-summary-hint" id="reports-notes-hint">Tap to view / edit &#x25BE;</span>
+            </summary>
+            <div class="reports-notes-body">
+              <div class="input-group" style="margin-bottom: 8px">
+                <textarea
+                  id="reports-quick-note"
+                  class="input-field"
+                  rows="3"
+                  placeholder="Write short notes here..."
+                ></textarea>
+              </div>
               <div
-                id="reports-note-status"
-                class="history-date"
-                style="margin: 0"
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  justify-content: space-between;
+                "
               >
-                Not saved yet
-              </div>
-              <div style="display: flex; gap: 8px">
-                <button id="reports-note-clear" class="btn-tool" type="button">
-                  Clear
-                </button>
-                <button id="reports-note-save" class="btn-tool" type="button">
-                  Save Note
-                </button>
+                <div
+                  id="reports-note-status"
+                  class="history-date"
+                  style="margin: 0"
+                >
+                  Not saved yet
+                </div>
+                <div style="display: flex; gap: 8px">
+                  <button id="reports-note-clear" class="btn-tool" type="button">
+                    Clear
+                  </button>
+                  <button id="reports-note-save" class="btn-tool" type="button">
+                    Save Note
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </details>
           <div id="reports-view" class="card reports-view"></div>
         </div>
       </div>
