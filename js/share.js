@@ -129,6 +129,7 @@ class ShareManager {
   }
 
   getPayments(bill) {
+    const billDate = bill?.date || (bill?.timestamp ? new Date(bill.timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
     if (Array.isArray(bill?.payments) && bill.payments.length) {
       return bill.payments.map((payment, index) => ({
         id: payment.id || `payment-${index + 1}`,
@@ -138,7 +139,8 @@ class ShareManager {
         chequeDate: payment.chequeDate || '',
         chequeNumber: payment.chequeNumber || '',
         chequeBank: payment.chequeBank || '',
-        chequeStatus: payment.chequeStatus || ''
+        chequeStatus: payment.chequeStatus || '',
+        date: payment.date || payment.paidDate || billDate
       }));
     }
     const method = this.getPaymentMethod(bill) || 'cash';
@@ -150,7 +152,8 @@ class ShareManager {
       chequeDate: bill?.chequeDate || '',
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
-      chequeStatus: bill?.chequeStatus || ''
+      chequeStatus: bill?.chequeStatus || '',
+      date: billDate
     }];
   }
 
@@ -178,19 +181,45 @@ class ShareManager {
       text += `${i.name} x${i.qty}${unit} @ LKR ${i.price}\n`;
       text += `  = LKR ${this.formatCurrency(Money.multiply(i.price, i.qty))}\n`;
     });
-    const total = Money.round(b.total);
+    const billValue = Money.round(b.total);
+    const openingOutstand = Money.round(b.customerOpeningBalance || 0);
+    const rawTotalPrior = Money.round(b.previousDue !== undefined ? b.previousDue : (b.dueAmount || 0));
+    const priorTotalDue = Math.max(openingOutstand, rawTotalPrior);
+    const showOpeningRow = Money.isPositive(openingOutstand);
+    const previousBillDue = showOpeningRow
+      ? Money.clampZero(Money.subtract(priorTotalDue, openingOutstand))
+      : priorTotalDue;
+    const showPreviousDueRow = Money.isPositive(previousBillDue);
+    const totalPriorOutstand = Money.add(openingOutstand, previousBillDue);
+    const totalPayable = Money.add(billValue, totalPriorOutstand);
+
     const received = Money.round(b.receivedAmount || 0);
-    const balance = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(total, received));
+    const currentBillOutstand = Money.clampZero(Money.subtract(billValue, received));
+    const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
+    const billDateStr = b.date || (b.timestamp ? new Date(b.timestamp).toISOString().slice(0, 10) : '');
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
-    const change = Money.clampZero(b.changeAmount || Money.subtract(received, total));
+    const change = Money.clampZero(b.changeAmount || Money.subtract(received, totalPayable));
     const paymentStatus = billStatus === 'active'
-      ? (Money.isPositive(balance) ? 'due' : 'paid')
+      ? (Money.isPositive(currentBillOutstand) ? 'due' : 'paid')
       : (b.paymentStatus || billStatus);
     text += `--------------------\n`;
-    text += `*Total: LKR ${this.formatCurrency(b.total)}*\n`;
-    text += `Received: LKR ${this.formatCurrency(received)}\n`;
-    text += `Balance: LKR ${this.formatCurrency(balance)}\n`;
+    text += `*Bill Amount: LKR ${this.formatCurrency(billValue)}*\n`;
+    if (showOpeningRow) {
+      text += `Opening Outstand: LKR ${this.formatCurrency(openingOutstand)}\n`;
+    }
+    if (showPreviousDueRow) {
+      text += `Previous Due: LKR ${this.formatCurrency(previousBillDue)}\n`;
+    }
+    if (Money.isPositive(totalPriorOutstand)) {
+      text += `Total Payable: LKR ${this.formatCurrency(totalPayable)}\n`;
+    }
+    if (received > 0) {
+      text += `Paid Amount: LKR ${this.formatCurrency(received)} (Date: ${billDateStr})\n`;
+    } else {
+      text += `Paid Amount: LKR 0.00\n`;
+    }
+    text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
     if (Money.isPositive(change)) text += `Change: LKR ${this.formatCurrency(change)}\n`;
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
     if (payments.length > 1 || paymentMethod === 'multiple') {
@@ -198,7 +227,8 @@ class ShareManager {
       let chequeIndex = 0;
       payments.forEach((payment) => {
         const label = payment.method === 'cheque' ? `Cheque ${++chequeIndex}` : this.methodLabel(payment.method);
-        text += `${label}: LKR ${this.formatCurrency(payment.amount)}\n`;
+        const pDate = payment.date || billDateStr;
+        text += `${label}: LKR ${this.formatCurrency(payment.amount)} (Date: ${pDate})\n`;
         if (payment.method === 'cheque') {
           text += `  Date: ${payment.chequeDate || '-'}\n`;
           text += `  No: ${payment.chequeNumber || '-'}\n`;
@@ -217,7 +247,7 @@ class ShareManager {
     text += `Status: ${paymentStatus}\n`;
     if (billStatus !== 'active') text += `Bill: ${billStatus}\n`;
     text += `\nThank you for your business!\n`;
-    text += `Powered by J&co.`;
+    text += `Powered by Denuwara Tyre Care`;
     return text;
   }
 
@@ -241,7 +271,7 @@ class ShareManager {
         terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
         cash: 'Cash', card: 'Card', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
         due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
-        totalAmount: 'TOTAL AMOUNT'
+        totalAmount: 'TOTAL AMOUNT', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
       },
       ta: {
         receiptTitle: 'பண விற்பனை', walkInCustomer: 'நேரடி வாடிக்கையாளர்', phoneLabel: 'தொலைபேசி:', regNo: 'பதிவு எண்:', print: 'அச்சிடு', editBill: 'ரசீதைத் திருத்து', backToApp: 'செயலிக்குத் திரும்பு', billNo: 'ரசீது எண்:', date: 'தேதி:', billTo: 'வாடிக்கையாளர்:', phone: 'தொலைபேசி:', address: 'முகவரி:',
@@ -251,7 +281,7 @@ class ShareManager {
         terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Denuwara Tyre Care',
         cash: 'பணம்', card: 'அட்டை', bankTransfer: 'வங்கி பரிமாற்றம்', cheque: 'காசோலை', credit: 'கடன்', multiple: 'பல முறைகள்',
         due: 'செலுத்த வேண்டியது', paid: 'செலுத்தப்பட்டது', active: 'செயலில்', cancelled: 'ரத்து செய்யப்பட்டது', refunded: 'பணம் திருப்பப்பட்டது',
-        totalAmount: 'மொத்தத் தொகை'
+        totalAmount: 'மொத்தத் தொகை', openingBalance: 'தொடக்க நிலுவை', openingOutstand: 'தொடக்க நிலுவை', previousDue: 'முந்தைய நிலுவை', totalPayable: 'செலுத்த வேண்டிய மொத்தத் தொகை', totalDue: 'மொத்த நிலுவை', paidAmount: 'செலுத்திய தொகை'
       },
       si: {
         receiptTitle: 'මුදල් විකිණුම්', walkInCustomer: 'සෘජු පාරිභෝගිකයා', phoneLabel: 'දුරකථන:', regNo: 'ලියාපදිංචි අංකය:', print: 'මුද්‍රණය', editBill: 'බිල්පත සංස්කරණය', backToApp: 'යෙදුමට ආපසු', billNo: 'රිසිට්පත් අංකය:', date: 'දිනය:', billTo: 'පාරිභෝගිකයා:', phone: 'දුරකථන:', address: 'ලිපිනය:',
@@ -261,7 +291,7 @@ class ShareManager {
         terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Denuwara Tyre Care',
         cash: 'මුදල්', card: 'කාඩ්පත', bankTransfer: 'බැංකු මාරු කිරීම', cheque: 'චෙක්පත', credit: 'ණය', multiple: 'ක්‍රම කිහිපයක්',
         due: 'ගෙවීමට ඇත', paid: 'ගෙවා ඇත', active: 'සක්‍රියයි', cancelled: 'අවලංගුයි', refunded: 'මුදල් ආපසු දී ඇත',
-        totalAmount: 'මුළු මුදල'
+        totalAmount: 'මුළු මුදල', openingBalance: 'ආරම්භක හිඟ මුදල', openingOutstand: 'ආරම්භක හිඟ මුදල', previousDue: 'පෙර හිඟ මුදල', totalPayable: 'මුළු ගෙවිය යුතු මුදල', totalDue: 'මුළු හිඟ මුදල', paidAmount: 'ගෙවූ මුදල'
       }
     }[language];
     const t = (key) => translations[key] || key;
@@ -309,31 +339,48 @@ class ShareManager {
     );
     const billValueSplit = this.splitRsCts(billValue);
 
-    const dueAmount = Money.round(
-      b.previousDue !== undefined
-        ? b.previousDue
-        : (b.dueAmount !== undefined ? b.dueAmount : 0)
-    );
-    const dueSplit = this.splitRsCts(dueAmount);
+    const billDateStr = b.date || `${yStr}-${mStr}-${dStr}`;
+    const isRegisteredCustomer = !isWalkIn;
 
-    const totalAmount = Money.add(billValue, dueAmount);
-    const totalSplit = this.splitRsCts(totalAmount);
+    const openingOutstand = Money.round(b.customerOpeningBalance || 0);
+    const rawTotalPrior = Money.round(b.previousDue !== undefined ? b.previousDue : (b.dueAmount || 0));
+    const priorTotalDue = Math.max(openingOutstand, rawTotalPrior);
+
+    const showOpeningRow = Money.isPositive(openingOutstand);
+    const previousBillDue = showOpeningRow
+      ? Money.clampZero(Money.subtract(priorTotalDue, openingOutstand))
+      : priorTotalDue;
+    const showPreviousDueRow = Money.isPositive(previousBillDue);
+
+    const openingSplit = this.splitRsCts(openingOutstand);
+    const prevDueSplit = this.splitRsCts(previousBillDue);
+
+    const totalPriorOutstand = Money.add(openingOutstand, previousBillDue);
+    const totalPayable = Money.add(billValue, totalPriorOutstand);
+    const payableSplit = this.splitRsCts(totalPayable);
+    const showPayableRow = Money.isPositive(totalPriorOutstand);
 
     const received = Money.round(b.receivedAmount || 0);
     const paidSplit = this.splitRsCts(received);
 
-    const balance = Money.clampZero(Money.subtract(totalAmount, received));
-    const balSplit = this.splitRsCts(balance);
+    const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
+    const totalDueSplit = this.splitRsCts(totalDue);
+
+    const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
+    const paymentRowsCount = payments.length > 1 ? payments.length : 1;
+    const extraPriorRowsCount = (showOpeningRow ? 1 : 0) + (showPreviousDueRow ? 1 : 0);
+    const footerRowsCount = 3 + extraPriorRowsCount + (showPayableRow ? 1 : 0) + (paymentRowsCount - 1);
 
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
+    const currentBillBalance = Money.clampZero(Money.subtract(billValue, received));
     const paymentStatus = billStatus === 'active'
-      ? (Money.isPositive(balance) ? 'due' : 'paid')
+      ? (Money.isPositive(currentBillBalance) ? 'due' : 'paid')
       : (b.paymentStatus || billStatus);
     const paymentLabel = paymentMethod ? localizedMethodLabel(paymentMethod) : '-';
 
-    const totalRows = Math.max(22, items.length + 2);
-    const itemSlots = totalRows - 2;
+    const totalRows = Math.max(22, items.length + footerRowsCount);
+    const itemSlots = Math.max(items.length, totalRows - footerRowsCount);
     let tableRowsHtml = '';
 
     for (let i = 0; i < itemSlots; i++) {
@@ -365,28 +412,6 @@ class ShareManager {
           </tr>`;
       }
     }
-
-    // Row 21: Bill value
-    tableRowsHtml += `
-      <tr class="summary-val-row a5-row-bill-value">
-        <td class="col-no">&nbsp;</td>
-        <td class="col-qty">&nbsp;</td>
-        <td class="col-desc" style="font-weight: 800; color: #111;">Bill value</td>
-        <td class="col-rate">&nbsp;</td>
-        <td class="col-amt-rs" style="font-weight: 800; color: #111;">${billValueSplit.rs}</td>
-        <td class="col-amt-cts" style="font-weight: 800;">${billValueSplit.cts}</td>
-      </tr>`;
-
-    // Row 22: Due Amount
-    tableRowsHtml += `
-      <tr class="summary-val-row a5-row-due">
-        <td class="col-no">&nbsp;</td>
-        <td class="col-qty">&nbsp;</td>
-        <td class="col-desc" style="font-weight: 800; color: #7d1838;">Due Amount</td>
-        <td class="col-rate">&nbsp;</td>
-        <td class="col-amt-rs" style="font-weight: 800; color: #7d1838;">${dueAmount > 0 ? dueSplit.rs : '-'}</td>
-        <td class="col-amt-cts" style="font-weight: 800; color: #7d1838;">${dueAmount > 0 ? dueSplit.cts : '-'}</td>
-      </tr>`;
 
     const showToolbar = Boolean(options.showToolbar);
     const appUrl = this.escapeHtml(options.appUrl || this.getAppReturnUrl());
@@ -581,6 +606,7 @@ class ShareManager {
     width: 15px;
     height: 19px;
     border: 1px solid #7d1838;
+    border-radius: 3px;
     font-size: 12px;
     font-weight: 800;
     color: #111;
@@ -732,6 +758,31 @@ class ShareManager {
     background: #faf4f6;
     font-weight: 900;
   }
+  .a5-tfoot-opening td {
+    font-weight: 800;
+    color: #111;
+  }
+  .ft-paid-desc-wrap {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding-right: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .ft-paid-date-tag {
+    font-size: 10px;
+    font-weight: 800;
+    color: #7d1838;
+    background: #faf4f6;
+    border: 1px solid #7d1838;
+    border-radius: 3px;
+    padding: 1px 6px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
   .ft-total-qty {
     text-align: center;
     font-size: 11.5px;
@@ -775,6 +826,18 @@ class ShareManager {
     font-weight: 900;
   }
 
+  .a5-tfoot-payable td {
+    border-top: 0.5px dotted #debac5;
+    border-bottom: 0.5px dotted #debac5;
+    background: #fbf1f4;
+    height: 19px;
+  }
+  .a5-tfoot-prevdue td {
+    border-top: 0.5px dotted #debac5;
+    border-bottom: 0.5px dotted #debac5;
+    background: #fff;
+    height: 19px;
+  }
   .a5-tfoot-paid td {
     border-top: 0.5px dotted #debac5;
     border-bottom: 0.5px dotted #debac5;
@@ -985,26 +1048,82 @@ class ShareManager {
                   <span class="ft-total-title">${t('totalAmount')}</span>
                 </div>
               </td>
-              <td class="col-amt-rs ft-total-rs">${totalSplit.rs}</td>
-              <td class="col-amt-cts ft-total-cts">${totalSplit.cts}</td>
+              <td class="col-amt-rs ft-total-rs">${billValueSplit.rs}</td>
+              <td class="col-amt-cts ft-total-cts">${billValueSplit.cts}</td>
             </tr>
-            <tr class="a5-tfoot-row a5-tfoot-paid">
+            ${showOpeningRow ? `
+            <tr class="a5-tfoot-row a5-tfoot-opening">
               <td class="col-no">&nbsp;</td>
               <td class="col-qty">&nbsp;</td>
               <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
-                <span class="ft-sub-title">Paid amount</span>
+                <span class="ft-sub-title">${t('openingOutstand')}</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs">${openingSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts">${openingSplit.cts}</td>
+            </tr>
+            ` : ''}
+            ${showPreviousDueRow ? `
+            <tr class="a5-tfoot-row a5-tfoot-prevdue">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title">${t('previousDue')}</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs">${prevDueSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts">${prevDueSplit.cts}</td>
+            </tr>
+            ` : ''}
+            ${showPayableRow ? `
+            <tr class="a5-tfoot-row a5-tfoot-payable">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title" style="font-weight: 800; color: #7d1838;">${t('totalPayable')}</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs" style="font-weight: 800; color: #7d1838;">${payableSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts" style="font-weight: 800; color: #7d1838;">${payableSplit.cts}</td>
+            </tr>
+            ` : ''}
+            ${payments.length > 1 ? payments.map((p, idx) => {
+              const pAmtSplit = this.splitRsCts(p.amount);
+              const pDate = p.date || p.chequeDate || billDateStr;
+              const pLabel = p.method === 'cheque' ? `${t('cheque')} ${idx + 1}` : localizedMethodLabel(p.method);
+              return `
+              <tr class="a5-tfoot-row a5-tfoot-paid">
+                <td class="col-no">&nbsp;</td>
+                <td class="col-qty">&nbsp;</td>
+                <td class="col-desc-footer" colspan="2">
+                  <div class="ft-paid-desc-wrap">
+                    <span class="ft-paid-date-tag">Paid: ${this.escapeHtml(pDate)}</span>
+                    <span class="ft-sub-title">Paid (${this.escapeHtml(pLabel)})</span>
+                  </div>
+                </td>
+                <td class="col-amt-rs ft-sub-rs">${pAmtSplit.rs}</td>
+                <td class="col-amt-cts ft-sub-cts">${pAmtSplit.cts}</td>
+              </tr>
+              `;
+            }).join('') : `
+            <tr class="a5-tfoot-row a5-tfoot-paid">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2">
+                <div class="ft-paid-desc-wrap">
+                  ${received > 0 ? `<span class="ft-paid-date-tag">Paid: ${this.escapeHtml(billDateStr)}</span>` : ''}
+                  <span class="ft-sub-title">${t('paidAmount')}</span>
+                </div>
               </td>
               <td class="col-amt-rs ft-sub-rs">${paidSplit.rs}</td>
               <td class="col-amt-cts ft-sub-cts">${paidSplit.cts}</td>
             </tr>
+            `}
             <tr class="a5-tfoot-row a5-tfoot-balance">
               <td class="col-no">&nbsp;</td>
               <td class="col-qty">&nbsp;</td>
               <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
-                <span class="ft-sub-title">Balance Amount</span>
+                <span class="ft-sub-title" style="font-weight: 900; color: #7d1838;">${t('totalDue')}</span>
               </td>
-              <td class="col-amt-rs ft-sub-rs">${balSplit.rs}</td>
-              <td class="col-amt-cts ft-sub-cts">${balSplit.cts}</td>
+              <td class="col-amt-rs ft-sub-rs" style="font-weight: 900; color: #7d1838;">${totalDueSplit.rs}</td>
+              <td class="col-amt-cts ft-sub-cts" style="font-weight: 900; color: #7d1838;">${totalDueSplit.cts}</td>
             </tr>
           </tfoot>
         </table>
@@ -1191,7 +1310,8 @@ class ShareManager {
         chequeNo: 'Cheque No', bank: 'Bank', paymentMethod: 'Payment Method', paymentStatus: 'Payment Status', billStatus: 'Bill Status',
         terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
         cash: 'Cash', card: 'Card', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
-        due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded'
+        due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
+        totalAmount: 'Total Amount', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
       },
       ta: {
         receiptTitle: 'பண விற்பனை', walkInCustomer: 'நேரடி வாடிக்கையாளர்', phoneLabel: 'தொலைபேசி:', regNo: 'பதிவு எண்:', print: 'அச்சிடு', editBill: 'ரசீதைத் திருத்து', backToApp: 'செயலிக்குத் திரும்பு', billNo: 'ரசீது எண்:', date: 'தேதி:', billTo: 'வாடிக்கையாளர்:', phone: 'தொலைபேசி:', address: 'முகவரி:',
@@ -1200,7 +1320,8 @@ class ShareManager {
         chequeNo: 'காசோலை எண்', bank: 'வங்கி', paymentMethod: 'கட்டண முறை', paymentStatus: 'கட்டண நிலை', billStatus: 'ரசீது நிலை',
         terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Denuwara Tyre Care',
         cash: 'பணம்', card: 'அட்டை', bankTransfer: 'வங்கி பரிமாற்றம்', cheque: 'காசோலை', credit: 'கடன்', multiple: 'பல முறைகள்',
-        due: 'செலுத்த வேண்டியது', paid: 'செலுத்தப்பட்டது', active: 'செயலில்', cancelled: 'ரத்து செய்யப்பட்டது', refunded: 'பணம் திருப்பப்பட்டது'
+        due: 'செலுத்த வேண்டியது', paid: 'செலுத்தப்பட்டது', active: 'செயலில்', cancelled: 'ரத்து செய்யப்பட்டது', refunded: 'பணம் திருப்பப்பட்டது',
+        totalAmount: 'மொத்தத் தொகை', openingBalance: 'தொடக்க நிலுவை', openingOutstand: 'தொடக்க நிலுவை', previousDue: 'முந்தைய நிலுவை', totalPayable: 'செலுத்த வேண்டிய மொத்தத் தொகை', totalDue: 'மொத்த நிலுவை', paidAmount: 'செலுத்திய தொகை'
       },
       si: {
         receiptTitle: 'මුදල් විකිණුම්', walkInCustomer: 'සෘජු පාරිභෝගිකයා', phoneLabel: 'දුරකථන:', regNo: 'ලියාපදිංචි අංකය:', print: 'මුද්‍රණය', editBill: 'බිල්පත සංස්කරණය', backToApp: 'යෙදුමට ආපසු', billNo: 'රිසිට්පත් අංකය:', date: 'දිනය:', billTo: 'පාරිභෝගිකයා:', phone: 'දුරකථන:', address: 'ලිපිනය:',
@@ -1209,7 +1330,8 @@ class ShareManager {
         chequeNo: 'චෙක්පත් අංකය', bank: 'බැංකුව', paymentMethod: 'ගෙවීමේ ක්‍රමය', paymentStatus: 'ගෙවීමේ තත්ත්වය', billStatus: 'රිසිට්පත් තත්ත්වය',
         terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Denuwara Tyre Care',
         cash: 'මුදල්', card: 'කාඩ්පත', bankTransfer: 'බැංකු මාරු කිරීම', cheque: 'චෙක්පත', credit: 'ණය', multiple: 'ක්‍රම කිහිපයක්',
-        due: 'ගෙවීමට ඇත', paid: 'ගෙවා ඇත', active: 'සක්‍රියයි', cancelled: 'අවලංගුයි', refunded: 'මුදල් ආපසු දී ඇත'
+        due: 'ගෙවීමට ඇත', paid: 'ගෙවා ඇත', active: 'සක්‍රියයි', cancelled: 'අවලංගුයි', refunded: 'මුදල් ආපසු දී ඇත',
+        totalAmount: 'මුළු මුදල', openingBalance: 'ආරම්භක හිඟ මුදල', openingOutstand: 'ආරම්භක හිඟ මුදල', previousDue: 'පෙර හිඟ මුදල', totalPayable: 'මුළු ගෙවිය යුතු මුදල', totalDue: 'මුළු හිඟ මුදල', paidAmount: 'ගෙවූ මුදල'
       }
     }[language];
     const t = (key) => translations[key] || key;
@@ -1228,6 +1350,7 @@ class ShareManager {
     const dateStr = `${yStr80}-${mStr80}-${dStr80}`;
     const timeStr = dateObj.toLocaleTimeString();
     const invoiceNo = this.escapeHtml(b.billNumber || b.id || dateObj.getTime());
+    const rawCustomer = String(b.customerName || '').trim();
     const customer = this.escapeHtml(b.customerName || t('walkInCustomer'));
     const phone = this.escapeHtml(b.customerPhone || '');
     const address = this.escapeHtml(b.customerAddress || '');
@@ -1255,14 +1378,40 @@ class ShareManager {
       </div>`;
     }).join('');
 
-    const subTotal = Money.round(b.total);
+    const billValue = Money.round(
+      b.itemsTotal !== undefined
+        ? b.itemsTotal
+        : (b.items || []).reduce((sum, item) => {
+            const q = Number(item.qty) || 0;
+            const p = Number(item.price) || 0;
+            return Money.add(sum, Money.multiply(p, q));
+          }, 0) || b.total || 0
+    );
+    const subTotal = billValue;
+    const isRegisteredCustomer = !(!rawCustomer || rawCustomer.toLowerCase() === 'walk-in customer' || rawCustomer.toLowerCase() === 'direct customer');
+
+    const openingOutstand = Money.round(b.customerOpeningBalance || 0);
+    const rawTotalPrior = Money.round(b.previousDue !== undefined ? b.previousDue : (b.dueAmount || 0));
+    const priorTotalDue = Math.max(openingOutstand, rawTotalPrior);
+
+    const showOpeningRow = Money.isPositive(openingOutstand);
+    const previousBillDue = showOpeningRow
+      ? Money.clampZero(Money.subtract(priorTotalDue, openingOutstand))
+      : priorTotalDue;
+    const showPreviousDueRow = Money.isPositive(previousBillDue);
+
+    const totalPriorOutstand = Money.add(openingOutstand, previousBillDue);
+    const totalPayable = Money.add(billValue, totalPriorOutstand);
+    const showPayableRow = Money.isPositive(totalPriorOutstand);
+
     const received = Money.round(b.receivedAmount || 0);
-    const balance = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(subTotal, received));
-    const change = Money.clampZero(b.changeAmount || Money.subtract(received, subTotal));
+    const currentBillOutstand = Money.clampZero(Money.subtract(billValue, received));
+    const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
+    const change = Money.clampZero(b.changeAmount || Money.subtract(received, totalPayable));
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
     const paymentStatus = billStatus === 'active'
-      ? (Money.isPositive(balance) ? 'due' : 'paid')
+      ? (Money.isPositive(currentBillOutstand) ? 'due' : 'paid')
       : (b.paymentStatus || billStatus);
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
     const hasChequePayment = this.isChequeBill(b) || payments.some((payment) => payment.method === 'cheque');
@@ -1274,9 +1423,10 @@ class ShareManager {
         let chequeIndex = 0;
         return payments.map((payment) => {
           const label = payment.method === 'cheque' ? `${t('cheque')} ${++chequeIndex}` : localizedMethodLabel(payment.method);
+          const pDate = payment.date || dateStr;
           return `
           <div class="payment-block">
-          <div class="row"><span>${this.escapeHtml(label)}</span><span>${this.formatCurrency(payment.amount)}</span></div>
+          <div class="row"><span>${this.escapeHtml(label)} <span class="paid-date-tag">(${this.escapeHtml(pDate)})</span></span><span>${this.formatCurrency(payment.amount)}</span></div>
           ${payment.method === 'cheque' ? `
             <div class="row detail-row small"><span>${t('chequeDate')}</span><span>${this.escapeHtml(payment.chequeDate || '-')}</span></div>
             <div class="row detail-row small"><span>${t('chequeNo')}</span><span>${this.escapeHtml(payment.chequeNumber || '-')}</span></div>
@@ -1392,6 +1542,17 @@ class ShareManager {
   .totals { margin-top: 6px; }
   .totals .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 3px 0; }
   .totals .row span:last-child, .totals .row strong:last-child { text-align: right; }
+  .paid-date-tag {
+    font-size: 11px;
+    font-weight: 800;
+    color: #333;
+    background: #f0f0f0;
+    border: 1px solid #777;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-left: 3px;
+    white-space: nowrap;
+  }
   .payment-heading { padding-top: 6px !important; padding-bottom: 6px !important; }
   .payment-block { padding: 8px 0 6px; }
   .payment-block + .payment-block { border-top: 1px dashed #888; margin-top: 6px; padding-top: 10px; }
@@ -1547,10 +1708,12 @@ class ShareManager {
     <div class="rule"></div>
 
     <div class="totals">
-      <div class="row"><span>${t('subTotal')}</span><strong>${this.formatCurrency(subTotal)}</strong></div>
-      <div class="row"><span>${t('total')}</span><strong>${this.formatCurrency(subTotal)}</strong></div>
-      ${hasChequePayment ? '' : `<div class="row"><span>${t('received')}</span><span>${this.formatCurrency(received)}</span></div>`}
-      <div class="row"><span>${t('balance')}</span><strong>${this.formatCurrency(balance)}</strong></div>
+      <div class="row"><span>${t('totalAmount')}</span><strong>${this.formatCurrency(billValue)}</strong></div>
+      ${showOpeningRow ? `<div class="row"><span>${t('openingOutstand')}</span><strong>${this.formatCurrency(openingOutstand)}</strong></div>` : ''}
+      ${showPreviousDueRow ? `<div class="row"><span>${t('previousDue')}</span><strong>${this.formatCurrency(previousBillDue)}</strong></div>` : ''}
+      ${showPayableRow ? `<div class="row"><span>${t('totalPayable')}</span><strong>${this.formatCurrency(totalPayable)}</strong></div>` : ''}
+      ${hasChequePayment ? '' : `<div class="row"><span>${t('paidAmount')} ${received > 0 ? `<span class="paid-date-tag">(${this.escapeHtml(b.date || dateStr)})</span>` : ''}</span><span>${this.formatCurrency(received)}</span></div>`}
+      <div class="row"><span>${t('totalDue')}</span><strong>${this.formatCurrency(totalDue)}</strong></div>
       ${Money.isPositive(change) ? `<div class="row"><span>${t('change')}</span><span>${this.formatCurrency(change)}</span></div>` : ''}
       ${paymentRows}
       ${paymentRows ? '' : `<div class="row"><span>${t('paymentMethod')}</span><span>${this.escapeHtml(paymentLabel)}</span></div>`}
@@ -1729,6 +1892,22 @@ class ShareManager {
     if (!b) {
       alert('No bill selected to print.');
       return;
+    }
+
+    if (b && b.customerName && (b.customerOpeningBalance === undefined || b.previousDue === undefined)) {
+      try {
+        const customers = window.customersPage?.customers || window.billing?.customers || [];
+        const norm = (b.customerName || '').trim().toLowerCase();
+        const matched = customers.find((c) => (c.name || '').trim().toLowerCase() === norm);
+        if (matched) {
+          if (b.customerOpeningBalance === undefined) {
+            b.customerOpeningBalance = Money.clampZero(matched.openingBalance || 0);
+          }
+          if (b.previousDue === undefined && Money.isPositive(matched.openingBalance || 0)) {
+            b.previousDue = Money.clampZero(matched.openingBalance || 0);
+          }
+        }
+      } catch (e) {}
     }
 
     if (window.app?.showLoading) {

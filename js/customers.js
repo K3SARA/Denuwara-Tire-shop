@@ -321,6 +321,9 @@ class CustomersPage {
         await window.billing.loadCustomerDirectory();
         await window.billing.loadOutstandingDirectory();
       }
+      if (window.reportsView && window.app.currentPage === 'reports') {
+        await window.reportsView.render();
+      }
     } finally {
       this.importInProgress = false;
       if (closeButton) closeButton.disabled = false;
@@ -919,6 +922,9 @@ class CustomersPage {
         await window.billing.loadCustomerDirectory();
         await window.billing.loadOutstandingDirectory();
       }
+      if (window.reportsView && window.app.currentPage === 'reports') {
+        await window.reportsView.render();
+      }
     }, 'Saving customer...', 'Updating customer directory');
   }
 
@@ -952,6 +958,9 @@ class CustomersPage {
       if (window.billing) {
         await window.billing.loadCustomerDirectory();
         await window.billing.loadOutstandingDirectory();
+      }
+      if (window.reportsView && window.app.currentPage === 'reports') {
+        await window.reportsView.render();
       }
     }, 'Deleting customer...', 'Updating customer directory');
   }

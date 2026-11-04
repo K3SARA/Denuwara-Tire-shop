@@ -136,11 +136,6 @@ class App {
     try {
       await window.db.init();
       await window.db.syncCustomersFromBills();
-      // Ensure default product exists
-      const prods = await window.db.getProducts();
-      if (prods.length === 0) {
-        await window.db.addProduct('Cashew Packet');
-      }
     } catch (e) {
       console.error('DB Init error', e);
       alert('App failed to start. Please refresh and try again.');

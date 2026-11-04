@@ -1314,45 +1314,83 @@ class ReportsView {
     printWindow.document.close();
   }
 
-  renderReceivablesReport(rangeBills) {
-    const active = rangeBills.filter((b) => (b.billStatus || 'active') === 'active');
-    const dueMap = new Map();
-    let dueBills = 0;
-    let totalDue = 0;
+  renderReceivablesReport() {
+    const allActiveBills = (this.bills || []).filter((b) => (b.billStatus || 'active') === 'active');
+    const customerMap = new Map();
+    let totalDueBillsCount = 0;
+    let totalBillsDue = 0;
+    let totalOpeningDue = 0;
+
+    const normKey = (s) => String(s || '').trim().toLowerCase();
 
     (this.customers || []).forEach((c) => {
-      const key = (c.name || '').trim();
-      if (!key || key.toLowerCase() === 'walk-in customer') return;
+      const norm = normKey(c.name);
+      if (!norm || norm === 'walk-in customer') return;
       const op = Money.clampZero(c.openingBalance || 0);
       if (Money.isPositive(op)) {
-        totalDue = Money.add(totalDue, op);
-        dueMap.set(key, op);
+        totalOpeningDue = Money.add(totalOpeningDue, op);
+      }
+      customerMap.set(norm, {
+        name: (c.name || '').trim(),
+        phone: (c.phone || '').trim(),
+        openingBalance: op,
+        dueBills: 0,
+        billsDue: 0,
+        totalDue: op
+      });
+    });
+
+    allActiveBills.forEach((bill) => {
+      const t = this.getBillTotals(bill);
+      if (!Money.isPositive(t.balance)) return;
+      totalDueBillsCount += 1;
+      totalBillsDue = Money.add(totalBillsDue, t.balance);
+
+      const rawName = (bill.customerName || '').trim() || 'Walk-in Customer';
+      const norm = normKey(rawName);
+      if (!customerMap.has(norm)) {
+        customerMap.set(norm, {
+          name: rawName,
+          phone: (bill.customerPhone || '').trim(),
+          openingBalance: 0,
+          dueBills: 0,
+          billsDue: 0,
+          totalDue: 0
+        });
+      }
+      const entry = customerMap.get(norm);
+      entry.dueBills += 1;
+      entry.billsDue = Money.add(entry.billsDue, t.balance);
+      entry.totalDue = Money.add(entry.totalDue, t.balance);
+      if (!entry.phone && bill.customerPhone) {
+        entry.phone = String(bill.customerPhone).trim();
       }
     });
 
-    active.forEach((bill) => {
-      const t = this.getBillTotals(bill);
-      if (!Money.isPositive(t.balance)) return;
-      dueBills += 1;
-      totalDue = Money.add(totalDue, t.balance);
-      const key = (bill.customerName || 'Walk-in Customer').trim() || 'Walk-in Customer';
-      dueMap.set(key, Money.add(dueMap.get(key) || 0, t.balance));
-    });
+    const totalOutstanding = Money.add(totalOpeningDue, totalBillsDue);
 
-    const topRows = [...dueMap.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, due]) => [this.esc(name), this.esc(this.fmtLkr(due))]);
+    const debtors = [...customerMap.values()]
+      .filter((entry) => Money.isPositive(entry.totalDue))
+      .sort((a, b) => b.totalDue - a.totalDue);
+
+    const rows = debtors.length
+      ? debtors.map((d) => [
+          this.esc(d.name),
+          this.esc(d.phone || '-'),
+          this.esc(d.dueBills ? d.dueBills.toLocaleString() : (d.openingBalance > 0 ? 'Opening Only' : '0')),
+          this.esc(this.fmtLkr(d.totalDue))
+        ])
+      : [['No outstanding receivables', '-', '-', this.fmtLkr(0)]];
 
     return `
       <h3 class="report-title">Outstanding / Receivables</h3>
       ${this.metricGrid([
-        { label: 'Due Bills', value: dueBills.toLocaleString() },
-        { label: 'Total Outstanding', value: this.fmtLkr(totalDue) },
-        { label: 'Customers with Due', value: dueMap.size.toLocaleString() },
-        { label: 'Average Due/Bill', value: this.fmtLkr(dueBills ? totalDue / dueBills : 0) }
+        { label: 'Due Bills', value: totalDueBillsCount.toLocaleString() },
+        { label: 'Total Outstanding', value: this.fmtLkr(totalOutstanding) },
+        { label: 'Customers with Due', value: debtors.length.toLocaleString() },
+        { label: 'Average Due/Customer', value: this.fmtLkr(debtors.length ? totalOutstanding / debtors.length : 0) }
       ])}
-      ${this.simpleTable(['Customer', 'Due Amount'], topRows)}
+      ${this.simpleTable(['Customer', 'Phone', 'Due Bills', 'Total Outstanding'], rows)}
     `;
   }
 
@@ -1563,20 +1601,34 @@ class ReportsView {
   renderCustomerSummary(rangeBills) {
     const active = rangeBills.filter((b) => (b.billStatus || 'active') === 'active');
     const map = new Map();
+    const normKey = (s) => String(s || '').trim().toLowerCase();
 
     (this.customers || []).forEach((c) => {
-      const key = (c.name || '').trim();
-      if (!key || key.toLowerCase() === 'walk-in customer') return;
+      const key = normKey(c.name);
+      if (!key || key === 'walk-in customer') return;
       const op = Money.clampZero(c.openingBalance || 0);
-      if (Money.isPositive(op)) {
-        map.set(key, { bills: 0, sales: 0, received: 0, due: op });
-      }
+      map.set(key, {
+        name: (c.name || '').trim(),
+        phone: (c.phone || '').trim(),
+        bills: 0,
+        sales: 0,
+        received: 0,
+        due: op
+      });
     });
 
     active.forEach((bill) => {
-      const key = (bill.customerName || 'Walk-in Customer').trim() || 'Walk-in Customer';
+      const rawName = (bill.customerName || '').trim() || 'Walk-in Customer';
+      const key = normKey(rawName);
       if (!map.has(key)) {
-        map.set(key, { bills: 0, sales: 0, received: 0, due: 0 });
+        map.set(key, {
+          name: rawName,
+          phone: (bill.customerPhone || '').trim(),
+          bills: 0,
+          sales: 0,
+          received: 0,
+          due: 0
+        });
       }
       const t = this.getBillTotals(bill);
       const row = map.get(key);
@@ -1584,26 +1636,30 @@ class ReportsView {
       row.sales = Money.add(row.sales, t.total);
       row.received = Money.add(row.received, t.netReceived);
       row.due = Money.add(row.due, t.balance);
+      if (!row.phone && bill.customerPhone) row.phone = (bill.customerPhone || '').trim();
     });
 
-    const topRows = [...map.entries()]
-      .sort((a, b) => b[1].sales - a[1].sales)
-      .slice(0, 5)
-      .map(([name, v]) => [
-        this.esc(name),
-        this.esc(this.fmtLkr(v.sales)),
-        this.esc(this.fmtLkr(v.due))
-      ]);
+    const customerList = [...map.values()]
+      .filter((v) => v.bills > 0 || Money.isPositive(v.sales) || Money.isPositive(v.due))
+      .sort((a, b) => b.sales - a.sales);
 
-    const totalSales = [...map.values()].reduce((s, v) => s + v.sales, 0);
+    const rows = customerList.length
+      ? customerList.map((v) => [
+          this.esc(v.name),
+          this.esc(this.fmtLkr(v.sales)),
+          this.esc(this.fmtLkr(v.due))
+        ])
+      : [['No customer data found', this.fmtLkr(0), this.fmtLkr(0)]];
+
+    const totalSales = customerList.reduce((s, v) => Money.add(s, v.sales), 0);
     return `
       <h3 class="report-title">Customer Summary</h3>
       ${this.metricGrid([
-        { label: 'Active Customers', value: map.size.toLocaleString() },
+        { label: 'Active Customers', value: customerList.length.toLocaleString() },
         { label: 'Customer Sales', value: this.fmtLkr(totalSales) },
-        { label: 'Avg Sales/Customer', value: this.fmtLkr(map.size ? totalSales / map.size : 0) }
+        { label: 'Avg Sales/Customer', value: this.fmtLkr(customerList.length ? totalSales / customerList.length : 0) }
       ])}
-      ${this.simpleTable(['Customer', 'Sales', 'Outstanding'], topRows)}
+      ${this.simpleTable(['Customer', 'Sales', 'Outstanding'], rows)}
     `;
   }
 

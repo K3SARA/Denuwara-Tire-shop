@@ -12,18 +12,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Denuwara Tyre Center" />
 
-    <link rel="manifest" href="./manifest.json?v=119" />
+    <link rel="manifest" href="./manifest.json?v=123" />
     <link rel="icon" href="./icons/logo.png" />
     <link rel="apple-touch-icon" href="./icons/logo.png" />
 
     <link rel="preload" href="./fonts/SamsungOne-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="./fonts/SamsungOne-700.woff2" as="font" type="font/woff2" crossorigin />
 
-    <link rel="stylesheet" href="css/variables.css?v=119" />
-    <link rel="stylesheet" href="css/base.css?v=119" />
-    <link rel="stylesheet" href="css/components.css?v=119" />
-    <link rel="stylesheet" href="css/pages.css?v=119" />
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=119" />
+    <link rel="stylesheet" href="css/variables.css?v=123" />
+    <link rel="stylesheet" href="css/base.css?v=123" />
+    <link rel="stylesheet" href="css/components.css?v=123" />
+    <link rel="stylesheet" href="css/pages.css?v=123" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=123" />
   </head>
   <body>
     <div id="app">
@@ -154,13 +154,23 @@
                 placeholder="07XXXXXXXX"
               />
             </div>
-            <div class="input-group" style="margin-bottom: 0">
+            <div class="input-group">
               <label>Customer Address (Optional)</label>
               <input
                 type="text"
                 id="customer-address"
                 class="input-field"
                 placeholder="Enter address"
+              />
+            </div>
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Opening Outstanding (Optional)</label>
+              <input
+                type="number"
+                id="customer-opening-balance"
+                class="input-field"
+                placeholder="0.00"
+                step="0.01"
               />
             </div>
           </div>
@@ -790,11 +800,12 @@
           <h1>Inventory</h1>
           <div class="header-actions">
             <button
-              id="btn-inventory-edit"
-              class="inventory-header-edit"
-              onclick="inventory.enableEditing()"
+              id="btn-inventory-add"
+              class="btn-tool"
+              onclick="inventory.openAddModal()"
+              style="padding: 7px 14px; font-weight: 700; border-radius: 999px;"
             >
-              Edit
+              + Add Product
             </button>
             <button class="settings-btn" onclick="app.navigate('settings')" title="Settings" aria-label="Settings">
               <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -805,79 +816,29 @@
           </div>
         </header>
         <div class="inventory-scroll">
-          <div class="card">
-            <div class="input-group">
-              <label>Select Existing Product</label>
-              <select
-                id="inv-existing-product"
-                class="input-field"
-                onchange="inventory.selectExistingProduct(this.value)"
-              >
-                <option value="">New product or choose existing</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>Add New Product</label>
-              <input
-                type="text"
-                id="inv-new-name"
-                class="input-field"
-                placeholder="Product Name"
-              />
-            </div>
-            <div class="input-group">
-              <label>Initial Stock (Qty)</label>
-              <input
-                type="number"
-                id="inv-new-stock"
-                class="input-field"
-                placeholder="Stock"
-                step="0.01"
-              />
-            </div>
-            <div class="input-group">
-              <label>Selling Price</label>
-              <input
-                type="number"
-                id="inv-new-billing-price"
-                class="input-field"
-                placeholder="Selling price"
-                step="0.01"
-              />
-            </div>
-            <div class="input-group">
-              <label>Purchase Price</label>
-              <input
-                type="number"
-                id="inv-new-invoice-price"
-                class="input-field"
-                placeholder="Purchase price"
-                step="0.01"
-              />
-            </div>
-            <div class="input-group" style="margin-bottom: 0">
-              <label>Reorder Level</label>
-              <input
-                type="number"
-                id="inv-new-reorder-level"
-                class="input-field"
-                placeholder="Reorder level"
-                step="0.01"
-              />
-            </div>
-            <div class="input-group" style="margin-top: 16px; margin-bottom: 0">
-              <label>Change Reason</label>
-              <input
-                type="text"
-                id="inv-change-reason"
-                class="input-field"
-                placeholder="Required when saving inventory changes"
-              />
+          <div class="card inventory-search-card">
+            <div class="input-group" style="margin-bottom: 0;">
+              <label for="inv-search-input">Search Inventory</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input
+                  type="text"
+                  id="inv-search-input"
+                  class="input-field"
+                  placeholder="Search by product name, price..."
+                  autocomplete="off"
+                  style="padding-left: 38px;"
+                  oninput="inventory.filterProducts(this.value)"
+                />
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; color: var(--text-muted); pointer-events: none;">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
             </div>
           </div>
 
           <div class="inventory-stock-title-row">
-            <h3>Current Stock</h3>
+            <h3 id="inv-stock-title">Current Stock</h3>
             <button
               id="btn-inventory-pdf"
               class="btn-tool"
@@ -889,20 +850,13 @@
           <div id="inventory-list">
             <!-- Inventory injected via JS -->
           </div>
-          <div class="inventory-stock-title-row">
+          <div class="inventory-stock-title-row" style="margin-top: 28px;">
             <h3>Archived Products</h3>
           </div>
           <div id="inventory-archived-list">
             <!-- Archived inventory injected via JS -->
           </div>
         </div>
-        <button
-          id="btn-inventory-save"
-          class="inventory-floating-save hidden"
-          onclick="inventory.saveChanges()"
-        >
-          Save Changes
-        </button>
       </div>
 
       <!-- Settings Page -->
@@ -1301,6 +1255,105 @@
         </div>
       </div>
 
+      <!-- Add / Edit Inventory Product Modal -->
+      <div id="inventory-product-modal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-handle"></div>
+          <h2 id="inv-modal-title" style="margin-bottom: 20px; text-align: center;">Add New Product</h2>
+          <input type="hidden" id="inv-modal-product-id" value="" />
+
+          <div class="input-group">
+            <label for="inv-modal-name">Product Name *</label>
+            <input
+              type="text"
+              id="inv-modal-name"
+              class="input-field"
+              placeholder="e.g. 195/65R15 Tyre"
+              required
+            />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label for="inv-modal-stock">Stock Quantity</label>
+              <input
+                type="number"
+                id="inv-modal-stock"
+                class="input-field"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group">
+              <label for="inv-modal-reorder">Reorder Level</label>
+              <input
+                type="number"
+                id="inv-modal-reorder"
+                class="input-field"
+                placeholder="5"
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label for="inv-modal-billing-price">Selling Price (LKR)</label>
+              <input
+                type="number"
+                id="inv-modal-billing-price"
+                class="input-field"
+                placeholder="0.00"
+                step="0.01"
+              />
+            </div>
+            <div class="input-group">
+              <label for="inv-modal-invoice-price">Purchase Price (LKR)</label>
+              <input
+                type="number"
+                id="inv-modal-invoice-price"
+                class="input-field"
+                placeholder="0.00"
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top: 4px; margin-bottom: 16px;">
+            <label for="inv-modal-change-reason">Adjustment / Restock Notes</label>
+            <input
+              type="text"
+              id="inv-modal-change-reason"
+              class="input-field"
+              placeholder="Optional notes or reason for changes"
+            />
+          </div>
+
+          <button
+            id="btn-save-inv-modal"
+            class="btn-primary"
+            style="margin: 0; width: 100%;"
+            onclick="inventory.saveProductFromModal()"
+          >
+            Save Product
+          </button>
+          <button
+            type="button"
+            class="btn-primary"
+            onclick="inventory.closeProductModal()"
+            style="
+              margin: 10px 0 0 0;
+              background: none;
+              color: var(--text-main);
+              font-weight: 400;
+              width: 100%;
+            "
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
       <div id="customer-map-modal" class="modal-overlay">
         <div class="modal-content customer-map-modal-content">
           <div class="modal-handle"></div>
@@ -1564,27 +1617,27 @@
       </div>
     </div>
 
-    <script src="vendor/leaflet/leaflet.js?v=119"></script>
-    <script src="js/deploy-config.js?v=119"></script>
-    <script src="js/supabase-config.js?v=119"></script>
-    <script src="js/db.js?v=119"></script>
-    <script src="js/auth.js?v=119"></script>
-    <script src="js/billing.js?v=119"></script>
-    <script src="js/history.js?v=119"></script>
-    <script src="js/customers.js?v=119"></script>
-    <script src="js/collection.js?v=119"></script>
-    <script src="js/expenses.js?v=119"></script>
-    <script src="js/pdf.js?v=119"></script>
-    <script src="js/reports.js?v=119"></script>
-    <script src="js/inventory.js?v=119"></script>
-    <script src="js/share.js?v=119"></script>
-    <script src="js/clear-inputs.js?v=119"></script>
-    <script src="js/app.js?v=119"></script>
+    <script src="vendor/leaflet/leaflet.js?v=123"></script>
+    <script src="js/deploy-config.js?v=123"></script>
+    <script src="js/supabase-config.js?v=123"></script>
+    <script src="js/db.js?v=123"></script>
+    <script src="js/auth.js?v=123"></script>
+    <script src="js/billing.js?v=123"></script>
+    <script src="js/history.js?v=123"></script>
+    <script src="js/customers.js?v=123"></script>
+    <script src="js/collection.js?v=123"></script>
+    <script src="js/expenses.js?v=123"></script>
+    <script src="js/pdf.js?v=123"></script>
+    <script src="js/reports.js?v=123"></script>
+    <script src="js/inventory.js?v=123"></script>
+    <script src="js/share.js?v=123"></script>
+    <script src="js/clear-inputs.js?v=123"></script>
+    <script src="js/app.js?v=123"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=119")
+            .register("./sw.js?v=123")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })

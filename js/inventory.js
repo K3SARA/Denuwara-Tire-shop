@@ -1,73 +1,16 @@
 class Inventory {
   constructor() {
-    this.isEditing = false;
-    this.hasChanges = false;
     this.products = [];
     this.archivedProducts = [];
     this.inventoryLogs = [];
+    this.searchQuery = '';
+    this.editingProductId = null;
+    this.isEditing = false;
+    this.hasChanges = false;
   }
 
   async init() {
     await this.render();
-  }
-
-  setInputsLocked(locked) {
-    ['inv-existing-product', 'inv-new-name', 'inv-new-stock', 'inv-new-billing-price', 'inv-new-invoice-price', 'inv-new-reorder-level', 'inv-change-reason'].forEach((id) => {
-      const input = document.getElementById(id);
-      if (input) input.disabled = locked;
-    });
-
-    document.querySelectorAll('[data-inventory-field]').forEach((input) => {
-      input.disabled = locked;
-    });
-    document.querySelectorAll('[data-inventory-delete]').forEach((button) => {
-      button.disabled = locked;
-    });
-
-    document.getElementById('btn-inventory-edit')?.classList.toggle('hidden', !locked);
-    this.updateSaveButton();
-  }
-
-  updateSaveButton() {
-    const saveBtn = document.getElementById('btn-inventory-save');
-    if (!saveBtn) return;
-    saveBtn.classList.toggle('hidden', !(this.isEditing && this.hasChanges));
-  }
-
-  markDirty() {
-    if (!this.isEditing) return;
-    this.hasChanges = true;
-    this.updateSaveButton();
-  }
-
-  bindChangeTracking() {
-    const fields = [
-      ...document.querySelectorAll('#inv-existing-product, #inv-new-name, #inv-new-stock, #inv-new-billing-price, #inv-new-invoice-price'),
-      ...document.querySelectorAll('#inv-new-reorder-level, #inv-change-reason'),
-      ...document.querySelectorAll('[data-inventory-field]')
-    ];
-
-    fields.forEach((field) => {
-      if (field.dataset.inventoryDirtyBound === '1') return;
-      field.dataset.inventoryDirtyBound = '1';
-      field.addEventListener('input', () => this.markDirty());
-      field.addEventListener('change', () => this.markDirty());
-    });
-  }
-
-  enableEditing() {
-    this.isEditing = true;
-    this.hasChanges = false;
-    this.setInputsLocked(false);
-    this.bindChangeTracking();
-    this.updateSaveButton();
-  }
-
-  clearNewProductInputs() {
-    ['inv-existing-product', 'inv-new-name', 'inv-new-stock', 'inv-new-billing-price', 'inv-new-invoice-price', 'inv-new-reorder-level', 'inv-change-reason'].forEach((id) => {
-      const input = document.getElementById(id);
-      if (input) input.value = '';
-    });
   }
 
   escapeHtml(value) {
@@ -83,251 +26,200 @@ class Inventory {
     return String(value || '').trim().toLowerCase();
   }
 
-  getNewProductInput() {
-    return {
-      name: (document.getElementById('inv-new-name')?.value || '').trim(),
-      stock: parseFloat(document.getElementById('inv-new-stock')?.value || '0') || 0,
-      billingPrice: parseFloat(document.getElementById('inv-new-billing-price')?.value || '0') || 0,
-      invoicePrice: parseFloat(document.getElementById('inv-new-invoice-price')?.value || '0') || 0,
-      reorderLevel: parseFloat(document.getElementById('inv-new-reorder-level')?.value || '5') || 5
-    };
+  formatDateTime(timestamp) {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
   }
 
-  renderExistingProductOptions() {
-    const select = document.getElementById('inv-existing-product');
-    if (!select) return;
+  formatNumber(value) {
+    const num = Number(value);
+    if (Number.isNaN(num)) return '0';
+    return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
 
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">New product or choose existing</option>';
-    this.products.forEach((product) => {
-      const option = document.createElement('option');
-      option.value = String(product.id);
-      option.textContent = product.name || `Product #${product.id}`;
-      select.appendChild(option);
-    });
-
-    if (currentValue && this.products.some((product) => String(product.id) === currentValue)) {
-      select.value = currentValue;
+  async refreshBillingProducts() {
+    if (window.billing) {
+      window.billing.availableProducts = await window.db.getProducts();
     }
   }
 
-  selectExistingProduct(productId) {
-    const product = this.products.find((item) => String(item.id) === String(productId));
+  // --- Search & Filtering ---
+  filterProducts(query = '') {
+    this.searchQuery = String(query || '').trim().toLowerCase();
+    this.renderProductsList();
+  }
+
+  // --- Modal Operations ---
+  openAddModal() {
+    this.editingProductId = null;
+    const title = document.getElementById('inv-modal-title');
+    const idInput = document.getElementById('inv-modal-product-id');
+    const nameInput = document.getElementById('inv-modal-name');
+    const stockInput = document.getElementById('inv-modal-stock');
+    const billingPriceInput = document.getElementById('inv-modal-billing-price');
+    const invoicePriceInput = document.getElementById('inv-modal-invoice-price');
+    const reorderInput = document.getElementById('inv-modal-reorder');
+    const reasonInput = document.getElementById('inv-modal-change-reason');
+
+    if (title) title.textContent = 'Add New Product';
+    if (idInput) idInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (stockInput) stockInput.value = '';
+    if (billingPriceInput) billingPriceInput.value = '';
+    if (invoicePriceInput) invoicePriceInput.value = '';
+    if (reorderInput) reorderInput.value = '5';
+    if (reasonInput) reasonInput.value = '';
+
+    window.app?.openModal('inventory-product-modal');
+    setTimeout(() => nameInput?.focus(), 80);
+  }
+
+  openEditModal(productId) {
+    const product = this.products.find((p) => Number(p.id) === Number(productId));
     if (!product) return;
 
-    const nameInput = document.getElementById('inv-new-name');
-    const stockInput = document.getElementById('inv-new-stock');
-    const billingPriceInput = document.getElementById('inv-new-billing-price');
-    const invoicePriceInput = document.getElementById('inv-new-invoice-price');
+    this.editingProductId = Number(productId);
+    const title = document.getElementById('inv-modal-title');
+    const idInput = document.getElementById('inv-modal-product-id');
+    const nameInput = document.getElementById('inv-modal-name');
+    const stockInput = document.getElementById('inv-modal-stock');
+    const billingPriceInput = document.getElementById('inv-modal-billing-price');
+    const invoicePriceInput = document.getElementById('inv-modal-invoice-price');
+    const reorderInput = document.getElementById('inv-modal-reorder');
+    const reasonInput = document.getElementById('inv-modal-change-reason');
 
+    if (title) title.textContent = 'Edit Product';
+    if (idInput) idInput.value = String(product.id);
     if (nameInput) nameInput.value = product.name || '';
-    if (stockInput) stockInput.value = '';
-    if (billingPriceInput) billingPriceInput.value = (product.billingPrice && Number(product.billingPrice) > 0) ? Number(product.billingPrice) : '';
-    if (invoicePriceInput) invoicePriceInput.value = (product.invoicePrice && Number(product.invoicePrice) > 0) ? Number(product.invoicePrice) : '';
-    const reorderInput = document.getElementById('inv-new-reorder-level');
-    if (reorderInput) reorderInput.value = (product.reorderLevel && Number(product.reorderLevel) > 0) ? Number(product.reorderLevel) : '';
-    this.markDirty();
+    if (stockInput) stockInput.value = (product.stock !== undefined && product.stock !== null && product.stock !== '' && Number(product.stock) !== 0) ? product.stock : '';
+    if (billingPriceInput) billingPriceInput.value = (product.billingPrice && Number(product.billingPrice) > 0) ? product.billingPrice : '';
+    if (invoicePriceInput) invoicePriceInput.value = (product.invoicePrice && Number(product.invoicePrice) > 0) ? product.invoicePrice : '';
+    if (reorderInput) reorderInput.value = (product.reorderLevel && Number(product.reorderLevel) > 0) ? product.reorderLevel : '5';
+    if (reasonInput) reasonInput.value = '';
+
+    window.app?.openModal('inventory-product-modal');
+    setTimeout(() => nameInput?.focus(), 80);
   }
 
-  async saveChanges() {
-    if (!this.isEditing) return;
-    const enteredReason = (document.getElementById('inv-change-reason')?.value || '').trim();
-    let reason = enteredReason;
+  closeProductModal() {
+    this.editingProductId = null;
+    window.app?.closeModal('inventory-product-modal');
+  }
 
-    const updates = this.products.map((product) => {
-      const name = (document.getElementById(`inv-name-${product.id}`)?.value || '').trim();
-      const stock = parseFloat(document.getElementById(`inv-stock-${product.id}`)?.value || '0') || 0;
-      const billingPrice = parseFloat(document.getElementById(`inv-billing-price-${product.id}`)?.value || '0') || 0;
-      const invoicePrice = parseFloat(document.getElementById(`inv-invoice-price-${product.id}`)?.value || '0') || 0;
-      const reorderLevel = parseFloat(document.getElementById(`inv-reorder-level-${product.id}`)?.value || '5') || 5;
-      return {
-        id: product.id,
-        name,
-        stock: Math.max(0, stock),
-        billingPrice: Math.max(0, billingPrice),
-        invoicePrice: Math.max(0, invoicePrice),
-        reorderLevel: Math.max(0, reorderLevel)
-      };
-    });
+  async saveProductFromModal() {
+    const name = (document.getElementById('inv-modal-name')?.value || '').trim();
+    const stock = parseFloat(document.getElementById('inv-modal-stock')?.value || '0') || 0;
+    const billingPrice = parseFloat(document.getElementById('inv-modal-billing-price')?.value || '0') || 0;
+    const invoicePrice = parseFloat(document.getElementById('inv-modal-invoice-price')?.value || '0') || 0;
+    const reorderLevel = parseFloat(document.getElementById('inv-modal-reorder')?.value || '5') || 5;
+    const reason = (document.getElementById('inv-modal-change-reason')?.value || '').trim();
 
-    const seenNames = new Set();
-    for (const update of updates) {
-      if (!update.name) {
-        alert('Product name is required.');
-        return;
-      }
-
-      const key = this.normalizeName(update.name);
-      if (seenNames.has(key)) {
-        alert('Product names must be unique.');
-        return;
-      }
-      seenNames.add(key);
-    }
-
-    const newProduct = this.getNewProductInput();
-    const hasExistingProductChanges = updates.some((update) => {
-      const previous = this.products.find((product) => Number(product.id) === Number(update.id));
-      return previous && (
-        (previous.name || '') !== update.name
-        || Number(previous.stock || 0) !== Number(update.stock || 0)
-        || Number(previous.billingPrice || 0) !== Number(update.billingPrice || 0)
-        || Number(previous.invoicePrice || 0) !== Number(update.invoicePrice || 0)
-        || Number(previous.reorderLevel || 5) !== Number(update.reorderLevel || 5)
-      );
-    });
-
-    if (!reason && hasExistingProductChanges) {
-      alert('Please enter a change reason before saving inventory changes.');
-      document.getElementById('inv-change-reason')?.focus();
+    if (!name) {
+      alert('Product name is required.');
+      document.getElementById('inv-modal-name')?.focus();
       return;
     }
 
-    if (!reason && newProduct.name) {
-      reason = 'New product setup';
+    const isEdit = Boolean(this.editingProductId);
+    const existing = this.products.find((p) => {
+      if (isEdit && Number(p.id) === Number(this.editingProductId)) return false;
+      return this.normalizeName(p.name) === this.normalizeName(name);
+    });
+
+    if (existing) {
+      alert(`A product with name "${name}" already exists in inventory.`);
+      return;
     }
 
     await window.app.withLoading(async () => {
-      for (const update of updates) {
-        const previous = this.products.find((product) => Number(product.id) === Number(update.id));
-        await window.db.updateProduct(update.id, {
-          name: update.name,
-          stock: update.stock,
-          billingPrice: update.billingPrice,
-          invoicePrice: update.invoicePrice,
-          reorderLevel: update.reorderLevel
+      if (isEdit) {
+        const previous = this.products.find((p) => Number(p.id) === Number(this.editingProductId));
+        const effectiveReason = reason || 'Product details updated';
+        await window.db.updateProduct(this.editingProductId, {
+          name,
+          stock: Math.max(0, stock),
+          billingPrice: Math.max(0, billingPrice),
+          invoicePrice: Math.max(0, invoicePrice),
+          reorderLevel: Math.max(0, reorderLevel)
         });
-        const changed = previous && (
-          (previous.name || '') !== update.name
-          || Number(previous.stock || 0) !== Number(update.stock || 0)
-          || Number(previous.billingPrice || 0) !== Number(update.billingPrice || 0)
-          || Number(previous.invoicePrice || 0) !== Number(update.invoicePrice || 0)
-          || Number(previous.reorderLevel || 5) !== Number(update.reorderLevel || 5)
+
+        const prevStock = Number(previous?.stock || 0);
+        const newStock = Math.max(0, stock);
+        const stockDiff = newStock - prevStock;
+
+        await window.db.addInventoryLog({
+          productId: this.editingProductId,
+          productName: name,
+          action: 'manual_adjustment',
+          reason: effectiveReason,
+          before: {
+            name: previous?.name,
+            stock: prevStock,
+            billingPrice: previous?.billingPrice,
+            invoicePrice: previous?.invoicePrice,
+            reorderLevel: previous?.reorderLevel
+          },
+          after: { name, stock: newStock, billingPrice, invoicePrice, reorderLevel },
+          addedQty: Math.max(0, stockDiff),
+          billingPrice,
+          invoicePrice
+        });
+
+        await window.db.addAuditLog({
+          action: 'inventory_product_update',
+          entity: 'product',
+          entityId: this.editingProductId,
+          details: { productName: name, reason: effectiveReason }
+        });
+      } else {
+        const effectiveReason = reason || 'New product setup';
+        const result = await window.db.addProduct(
+          name,
+          Math.max(0, stock),
+          Math.max(0, billingPrice),
+          Math.max(0, invoicePrice),
+          Math.max(0, reorderLevel)
         );
-        if (changed) {
+
+        if (!result?.ok) {
+          alert(result?.error || 'Failed to add product.');
+          return;
+        }
+
+        if (stock > 0) {
+          const products = await window.db.getProducts();
+          const created = products.find((p) => this.normalizeName(p.name) === this.normalizeName(name));
           await window.db.addInventoryLog({
-            productId: update.id,
-            productName: update.name,
-            action: 'manual_adjustment',
-            reason,
-            before: {
-              name: previous.name,
-              stock: previous.stock,
-              billingPrice: previous.billingPrice,
-              invoicePrice: previous.invoicePrice,
-              reorderLevel: previous.reorderLevel
-            },
-            after: update,
-            addedQty: Math.max(0, Number(update.stock || 0) - Number(previous.stock || 0)),
-            billingPrice: update.billingPrice,
-            invoicePrice: update.invoicePrice
+            productId: created?.id || null,
+            productName: name,
+            addedQty: Math.max(0, stock),
+            billingPrice,
+            invoicePrice,
+            reason: effectiveReason,
+            action: 'new_product'
           });
         }
-      }
-      await window.db.addAuditLog({
-        action: 'inventory_save',
-        entity: 'inventory',
-        details: { updatedProducts: updates.length, reason }
-      });
 
-      if (newProduct.name) {
-        const existing = this.products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
-        if (existing) {
-          const addedQty = Math.max(0, newProduct.stock);
-          await window.db.updateProduct(existing.id, {
-            stock: Math.max(0, (parseFloat(existing.stock) || 0) + addedQty),
-            billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
-            invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0)
-          });
-          if (addedQty > 0) {
-            await window.db.addInventoryLog({
-              productId: existing.id,
-              productName: existing.name,
-              addedQty,
-              billingPrice: newProduct.billingPrice > 0 ? newProduct.billingPrice : (Number(existing.billingPrice) || 0),
-              invoicePrice: newProduct.invoicePrice > 0 ? newProduct.invoicePrice : (Number(existing.invoicePrice) || 0),
-              action: 'restock'
-            });
-            await window.db.addAuditLog({
-              action: 'inventory_restock',
-              entity: 'product',
-              entityId: existing.id,
-              details: { productName: existing.name, addedQty, reason }
-            });
-          }
-        } else {
-          const result = await window.db.addProduct(
-            newProduct.name,
-            newProduct.stock,
-            newProduct.billingPrice,
-            newProduct.invoicePrice,
-            newProduct.reorderLevel
-          );
-          if (!result?.ok) {
-            alert(result?.error || 'Failed to add product.');
-            return;
-          }
-          if (newProduct.stock > 0) {
-            const products = await window.db.getProducts();
-            const created = products.find((product) => this.normalizeName(product.name) === this.normalizeName(newProduct.name));
-            await window.db.addInventoryLog({
-              productId: created?.id || null,
-              productName: newProduct.name,
-              addedQty: Math.max(0, newProduct.stock),
-              billingPrice: newProduct.billingPrice,
-              invoicePrice: newProduct.invoicePrice,
-              action: 'new_product'
-            });
-          }
-          await window.db.addAuditLog({
-            action: 'product_create',
-            entity: 'product',
-            details: { productName: newProduct.name, stock: newProduct.stock, reason }
-          });
-        }
+        await window.db.addAuditLog({
+          action: 'product_create',
+          entity: 'product',
+          details: { productName: name, stock, reason: effectiveReason }
+        });
       }
 
-      this.isEditing = false;
-      this.hasChanges = false;
-      this.clearNewProductInputs();
+      this.closeProductModal();
       await this.refreshBillingProducts();
       await this.render();
-    }, 'Saving inventory...', 'Updating products and stock');
-  }
-
-  async addProduct() {
-    if (!this.isEditing) {
-      alert('Press Edit Inventory before adding products.');
-      return;
-    }
-    await this.saveChanges();
-  }
-
-  async updateStock() {
-    if (!this.isEditing) return;
-    await this.saveChanges();
-  }
-
-  async updateBillingPrice() {
-    if (!this.isEditing) return;
-    await this.saveChanges();
-  }
-
-  async updateInvoicePrice() {
-    if (!this.isEditing) return;
-    await this.saveChanges();
+    }, isEdit ? 'Updating product...' : 'Adding product...', 'Saving to inventory');
   }
 
   async deleteProduct(productId) {
-    if (!this.isEditing) {
-      alert('Press Edit Inventory before deleting products.');
-      return;
-    }
-
     const product = this.products.find((item) => Number(item.id) === Number(productId));
     if (!product) return;
 
-    const confirmed = confirm(`Delete product "${product.name}" from current inventory? Old bills and inventory add logs will stay unchanged.`);
+    const confirmed = confirm(`Archive / Delete product "${product.name}" from current inventory? Old bills will stay unchanged.`);
     if (!confirmed) return;
 
     await window.app.withLoading(async () => {
@@ -337,7 +229,6 @@ class Inventory {
         return;
       }
 
-      this.hasChanges = false;
       await window.db.addAuditLog({
         action: 'product_archive',
         entity: 'product',
@@ -350,11 +241,6 @@ class Inventory {
   }
 
   async restoreProduct(productId) {
-    if (!this.isEditing) {
-      alert('Press Edit Inventory before restoring products.');
-      return;
-    }
-
     const product = this.archivedProducts.find((item) => Number(item.id) === Number(productId));
     if (!product) return;
 
@@ -384,149 +270,20 @@ class Inventory {
     if (!product) return;
     const logs = this.inventoryLogs
       .filter((log) => Number(log.productId) === Number(productId))
-      .slice(0, 8);
+      .slice(0, 10);
     const message = logs.length
       ? logs.map((log) => {
         const when = this.formatDateTime(log.timestamp);
         const action = log.action || 'change';
         const reason = log.reason ? ` - ${log.reason}` : '';
-        return `${when}: ${action}${reason}`;
+        const qty = log.addedQty ? ` (+${log.addedQty})` : '';
+        return `${when}: ${action}${qty}${reason}`;
       }).join('\n')
-      : 'No inventory history for this product yet.';
+      : 'No inventory change history for this product yet.';
     alert(`${product.name}\n\n${message}`);
   }
 
-  async refreshBillingProducts() {
-    if (window.billing) {
-      window.billing.availableProducts = await window.db.getProducts();
-    }
-  }
-
-  formatDateTime(timestamp) {
-    if (!timestamp) return '-';
-    const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString();
-  }
-
-  formatNumber(value) {
-    return (Number(value) || 0).toLocaleString();
-  }
-
-  getPrintViewerToolbar() {
-    return `
-      <div class="print-actions">
-        <button type="button" onclick="window.print()">Print</button>
-        <button type="button" class="back-btn" onclick="backToApp()">Back to App</button>
-      </div>
-      <script>
-        function backToApp() {
-          try { window.close(); } catch (e) {}
-          setTimeout(function () {
-            if (window.opener && !window.opener.closed) {
-              try { window.opener.focus(); } catch (e) {}
-            }
-          }, 120);
-        }
-      <\/script>
-    `;
-  }
-
-  getPrintViewerStyles() {
-    return `
-      .print-actions {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        gap: 8px;
-        padding: 10px;
-        margin: -4px -4px 12px;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-      }
-      .print-actions button {
-        border: 1px solid #111;
-        background: #fff;
-        color: #111;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 700;
-      }
-      .print-actions .back-btn {
-        background: #111;
-        color: #fff;
-      }
-      @media print { .print-actions { display: none !important; } }
-    `;
-  }
-  buildInventoryPrintHtml(logs) {
-    const generatedAt = new Date().toLocaleString();
-    const rows = logs.map((log) => `
-      <tr>
-        <td>${this.escapeHtml(log.productName || '-')}</td>
-        <td class="num">${this.escapeHtml(this.formatNumber(log.addedQty))}</td>
-        <td class="num">LKR ${this.escapeHtml(this.formatNumber(log.billingPrice))}</td>
-        <td class="num">LKR ${this.escapeHtml(this.formatNumber(log.invoicePrice))}</td>
-        <td>${this.escapeHtml(this.formatDateTime(log.timestamp))}</td>
-      </tr>
-    `).join('');
-
-    return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventory Report</title>
-<style>
-  @page { size: A4; margin: 12mm; }
-  @font-face {
-    font-family: 'SamsungOne';
-    font-weight: 400;
-    src: local('SamsungOne'), local('Samsung One'),
-         url('fonts/SamsungOne-400.woff2') format('woff2');
-  }
-  @font-face {
-    font-family: 'SamsungOne';
-    font-weight: 700;
-    src: local('SamsungOne-Bold'), local('SamsungOne 700'), local('SamsungOne'),
-         url('fonts/SamsungOne-700.woff2') format('woff2');
-  }
-  body { font-family: 'SamsungOne', 'Samsung One', Arial, sans-serif; color: #111; font-size: 12px; }
-  h1 { font-size: 20px; margin: 0 0 6px; }
-  .meta { margin-bottom: 14px; color: #555; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #bbb; padding: 7px; text-align: left; vertical-align: top; }
-  th { background: #f1f1f1; font-weight: 700; }
-  .num { text-align: right; white-space: nowrap; }
-  .summary { margin: 10px 0 14px; font-weight: 700; }
-  ${this.getPrintViewerStyles()}
-</style>
-</head>
-<body>
-  ${this.getPrintViewerToolbar()}
-  <h1>Inventory Report</h1>
-  <div class="meta">Generated: ${this.escapeHtml(generatedAt)}</div>
-  <div class="summary">Inventory Add Rows: ${logs.length.toLocaleString()}</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Added Qty</th>
-        <th>Selling Price</th>
-        <th>Purchase Price</th>
-        <th>Added Date & Time</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows || '<tr><td colspan="5">No inventory data</td></tr>'}
-    </tbody>
-  </table>
-</body>
-</html>`;
-  }
-
+  // --- PDF Export ---
   async printInventoryReport() {
     if (!window.pdfDownload) {
       alert('PDF downloader is still loading. Please try again.');
@@ -536,7 +293,8 @@ class Inventory {
     const logs = await window.db.getInventoryLogs();
     window.pdfDownload.downloadStructuredPdf('Inventory Report', {
       metrics: [
-        { label: 'Inventory Add Rows', value: logs.length.toLocaleString() }
+        { label: 'Inventory Add Rows', value: logs.length.toLocaleString() },
+        { label: 'Active Products', value: this.products.length.toLocaleString() }
       ],
       tables: [{
         headers: ['Product', 'Added Qty', 'Selling Price', 'Purchase Price', 'Added Date & Time'],
@@ -551,11 +309,12 @@ class Inventory {
     }, `inventory-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   }
 
+  // --- Rendering ---
   async render() {
     const list = document.getElementById('inventory-list');
     if (!list) return;
 
-    list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">Loading...</div>';
+    list.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted)">Loading inventory...</div>';
 
     const [allProducts, inventoryLogs] = await Promise.all([
       window.db.getProducts(true),
@@ -564,67 +323,103 @@ class Inventory {
     this.products = allProducts.filter((product) => !product.inactive);
     this.archivedProducts = allProducts.filter((product) => product.inactive);
     this.inventoryLogs = inventoryLogs;
-    this.renderExistingProductOptions();
-    this.setInputsLocked(!this.isEditing);
-    this.bindChangeTracking();
 
-    if (this.products.length === 0) {
-      list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">No items in inventory.</div>';
-      this.renderExistingProductOptions();
-      this.setInputsLocked(!this.isEditing);
-      this.bindChangeTracking();
-      this.renderArchivedProducts();
+    this.renderProductsList();
+    this.renderArchivedProducts();
+  }
+
+  renderProductsList() {
+    const list = document.getElementById('inventory-list');
+    if (!list) return;
+
+    let filtered = this.products;
+    if (this.searchQuery) {
+      const q = this.searchQuery;
+      filtered = this.products.filter((p) => {
+        const nameMatch = (p.name || '').toLowerCase().includes(q);
+        const priceMatch = String(p.billingPrice || '').includes(q) || String(p.invoicePrice || '').includes(q);
+        const stockMatch = String(p.stock || '').includes(q);
+        let statusMatch = false;
+        if (q === 'out' || q === 'out of stock') {
+          statusMatch = Number(p.stock || 0) <= 0;
+        } else if (q === 'low' || q === 'low stock') {
+          const r = Number(p.reorderLevel || 5);
+          statusMatch = Number(p.stock || 0) > 0 && Number(p.stock || 0) <= r;
+        }
+        return nameMatch || priceMatch || stockMatch || statusMatch;
+      });
+    }
+
+    const titleEl = document.getElementById('inv-stock-title');
+    if (titleEl) {
+      titleEl.textContent = this.searchQuery 
+        ? `Search Results (${filtered.length})` 
+        : `Current Stock (${this.products.length})`;
+    }
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="text-align:center; padding:36px 20px; color:var(--text-muted); font-size: 0.95rem;">
+        ${this.searchQuery ? `No products found matching "${this.escapeHtml(this.searchQuery)}".` : 'No items in inventory.'}
+      </div>`;
       return;
     }
 
-    list.innerHTML = '';
-    this.products.forEach((p) => {
-      const el = document.createElement('div');
-      el.className = 'card bill-item';
+    list.innerHTML = filtered.map((p) => {
+      const stock = Number(p.stock) || 0;
+      const reorderLevel = Number(p.reorderLevel) || 5;
+      const billingPrice = Number(p.billingPrice) || 0;
+      const invoicePrice = Number(p.invoicePrice) || 0;
 
-      const currentStock = (p.stock !== undefined && p.stock !== null && p.stock !== '' && Number(p.stock) !== 0) ? p.stock : '';
-      const billingPrice = (p.billingPrice && Number(p.billingPrice) > 0) ? p.billingPrice : '';
-      const invoicePrice = (p.invoicePrice && Number(p.invoicePrice) > 0) ? p.invoicePrice : '';
-      const reorderLevel = (p.reorderLevel && Number(p.reorderLevel) > 0) ? p.reorderLevel : '';
-      const disabled = this.isEditing ? '' : ' disabled';
+      let stockBadge = `<span class="inv-badge inv-badge-in">In Stock: ${this.formatNumber(stock)}</span>`;
+      if (stock <= 0) {
+        stockBadge = `<span class="inv-badge inv-badge-out">Out of Stock</span>`;
+      } else if (stock <= reorderLevel) {
+        stockBadge = `<span class="inv-badge inv-badge-low">Low Stock: ${this.formatNumber(stock)}</span>`;
+      }
 
-      el.innerHTML = `
-        <div class="item-header inventory-product-header">
-          <input type="text" id="inv-name-${p.id}" data-inventory-field class="input-field inventory-name-input" value="${this.escapeHtml(p.name)}"${disabled}>
-          <button class="inventory-history-btn" onclick="inventory.showProductHistory(${p.id})">History</button>
-          <button class="inventory-delete-btn" data-inventory-delete onclick="inventory.deleteProduct(${p.id})"${disabled}>Delete</button>
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px;">
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <span style="color:var(--text-muted); font-size:0.85rem;">Stock</span>
-            <input type="number" id="inv-stock-${p.id}" data-inventory-field class="input-field" placeholder="Stock" value="${currentStock}" step="0.01" style="text-align:right;"${disabled}>
+      return `
+        <div class="card inventory-item-card">
+          <div class="inv-card-header">
+            <div class="inv-card-title-group">
+              <h4 class="inv-card-name">${this.escapeHtml(p.name)}</h4>
+              <div class="inv-card-badges">
+                ${stockBadge}
+                ${reorderLevel > 0 ? `<span class="inv-meta-pill">Reorder @ ${reorderLevel}</span>` : ''}
+              </div>
+            </div>
+            <div class="inv-card-actions">
+              <button type="button" class="btn-tool inv-btn-edit" onclick="inventory.openEditModal(${p.id})" title="Edit Product">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit
+              </button>
+              <button type="button" class="btn-tool inv-btn-history" onclick="inventory.showProductHistory(${p.id})" title="Stock History">
+                History
+              </button>
+              <button type="button" class="btn-tool danger inv-btn-delete" onclick="inventory.deleteProduct(${p.id})" title="Archive Product">
+                Delete
+              </button>
+            </div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <span style="color:var(--text-muted); font-size:0.85rem;">Selling Price</span>
-            <input type="number" id="inv-billing-price-${p.id}" data-inventory-field class="input-field" placeholder="Price" value="${billingPrice}" step="0.01" style="text-align:right;"${disabled}>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <span style="color:var(--text-muted); font-size:0.85rem;">Purchase Price</span>
-            <input type="number" id="inv-invoice-price-${p.id}" data-inventory-field class="input-field" placeholder="Cost" value="${invoicePrice}" step="0.01" style="text-align:right;"${disabled}>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <span style="color:var(--text-muted); font-size:0.85rem;">Reorder Level</span>
-            <input type="number" id="inv-reorder-level-${p.id}" data-inventory-field class="input-field" placeholder="Reorder" value="${reorderLevel}" step="0.01" style="text-align:right;"${disabled}>
-          </div>
-          <div style="display:flex; align-items:flex-end; justify-content:flex-end;">
-            <div>
-              ${currentStock <= 0 ? '<span style="color:var(--danger-color); font-size:0.8rem; font-weight:600;">Out of Stock</span>' : ''}
-              ${currentStock > 0 && currentStock <= reorderLevel ? '<span style="color:orange; font-size:0.8rem; font-weight:600;">Low Stock</span>' : ''}
+          <div class="inv-card-financials">
+            <div class="inv-fin-item">
+              <span class="inv-fin-label">Selling Price</span>
+              <strong class="inv-fin-val inv-price">LKR ${this.formatNumber(billingPrice)}</strong>
+            </div>
+            <div class="inv-fin-item">
+              <span class="inv-fin-label">Purchase Price</span>
+              <span class="inv-fin-val">LKR ${this.formatNumber(invoicePrice)}</span>
+            </div>
+            <div class="inv-fin-item">
+              <span class="inv-fin-label">Stock Qty</span>
+              <strong class="inv-fin-val ${stock <= 0 ? 'inv-stock-zero' : ''}">${this.formatNumber(stock)}</strong>
             </div>
           </div>
         </div>
       `;
-      list.appendChild(el);
-    });
-
-    this.setInputsLocked(!this.isEditing);
-    this.bindChangeTracking();
-    this.renderArchivedProducts();
+    }).join('');
   }
 
   renderArchivedProducts() {
@@ -637,21 +432,34 @@ class Inventory {
     }
 
     list.innerHTML = this.archivedProducts.map((p) => `
-      <div class="card archived-product-card">
+      <div class="card archived-product-card" style="margin: 8px 20px;">
         <div>
           <strong>${this.escapeHtml(p.name || '-')}</strong>
           <div class="history-date">Archived product</div>
         </div>
         <div class="archived-product-actions">
-          <button class="btn-tool" onclick="inventory.showProductHistory(${Number(p.id)})">History</button>
-          <button class="btn-tool" onclick="inventory.restoreProduct(${Number(p.id)})"${this.isEditing ? '' : ' disabled'}>Restore</button>
+          <button type="button" class="btn-tool" onclick="inventory.showProductHistory(${Number(p.id)})">History</button>
+          <button type="button" class="btn-tool" onclick="inventory.restoreProduct(${Number(p.id)})">Restore</button>
         </div>
       </div>
     `).join('');
   }
+
+  // --- Stubs for backward compatibility ---
+  setInputsLocked() {}
+  updateSaveButton() {}
+  markDirty() {}
+  bindChangeTracking() {}
+  enableEditing() { this.openAddModal(); }
+  clearNewProductInputs() {}
+  getNewProductInput() { return {}; }
+  renderExistingProductOptions() {}
+  selectExistingProduct() {}
+  async saveChanges() {}
+  async addProduct() { this.openAddModal(); }
+  async updateStock() {}
+  async updateBillingPrice() {}
+  async updateInvoicePrice() {}
 }
 
 window.inventory = new Inventory();
-
-
-

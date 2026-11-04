@@ -243,13 +243,16 @@ class Billing {
       window.db.getBills(),
       window.db.getCustomers()
     ]);
+    this.customers = customers || [];
     const map = new Map();
+    const opMap = new Map();
 
     (customers || []).forEach((customer) => {
       const key = this.normalizeCustomerName(customer.name);
       if (!key || key === 'walk-in customer') return;
       const op = Money.clampZero(customer.openingBalance || 0);
       if (Money.isPositive(op)) {
+        opMap.set(key, op);
         map.set(key, op);
       }
     });
@@ -271,6 +274,7 @@ class Billing {
     });
 
     this.customerOutstandingMap = map;
+    this.customerOpeningMap = opMap;
   }
 
   renderOutstandingHint(customerName) {
@@ -284,7 +288,16 @@ class Billing {
       return;
     }
 
-    const previousOutstanding = this.customerOutstandingMap.get(key) || 0;
+    const inputOpeningRaw = document.getElementById('customer-opening-balance')?.value;
+    const hasInputOpening = inputOpeningRaw !== '' && inputOpeningRaw !== undefined && !isNaN(parseFloat(inputOpeningRaw));
+    const inputOpening = hasInputOpening ? Money.clampZero(parseFloat(inputOpeningRaw) || 0) : null;
+    const existingOpening = (this.customerOpeningMap && this.customerOpeningMap.get(key)) || 0;
+    const effectiveOpening = inputOpening !== null ? inputOpening : existingOpening;
+
+    const totalFromMap = this.customerOutstandingMap?.get(key) || 0;
+    const billDues = Money.clampZero(Money.subtract(totalFromMap, existingOpening));
+    const previousOutstanding = Money.add(billDues, effectiveOpening);
+
     const currentTotal = Money.round(this.currentTotal);
     const received = this.isSplitPaymentActive() ? this.getSplitReceivedAmount() : Money.clampZero(document.getElementById('received-amount')?.value || '0');
     const outstanding = Money.clampZero(Money.subtract(Money.add(previousOutstanding, currentTotal), received));
@@ -302,6 +315,7 @@ class Billing {
     const nameInput = document.getElementById('customer-name');
     const phoneInput = document.getElementById('customer-phone');
     const addressInput = document.getElementById('customer-address');
+    const openingInput = document.getElementById('customer-opening-balance');
     const dropdown = document.getElementById('customer-autocomplete');
     if (!nameInput || !phoneInput || !addressInput || !dropdown) return;
 
@@ -343,6 +357,7 @@ class Billing {
           nameInput.value = customer.name;
           if (customer.phone) phoneInput.value = customer.phone;
           if (customer.address) addressInput.value = customer.address;
+          if (openingInput) openingInput.value = (customer.openingBalance > 0) ? customer.openingBalance : '';
           this.renderOutstandingHint(customer.name);
           hideDropdown();
         });
@@ -355,12 +370,18 @@ class Billing {
     nameInput.addEventListener('input', (e) => {
       const value = e.target.value;
       showSuggestions(value);
-      this.renderOutstandingHint(value);
-
       const exact = getExactCustomer(value);
       if (exact && exact.phone) phoneInput.value = exact.phone;
       if (exact && exact.address) addressInput.value = exact.address;
+      if (exact && openingInput) openingInput.value = (exact.openingBalance > 0) ? exact.openingBalance : '';
+      this.renderOutstandingHint(value);
     });
+
+    if (openingInput) {
+      openingInput.addEventListener('input', () => {
+        this.renderOutstandingHint(nameInput.value);
+      });
+    }
 
     nameInput.addEventListener('focus', async () => {
       // Always refresh the outstanding map so the hint reflects
@@ -379,6 +400,7 @@ class Billing {
         const exact = getExactCustomer(nameInput.value);
         if (exact && exact.phone) phoneInput.value = exact.phone;
         if (exact && exact.address) addressInput.value = exact.address;
+        if (exact && openingInput) openingInput.value = (exact.openingBalance > 0) ? exact.openingBalance : '';
         this.renderOutstandingHint(nameInput.value);
         hideDropdown();
       }, 120);
@@ -747,7 +769,9 @@ class Billing {
       chequeNumber: seed.chequeNumber || '',
       chequeBank: seed.chequeBank || '',
       chequeStatus: seed.chequeStatus || (seed.method === 'cheque' ? 'pending' : ''),
-      chequeImage: seed.chequeImage || ''
+      chequeImage: seed.chequeImage || '',
+      date: seed.date || new Date().toISOString().slice(0, 10),
+      timestamp: seed.timestamp || Date.now()
     };
   }
 
@@ -1155,6 +1179,8 @@ class Billing {
     document.getElementById('customer-name').value = bill.customerName || '';
     document.getElementById('customer-phone').value = bill.customerPhone || '';
     document.getElementById('customer-address').value = bill.customerAddress || '';
+    const openingInput = document.getElementById('customer-opening-balance');
+    if (openingInput) openingInput.value = bill.customerOpeningBalance > 0 ? bill.customerOpeningBalance : '';
     const existingPayments = this.getBillPayments(bill);
     const chequePayment = existingPayments.find((payment) => payment.method === 'cheque');
     const hasChequeDetails = Boolean(
@@ -1212,6 +1238,8 @@ class Billing {
     document.getElementById('customer-name').value = '';
     document.getElementById('customer-phone').value = '';
     document.getElementById('customer-address').value = '';
+    const openingInput = document.getElementById('customer-opening-balance');
+    if (openingInput) openingInput.value = '';
     document.getElementById('received-amount').value = '';
     document.getElementById('payment-method').value = 'cash';
     document.getElementById('payment-method').disabled = false;
@@ -1292,6 +1320,15 @@ class Billing {
     ), 0);
     const total = Money.round(this.currentTotal);
     const customerKey = this.normalizeCustomerName(customerName);
+    const rawOpeningInput = document.getElementById('customer-opening-balance')?.value;
+    const hasInputOpening = rawOpeningInput !== '' && rawOpeningInput !== undefined && !isNaN(parseFloat(rawOpeningInput));
+    const inputOpening = hasInputOpening ? Money.clampZero(parseFloat(rawOpeningInput) || 0) : undefined;
+    const existingOpening = (customerKey && this.customerOpeningMap)
+      ? Money.clampZero(this.customerOpeningMap.get(customerKey) || 0)
+      : 0;
+    const customerOpeningBalance = inputOpening !== undefined
+      ? inputOpening
+      : existingOpening;
     const previousDue = (customerKey && this.customerOutstandingMap)
       ? Money.clampZero(this.customerOutstandingMap.get(customerKey) || 0)
       : 0;
@@ -1307,6 +1344,7 @@ class Billing {
       total,
       previousDue,
       dueAmount: previousDue,
+      customerOpeningBalance,
       paymentMethod,
       markAsCredit,
       payments,
@@ -1403,7 +1441,8 @@ class Billing {
     let postSaveWarning = '';
     try {
       if (customerName.toLowerCase() !== 'walk-in customer') {
-        await window.db.upsertCustomerByName(customerName, customerPhone, customerAddress);
+        const openingToSave = inputOpening !== undefined ? customerOpeningBalance : undefined;
+        await window.db.upsertCustomerByName(customerName, customerPhone, customerAddress, openingToSave);
       }
       await this.loadCustomerDirectory();
       await this.loadOutstandingDirectory();
@@ -1414,6 +1453,7 @@ class Billing {
       if (window.historyView && window.app.currentPage === 'history') refreshTasks.push(window.historyView.render());
       if (window.collectionPage && window.app.currentPage === 'collection') refreshTasks.push(window.collectionPage.render());
       if (window.customersPage && window.app.currentPage === 'customers') refreshTasks.push(window.customersPage.render());
+      if (window.reportsView && window.app.currentPage === 'reports') refreshTasks.push(window.reportsView.render());
 
       const refreshResults = await Promise.allSettled(refreshTasks);
       if (refreshResults.some((result) => result.status === 'rejected')) {

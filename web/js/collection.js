@@ -94,7 +94,9 @@ class CollectionPage {
       chequeDate: method === 'cheque' ? chequeDetails.chequeDate : '',
       chequeNumber: method === 'cheque' ? chequeDetails.chequeNumber : '',
       chequeBank: method === 'cheque' ? chequeDetails.chequeBank : '',
-      chequeStatus: method === 'cheque' ? 'pending' : ''
+      chequeStatus: method === 'cheque' ? 'pending' : '',
+      date: new Date().toISOString().slice(0, 10),
+      timestamp: Date.now()
     };
   }
 
@@ -203,6 +205,7 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
+      if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
     }, 'Recording collection...', 'Updating bill and balance');
   }
 
@@ -240,6 +243,7 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
+      if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
     }, 'Recording collection...', 'Updating customer opening balance');
   }
 
@@ -334,6 +338,7 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
+      if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
     }, 'Updating collection...', 'Recalculating payments');
   }
 
@@ -374,6 +379,7 @@ class CollectionPage {
         await window.billing.loadOutstandingDirectory();
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
+      if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
     }, 'Deleting collection...', 'Restoring balance');
   }
 
