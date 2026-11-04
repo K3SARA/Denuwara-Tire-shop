@@ -263,7 +263,7 @@ class CollectionPage {
         ? `Opening Balance • ${dateStr}`
         : `Bill #${log.billId} • ${dateStr}`;
     }
-    if (amountEl) amountEl.value = log.amount || 0;
+    if (amountEl) amountEl.value = (log.amount && Number(log.amount) > 0) ? log.amount : '';
     if (methodEl) methodEl.value = (log.method || 'cash').toLowerCase();
     if (chequeDateEl) chequeDateEl.value = log.chequeDate || '';
     if (chequeNumEl) chequeNumEl.value = log.chequeNumber || '';
@@ -430,7 +430,7 @@ class CollectionPage {
         <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:end;">
           <div class="input-group" style="margin-bottom:0;">
             <label>Collect Amount</label>
-            <input type="number" id="collect-amount-${keyId}" class="input-field" placeholder="0" step="0.01">
+            <input type="number" id="collect-amount-${keyId}" class="input-field" placeholder="Amount" step="0.01">
           </div>
           <div class="input-group" style="margin-bottom:0;">
             <label>Method</label>

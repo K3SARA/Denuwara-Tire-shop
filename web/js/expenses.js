@@ -152,7 +152,8 @@ class ExpensesPage {
 
     document.getElementById('expense-edit-id').value = expense.id;
     document.getElementById('expense-name').value = expense.name || '';
-    document.getElementById('expense-amount').value = Number(expense.amount) || 0;
+    const expAmt = Number(expense.amount);
+    document.getElementById('expense-amount').value = (expAmt && expAmt > 0) ? expAmt : '';
     document.getElementById('expense-category').value = expense.category || 'Other';
     document.getElementById('expense-date').value = expense.date || new Date().toISOString().slice(0, 10);
     document.getElementById('expense-note').value = expense.note || '';

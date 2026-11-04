@@ -122,10 +122,10 @@ class Inventory {
 
     if (nameInput) nameInput.value = product.name || '';
     if (stockInput) stockInput.value = '';
-    if (billingPriceInput) billingPriceInput.value = Number(product.billingPrice) || 0;
-    if (invoicePriceInput) invoicePriceInput.value = Number(product.invoicePrice) || 0;
+    if (billingPriceInput) billingPriceInput.value = (product.billingPrice && Number(product.billingPrice) > 0) ? Number(product.billingPrice) : '';
+    if (invoicePriceInput) invoicePriceInput.value = (product.invoicePrice && Number(product.invoicePrice) > 0) ? Number(product.invoicePrice) : '';
     const reorderInput = document.getElementById('inv-new-reorder-level');
-    if (reorderInput) reorderInput.value = Number(product.reorderLevel) || 5;
+    if (reorderInput) reorderInput.value = (product.reorderLevel && Number(product.reorderLevel) > 0) ? Number(product.reorderLevel) : '';
     this.markDirty();
   }
 
@@ -582,10 +582,10 @@ class Inventory {
       const el = document.createElement('div');
       el.className = 'card bill-item';
 
-      const currentStock = Number(p.stock) || 0;
-      const billingPrice = Number(p.billingPrice) || 0;
-      const invoicePrice = Number(p.invoicePrice) || 0;
-      const reorderLevel = Number(p.reorderLevel) || 5;
+      const currentStock = (p.stock !== undefined && p.stock !== null && p.stock !== '' && Number(p.stock) !== 0) ? p.stock : '';
+      const billingPrice = (p.billingPrice && Number(p.billingPrice) > 0) ? p.billingPrice : '';
+      const invoicePrice = (p.invoicePrice && Number(p.invoicePrice) > 0) ? p.invoicePrice : '';
+      const reorderLevel = (p.reorderLevel && Number(p.reorderLevel) > 0) ? p.reorderLevel : '';
       const disabled = this.isEditing ? '' : ' disabled';
 
       el.innerHTML = `
@@ -597,19 +597,19 @@ class Inventory {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px;">
           <div style="display:flex; flex-direction:column; gap:6px;">
             <span style="color:var(--text-muted); font-size:0.85rem;">Stock</span>
-            <input type="number" id="inv-stock-${p.id}" data-inventory-field class="input-field" value="${currentStock}" step="0.01" style="text-align:right;"${disabled}>
+            <input type="number" id="inv-stock-${p.id}" data-inventory-field class="input-field" placeholder="Stock" value="${currentStock}" step="0.01" style="text-align:right;"${disabled}>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <span style="color:var(--text-muted); font-size:0.85rem;">Selling Price</span>
-            <input type="number" id="inv-billing-price-${p.id}" data-inventory-field class="input-field" value="${billingPrice}" step="0.01" style="text-align:right;"${disabled}>
+            <input type="number" id="inv-billing-price-${p.id}" data-inventory-field class="input-field" placeholder="Price" value="${billingPrice}" step="0.01" style="text-align:right;"${disabled}>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <span style="color:var(--text-muted); font-size:0.85rem;">Purchase Price</span>
-            <input type="number" id="inv-invoice-price-${p.id}" data-inventory-field class="input-field" value="${invoicePrice}" step="0.01" style="text-align:right;"${disabled}>
+            <input type="number" id="inv-invoice-price-${p.id}" data-inventory-field class="input-field" placeholder="Cost" value="${invoicePrice}" step="0.01" style="text-align:right;"${disabled}>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <span style="color:var(--text-muted); font-size:0.85rem;">Reorder Level</span>
-            <input type="number" id="inv-reorder-level-${p.id}" data-inventory-field class="input-field" value="${reorderLevel}" step="0.01" style="text-align:right;"${disabled}>
+            <input type="number" id="inv-reorder-level-${p.id}" data-inventory-field class="input-field" placeholder="Reorder" value="${reorderLevel}" step="0.01" style="text-align:right;"${disabled}>
           </div>
           <div style="display:flex; align-items:flex-end; justify-content:flex-end;">
             <div>

@@ -22,6 +22,14 @@ class ClearInputsManager {
     if (!this.isEligibleInput(input)) return;
     if (input.dataset.clearEnhanced === '1') return;
 
+    if (input.placeholder === '0' || input.placeholder === '0.00') {
+      input.placeholder = '';
+    }
+    const type = (input.getAttribute('type') || 'text').toLowerCase();
+    if (type === 'number' && (input.value === '0' || input.value === '0.00')) {
+      input.value = '';
+    }
+
     const wrapper = document.createElement('div');
     wrapper.className = 'clearable-wrap';
     input.parentNode.insertBefore(wrapper, input);
@@ -85,6 +93,21 @@ class ClearInputsManager {
     if (this.bound) return;
     this.scan(document);
     this.initObserver();
+
+    // Remove default 0 on focus so the user never has to delete 0 before entering a number
+    document.addEventListener('focusin', (e) => {
+      const input = e.target;
+      if (!input || input.tagName !== 'INPUT') return;
+      const type = (input.getAttribute('type') || '').toLowerCase();
+      if (['number', 'text', 'tel'].includes(type)) {
+        const val = String(input.value || '').trim();
+        if (val === '0' || val === '0.00' || val === '0.0') {
+          input.value = '';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    });
+
     this.bound = true;
   }
 }

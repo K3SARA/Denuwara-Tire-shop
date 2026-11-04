@@ -558,6 +558,7 @@ class ShareManager {
     line-height: 1;
     margin-bottom: 6px;
     font-family: 'SamsungOne', 'Samsung One', 'Arial Black', Arial, sans-serif;
+    -webkit-text-stroke: 1.1px #a8234a;
   }
   .a5-date-row {
     display: flex;
@@ -627,11 +628,12 @@ class ShareManager {
     flex-shrink: 0;
   }
   .a5-biz-name {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 900;
     color: #7d1838;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
     line-height: 1.1;
+    -webkit-text-stroke: 0.75px #7d1838;
   }
   .a5-biz-addr {
     font-size: 9.5px;
@@ -887,6 +889,14 @@ class ShareManager {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
+    .a5-main-title {
+      font-weight: 900 !important;
+      -webkit-text-stroke: 1.1px #a8234a !important;
+    }
+    .a5-biz-name {
+      font-weight: 900 !important;
+      -webkit-text-stroke: 0.75px #7d1838 !important;
+    }
     .a5-tfoot-row td { background: transparent !important; }
   }
 </style>
@@ -905,7 +915,7 @@ class ShareManager {
       <div class="receipt receipt-a5">
       <div class="a5-top">
         <div class="a5-top-left">
-          <div class="a5-main-title">${this.escapeHtml(t('receiptTitle'))}</div>
+          <div class="a5-main-title"><strong>${this.escapeHtml(t('receiptTitle'))}</strong></div>
           <div class="a5-date-row">
             <span>Date</span>
             <div class="a5-date-boxes">
@@ -917,7 +927,7 @@ class ShareManager {
         </div>
 
         <div class="a5-biz-card">
-          <div class="a5-biz-name">${this.escapeHtml(this.businessName)}</div>
+          <div class="a5-biz-name"><strong>${this.escapeHtml(this.businessName)}</strong></div>
           <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
           <div class="a5-biz-contact-row">
             <div class="a5-biz-logo">
@@ -1364,9 +1374,9 @@ class ShareManager {
   .center { text-align: center; }
   .header { padding-top: 1mm; }
   .logo { display: block; width: 28mm; max-height: 14mm; margin: 0 auto 3px; object-fit: contain; }
-  .business-name { font-size: 17px; line-height: 1.15; margin-bottom: 2px; }
+  .business-name { font-size: 17px; font-weight: 900; -webkit-text-stroke: 0.65px #000; line-height: 1.15; margin-bottom: 2px; }
   .header-line { line-height: 1.15; }
-  .title { font-weight: 700; margin: 5px 0; }
+  .title { font-weight: 900; font-size: 15px; -webkit-text-stroke: 0.65px #000; margin: 5px 0; }
   .rule { border-top: 1px dashed #000; margin: 7px 0; }
   .meta { display: grid; grid-template-columns: 22mm minmax(0, 1fr); gap: 4px 8px; }
   .meta div:nth-child(even) { text-align: right; }
@@ -1515,6 +1525,7 @@ class ShareManager {
       <div class="header-line"><strong>${this.escapeHtml(this.proprietorName)}</strong></div>
       <div class="header-line">${this.escapeHtml(this.businessAddress)}</div>
       <div class="header-line">${t('phoneLabel')} ${this.escapeHtml(this.businessPhone)}</div>
+      <div class="title"><strong>${this.escapeHtml(t('receiptTitle'))}</strong></div>
     </div>
 
     <div class="rule"></div>

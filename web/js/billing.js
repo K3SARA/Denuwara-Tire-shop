@@ -414,7 +414,7 @@ class Billing {
     if (!item || !product) return;
     item.productId = product.id;
     item.name = product.name;
-    item.price = String(Number(product.billingPrice) || 0);
+    item.price = (product.billingPrice && Number(product.billingPrice) > 0) ? String(Number(product.billingPrice)) : '';
     item.costPrice = Number(product.invoicePrice) || 0;
     this.updateTotals();
   }
@@ -616,7 +616,7 @@ class Billing {
         </div>
         <div class="item-field-block">
           <label>Rate (price/unit)</label>
-          <input type="number" class="input-field" placeholder="Price" value="${item.price}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
+          <input type="number" class="input-field" placeholder="Price" value="${(item.price !== undefined && item.price !== null && item.price !== '' && Number(item.price) !== 0) ? item.price : ''}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
         </div>
       `;
       container.appendChild(el);
@@ -858,7 +858,7 @@ class Billing {
             </div>
             <div class="input-group" style="margin-bottom:0;">
               <label>${isCheque ? 'Cheque Amount' : 'Amount'}</label>
-              <input type="number" class="input-field" step="0.01" placeholder="0" value="${this.escapeAttribute(payment.amount)}" data-payment-field="amount" data-payment-id="${this.escapeAttribute(payment.id)}">
+              <input type="number" class="input-field" step="0.01" placeholder="Amount" value="${(payment.amount !== undefined && payment.amount !== null && payment.amount !== '' && Number(payment.amount) !== 0) ? this.escapeAttribute(payment.amount) : ''}" data-payment-field="amount" data-payment-id="${this.escapeAttribute(payment.id)}">
             </div>
             <button type="button" class="split-payment-remove" data-payment-remove="${this.escapeAttribute(payment.id)}" aria-label="Remove payment">x</button>
           </div>
@@ -1163,14 +1163,16 @@ class Billing {
     );
     const shouldUseSplit = Array.isArray(bill.payments) && bill.payments.length > 1;
     document.getElementById('payment-method').value = shouldUseSplit ? (existingPayments[0]?.method || 'cash') : (bill.paymentMethod || (hasChequeDetails ? 'cheque' : 'cash'));
-    document.getElementById('received-amount').value = Number(bill.receivedAmount || 0);
-    document.getElementById('cheque-amount').value = Number(
+    const billRecAmount = Number(bill.receivedAmount || 0);
+    document.getElementById('received-amount').value = billRecAmount > 0 ? billRecAmount : '';
+    const billChqAmount = Number(
       chequePayment?.chequeAmount
       || chequePayment?.amount
       || bill.chequeAmount
       || (bill.paymentMethod === 'cheque' ? bill.receivedAmount : 0)
       || 0
-    ) || '';
+    );
+    document.getElementById('cheque-amount').value = billChqAmount > 0 ? billChqAmount : '';
     document.getElementById('cheque-date').value = chequePayment?.chequeDate || bill.chequeDate || '';
     document.getElementById('cheque-number').value = chequePayment?.chequeNumber || bill.chequeNumber || '';
     document.getElementById('cheque-bank').value = chequePayment?.chequeBank || bill.chequeBank || '';
