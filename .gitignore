@@ -4,6 +4,8 @@ node_modules/
 test-output.txt
 test-results.txt
 test-results/
+data/lynkbay-api-secret.txt
+*.tmp
 
 # Android build outputs
 android/.gradle/
