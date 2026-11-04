@@ -43,7 +43,7 @@ This guide explains how to deploy and host the app on [Railway](https://railway.
 
 ### Step 2: Deploy from GitHub Repo
 1. Select **"Deploy from GitHub repo"**.
-2. Choose your repository: **`K3SARA/Sunbakers`** (or your repo name).
+2. Choose your repository: **`K3SARA/lucky_cashew`**.
 3. Click **"Deploy Now"**.
 
 ### Step 3: Add a PostgreSQL Database Service
@@ -67,7 +67,7 @@ Railway connects services within the same project automatically, but verify:
 1. Click on your web service.
 2. Go to the **"Settings"** tab.
 3. Scroll down to **"Networking"** ➔ **"Public Networking"**.
-4. Click **"Generate Domain"** (e.g. `sunbakers-production.up.railway.app`).
+4. Click **"Generate Domain"** (e.g. `lucky-cashew-production.up.railway.app`).
 
 ### Step 6: Verify Deployment
 1. Visit your public URL in the browser.
@@ -95,3 +95,4 @@ Railway connects services within the same project automatically, but verify:
 | `PORT` | Auto | Injected automatically by Railway (defaults to 3000 locally). |
 | `LYNKBAY_API_SECRET` | Optional | Shared API authentication secret. |
 | `LYNKBAY_ALLOWED_ORIGINS` | Optional | Comma-separated CORS allowed origins. |
+
