@@ -1406,8 +1406,11 @@ class ReportsView {
       total += amount;
       const method = String(log.method || 'unknown').toLowerCase();
       methodMap.set(method, (methodMap.get(method) || 0) + amount);
-      if (log.action === 'invoice_payment') invoicePay += amount;
-      if (log.action === 'collection') dueCollect += amount;
+      if (log.action === 'invoice_payment') {
+        invoicePay += amount;
+      } else {
+        dueCollect += amount;
+      }
     });
 
     const rows = [...methodMap.entries()]

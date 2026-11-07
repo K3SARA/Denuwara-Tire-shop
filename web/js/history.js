@@ -223,7 +223,7 @@ class HistoryView {
       alert('Only active bills can be edited.');
       return;
     }
-    window.billing.setEditMode(bill);
+    await window.billing.setEditMode(bill);
   }
 
   async cancelOrReturnBill(billId, action) {

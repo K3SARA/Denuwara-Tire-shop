@@ -1020,9 +1020,11 @@ class Database {
 
   async updateCustomer(id, updates) {
     return new Promise((resolve) => {
+      const numericId = Number(id);
+      const lookupId = Number.isFinite(numericId) ? numericId : id;
       const tx = this.db.transaction('customers', 'readwrite');
       const store = tx.objectStore('customers');
-      const req = store.get(id);
+      const req = store.get(lookupId);
       req.onsuccess = (e) => {
         let customer = e.target.result;
         if (customer) {
