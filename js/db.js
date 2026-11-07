@@ -742,6 +742,7 @@ class Database {
   async updateBillWithStockAndCollectionLog({ billId, updates, stockDeltas = [], collectionLog = null, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(billId);
+      const lookupId = Number.isFinite(numericId) ? numericId : billId;
       const now = new Date().getTime();
       const tx = this.db.transaction(['bills', 'products', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
@@ -750,7 +751,7 @@ class Database {
       const auditStore = tx.objectStore('audit_logs');
       let updatedBill = null;
 
-      const billReq = billsStore.get(numericId);
+      const billReq = billsStore.get(lookupId);
       billReq.onsuccess = () => {
         const existing = billReq.result;
         if (!existing) {
@@ -1258,8 +1259,9 @@ class Database {
 
   async getBillById(id) {
     return new Promise((resolve) => {
+      const numericId = Number(id);
       const store = this.db.transaction('bills', 'readonly').objectStore('bills');
-      const req = store.get(id);
+      const req = store.get(Number.isFinite(numericId) ? numericId : id);
       req.onsuccess = () => resolve(this.normalizeBillMoney(req.result) || null);
       req.onerror = () => resolve(null);
     });

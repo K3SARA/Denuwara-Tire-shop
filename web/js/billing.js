@@ -295,7 +295,19 @@ class Billing {
     const effectiveOpening = inputOpening !== null ? inputOpening : existingOpening;
 
     const totalFromMap = this.customerOutstandingMap?.get(key) || 0;
-    const billDues = Money.clampZero(Money.subtract(totalFromMap, existingOpening));
+    let netPriorMap = totalFromMap;
+    if (this.editBillId && this.editOriginalBill) {
+      const isSameCustomer = this.normalizeCustomerName(this.editOriginalBill.customerName) === key;
+      if (isSameCustomer) {
+        const origTotal = Money.round(this.editOriginalBill.total || 0);
+        const origRec = Money.round(this.editOriginalBill.receivedAmount || 0);
+        const origBal = typeof this.editOriginalBill.balanceAmount === 'number'
+          ? Money.clampZero(this.editOriginalBill.balanceAmount)
+          : Money.clampZero(Money.subtract(origTotal, origRec));
+        netPriorMap = Money.clampZero(Money.subtract(totalFromMap, origBal));
+      }
+    }
+    const billDues = Money.clampZero(Money.subtract(netPriorMap, existingOpening));
     const previousOutstanding = Money.add(billDues, effectiveOpening);
 
     const currentTotal = Money.round(this.currentTotal);
@@ -1169,8 +1181,8 @@ class Billing {
     if (toAdd.length > 0) await window.db.addBackStock(toAdd);
   }
 
-  setEditMode(bill) {
-    this.editBillId = bill.id;
+  async setEditMode(bill) {
+    this.editBillId = Number(bill.id) || bill.id;
     this.editOriginalBill = bill;
 
     document.getElementById('btn-generate-bill').innerText = 'Update Bill';
@@ -1222,7 +1234,12 @@ class Billing {
     this.toggleChequeDetails();
     this.updatePaymentSummary();
     this.renderOutstandingHint(document.getElementById('customer-name').value || '');
-    window.app.navigate('billing');
+    const navPromise = window.app.navigate('billing');
+    if (navPromise && typeof navPromise.then === 'function') {
+      navPromise.then(() => {
+        this.renderOutstandingHint(document.getElementById('customer-name').value || '');
+      });
+    }
   }
 
   cancelEditMode() {
@@ -1329,9 +1346,53 @@ class Billing {
     const customerOpeningBalance = inputOpening !== undefined
       ? inputOpening
       : existingOpening;
-    const previousDue = (customerKey && this.customerOutstandingMap)
-      ? Money.clampZero(this.customerOutstandingMap.get(customerKey) || 0)
-      : 0;
+
+    let previousDue = 0;
+    if (this.editBillId) {
+      const isEditingSameCustomer = Boolean(
+        this.editOriginalBill &&
+        this.normalizeCustomerName(this.editOriginalBill.customerName) === customerKey
+      );
+      if (isEditingSameCustomer) {
+        const allBills = await window.db.getBills();
+        const oldBillId = Number(this.editBillId);
+        const oldTimestamp = this.editOriginalBill.timestamp || 0;
+        let priorSum = customerOpeningBalance || 0;
+
+        (allBills || []).forEach((b) => {
+          if (b.billStatus && b.billStatus !== 'active') return;
+          if (Number(b.id) === oldBillId) return;
+          if (this.normalizeCustomerName(b.customerName) !== customerKey) return;
+
+          const bTimestamp = b.timestamp || 0;
+          const isBefore = (oldTimestamp && bTimestamp)
+            ? bTimestamp < oldTimestamp
+            : Number(b.id) < oldBillId;
+
+          if (isBefore) {
+            const bTotal = Money.round(b.total);
+            const bReceived = Money.round(b.receivedAmount || 0);
+            const bBal = typeof b.balanceAmount === 'number'
+              ? Money.clampZero(b.balanceAmount)
+              : Money.clampZero(Money.subtract(bTotal, bReceived));
+            if (Money.isPositive(bBal)) {
+              priorSum = Money.add(priorSum, bBal);
+            }
+          }
+        });
+        previousDue = priorSum;
+      } else {
+        previousDue = (customerKey && this.customerOutstandingMap)
+          ? Money.clampZero(this.customerOutstandingMap.get(customerKey) || 0)
+          : 0;
+      }
+    } else {
+      const mapOutstanding = (customerKey && this.customerOutstandingMap)
+        ? Money.clampZero(this.customerOutstandingMap.get(customerKey) || 0)
+        : 0;
+      previousDue = Money.isPositive(mapOutstanding) ? mapOutstanding : customerOpeningBalance;
+    }
+
     const balanceAmount = Money.clampZero(Money.subtract(total, receivedAmount));
     const changeAmount = Money.clampZero(Money.subtract(receivedAmount, total));
     const paymentStatus = Money.isPositive(balanceAmount) ? 'due' : 'paid';
@@ -1377,6 +1438,9 @@ class Billing {
       }
 
       nextBill.billNumber = oldBill.billNumber || oldBill.id;
+      nextBill.date = oldBill.date || nextBill.date;
+      nextBill.time = oldBill.time || nextBill.time;
+      nextBill.timestamp = oldBill.timestamp || Date.now();
 
       const oldReceived = Money.round(oldBill.receivedAmount || 0);
       const receivedDiff = Money.subtract(receivedAmount, oldReceived);
