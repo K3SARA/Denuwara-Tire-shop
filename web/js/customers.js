@@ -814,7 +814,11 @@ class CustomersPage {
     });
 
     const filteredRows = query
-      ? rows.filter((c) => (c.name || '').toLowerCase().includes(query))
+      ? rows.filter((c) => (
+        (c.name || '').toLowerCase().includes(query)
+        || (c.address || '').toLowerCase().includes(query)
+        || (c.phone || '').toLowerCase().includes(query)
+      ))
       : rows;
 
     return this.sortCustomersByCreatedAt(filteredRows);
@@ -1299,7 +1303,7 @@ class CustomersPage {
     }
 
     const rows = customers.map((c) => {
-      const phone = c.phone || '-';
+      const address = c.address || '-';
       const addedAt = this.formatCustomerAddedAt(c);
       const locationButton = this.hasLocation(c)
         ? `<button class="customers-map-btn" data-map-customer-id="${c.id}">Map</button>`
@@ -1311,7 +1315,7 @@ class CustomersPage {
       return `
         <tr>
           <td class="customers-name-cell"><button class="customers-name-btn" data-profile-customer-id="${c.id}" title="View Profile & Payments">${this.escapeHtml(c.name || '-')}</button></td>
-          <td class="customers-phone-cell">${this.escapeHtml(phone)}</td>
+          <td class="customers-address-cell">${this.escapeHtml(address)}</td>
           <td class="customers-added-cell">${this.escapeHtml(addedAt)}</td>
           <td class="customers-location-cell">${locationButton}</td>
           <td class="customers-outstanding-cell">${outstanding}</td>
@@ -1330,7 +1334,7 @@ class CustomersPage {
           <thead>
             <tr>
               <th>Customer</th>
-              <th>Phone</th>
+              <th>Address</th>
               <th>Added</th>
               <th>Map</th>
               <th>Outstanding</th>
