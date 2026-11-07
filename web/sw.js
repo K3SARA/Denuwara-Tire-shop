@@ -1,38 +1,38 @@
-const CACHE_NAME = 'cashew-billing-v123';
+const CACHE_NAME = 'cashew-billing-v124';
 const ASSETS = [
   './',
   './index.html',
   './receipt-print.html',
-  './manifest.json?v=123',
-  './css/variables.css?v=123',
-  './css/base.css?v=123',
-  './css/components.css?v=123',
-  './css/pages.css?v=123',
+  './manifest.json?v=124',
+  './css/variables.css?v=124',
+  './css/base.css?v=124',
+  './css/components.css?v=124',
+  './css/pages.css?v=124',
   './fonts/SamsungOne-400.woff2',
   './fonts/SamsungOne-700.woff2',
-  './vendor/leaflet/leaflet.css?v=123',
-  './vendor/leaflet/leaflet.js?v=123',
+  './vendor/leaflet/leaflet.css?v=124',
+  './vendor/leaflet/leaflet.js?v=124',
   './vendor/leaflet/images/marker-icon.png',
   './vendor/leaflet/images/marker-icon-2x.png',
   './vendor/leaflet/images/marker-shadow.png',
   './vendor/leaflet/images/layers.png',
   './vendor/leaflet/images/layers-2x.png',
-  './js/deploy-config.js?v=123',
-  './js/supabase-config.js?v=123',
-  './js/db.js?v=123',
-  './js/auth.js?v=123',
-  './js/app.js?v=123',
-  './js/billing.js?v=123',
-  './js/history.js?v=123',
-  './js/customers.js?v=123',
-  './js/collection.js?v=123',
-  './js/expenses.js?v=123',
-  './js/pdf.js?v=123',
-  './js/reports.js?v=123',
-  './js/inventory.js?v=123',
-  './js/share.js?v=123',
-  './js/receipt-print.js?v=123',
-  './js/clear-inputs.js?v=123',
+  './js/deploy-config.js?v=124',
+  './js/supabase-config.js?v=124',
+  './js/db.js?v=124',
+  './js/auth.js?v=124',
+  './js/app.js?v=124',
+  './js/billing.js?v=124',
+  './js/history.js?v=124',
+  './js/customers.js?v=124',
+  './js/collection.js?v=124',
+  './js/expenses.js?v=124',
+  './js/pdf.js?v=124',
+  './js/reports.js?v=124',
+  './js/inventory.js?v=124',
+  './js/share.js?v=124',
+  './js/receipt-print.js?v=124',
+  './js/clear-inputs.js?v=124',
   './icons/logo-print.png'
 ];
 
@@ -79,8 +79,13 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
-          if (res.ok) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, res.clone()));
+          if (res && res.ok) {
+            try {
+              const copy = res.clone();
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.put(e.request, copy))
+                .catch(() => {});
+            } catch (err) {}
           }
           return res;
         })
@@ -100,8 +105,11 @@ self.addEventListener('fetch', (e) => {
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(e.request).then((cached) => {
           const fetchPromise = fetch(e.request).then((res) => {
-            if (res.ok) {
-              cache.put(e.request, res.clone());
+            if (res && res.ok) {
+              try {
+                const copy = res.clone();
+                cache.put(e.request, copy).catch(() => {});
+              } catch (err) {}
             }
             return res;
           }).catch(() => null);
@@ -128,8 +136,11 @@ self.addEventListener('fetch', (e) => {
       return cache.match(e.request).then((cached) => {
         if (cached) return cached;
         return fetch(e.request).then((res) => {
-          if (res.ok) {
-            cache.put(e.request, res.clone());
+          if (res && res.ok) {
+            try {
+              const copy = res.clone();
+              cache.put(e.request, copy).catch(() => {});
+            } catch (err) {}
           }
           return res;
         }).catch(() => new Response('', { status: 504, statusText: 'Offline' }));

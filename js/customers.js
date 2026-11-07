@@ -1305,9 +1305,6 @@ class CustomersPage {
     const rows = customers.map((c) => {
       const address = c.address || '-';
       const addedAt = this.formatCustomerAddedAt(c);
-      const locationButton = this.hasLocation(c)
-        ? `<button class="customers-map-btn" data-map-customer-id="${c.id}">Map</button>`
-        : '<button class="customers-map-btn" disabled>No Pin</button>';
       const outstanding = c.outstanding > 0
         ? `<span class="customers-due">LKR ${c.outstanding.toLocaleString()}</span>`
         : '<span class="customers-paid">Paid</span>';
@@ -1317,7 +1314,6 @@ class CustomersPage {
           <td class="customers-name-cell"><button class="customers-name-btn" data-profile-customer-id="${c.id}" title="View Profile & Payments">${this.escapeHtml(c.name || '-')}</button></td>
           <td class="customers-address-cell">${this.escapeHtml(address)}</td>
           <td class="customers-added-cell">${this.escapeHtml(addedAt)}</td>
-          <td class="customers-location-cell">${locationButton}</td>
           <td class="customers-outstanding-cell">${outstanding}</td>
           <td class="customers-action-cell">
             <button class="customers-profile-btn" data-profile-customer-id="${c.id}" title="View Profile & Payments" aria-label="View Profile & Payments">${this.getProfileIcon()}</button>
@@ -1336,7 +1332,6 @@ class CustomersPage {
               <th>Customer</th>
               <th>Address</th>
               <th>Added</th>
-              <th>Map</th>
               <th>Outstanding</th>
               <th></th>
             </tr>
