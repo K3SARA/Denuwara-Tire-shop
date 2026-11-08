@@ -158,7 +158,7 @@ class ShareManager {
   }
 
   methodLabel(method) {
-    const labels = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple' };
+    const labels = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', advance: 'Customer Advance', multiple: 'Multiple' };
     return labels[String(method || '').toLowerCase()] || String(method || 'Payment');
   }
   formatBillText() {
@@ -221,6 +221,7 @@ class ShareManager {
     }
     text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
     if (Money.isPositive(change)) text += `Change: LKR ${this.formatCurrency(change)}\n`;
+    if (Money.isPositive(b.advanceCredited)) text += `Advance Credited: LKR ${this.formatCurrency(b.advanceCredited)}\n`;
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
     if (payments.length > 1 || paymentMethod === 'multiple') {
       text += `Payment Methods:\n`;
@@ -296,8 +297,8 @@ class ShareManager {
     }[language];
     const t = (key) => translations[key] || key;
     const localizedMethodLabel = (method) => {
-      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', multiple: 'multiple' })[String(method || '').toLowerCase()];
-      return key ? t(key) : String(method || '-');
+      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
+      return key ? (translations[key] || key) : String(method || '-');
     };
     const localizeStatus = (status) => {
       const key = String(status || '').toLowerCase();
@@ -1125,6 +1126,16 @@ class ShareManager {
               <td class="col-amt-rs ft-sub-rs" style="font-weight: 900; color: #7d1838;">${totalDueSplit.rs}</td>
               <td class="col-amt-cts ft-sub-cts" style="font-weight: 900; color: #7d1838;">${totalDueSplit.cts}</td>
             </tr>
+            ${Money.isPositive(b.advanceCredited) ? `
+            <tr class="a5-tfoot-row">
+              <td class="col-no">&nbsp;</td>
+              <td class="col-qty">&nbsp;</td>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title" style="color: #047857; font-weight: 700;">Advance Credited</span>
+              </td>
+              <td class="col-amt-rs ft-sub-rs" style="color: #047857; font-weight: 700;">${this.splitRsCts(b.advanceCredited).rs}</td>
+              <td class="col-amt-cts ft-sub-cts" style="color: #047857; font-weight: 700;">${this.splitRsCts(b.advanceCredited).cts}</td>
+            </tr>` : ''}
           </tfoot>
         </table>
       </div>
@@ -1336,8 +1347,8 @@ class ShareManager {
     }[language];
     const t = (key) => translations[key] || key;
     const localizedMethodLabel = (method) => {
-      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', multiple: 'multiple' })[String(method || '').toLowerCase()];
-      return key ? t(key) : String(method || '-');
+      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
+      return key ? (translations[key] || key) : String(method || '-');
     };
     const localizeStatus = (status) => {
       const key = String(status || '').toLowerCase();
@@ -1715,6 +1726,7 @@ class ShareManager {
       ${hasChequePayment ? '' : `<div class="row"><span>${t('paidAmount')} ${received > 0 ? `<span class="paid-date-tag">(${this.escapeHtml(b.date || dateStr)})</span>` : ''}</span><span>${this.formatCurrency(received)}</span></div>`}
       <div class="row"><span>${t('totalDue')}</span><strong>${this.formatCurrency(totalDue)}</strong></div>
       ${Money.isPositive(change) ? `<div class="row"><span>${t('change')}</span><span>${this.formatCurrency(change)}</span></div>` : ''}
+      ${Money.isPositive(b.advanceCredited) ? `<div class="row"><span>Advance Credited</span><strong>${this.formatCurrency(b.advanceCredited)}</strong></div>` : ''}
       ${paymentRows}
       ${paymentRows ? '' : `<div class="row"><span>${t('paymentMethod')}</span><span>${this.escapeHtml(paymentLabel)}</span></div>`}
       ${hasChequePayment ? '' : `<div class="row"><span>${t('paymentStatus')}</span><span>${this.escapeHtml(localizeStatus(paymentStatus))}</span></div>`}

@@ -144,6 +144,38 @@
                   font-weight: 600;
                 "
               ></div>
+              <div
+                id="customer-advance-pill"
+                style="
+                  display: none;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-top: 6px;
+                  padding: 6px 12px;
+                  background: #ecfdf5;
+                  border: 1px solid #10b981;
+                  border-radius: 6px;
+                  color: #065f46;
+                  font-size: 0.85rem;
+                  font-weight: 600;
+                "
+              >
+                <span>Advance Available: <strong id="customer-advance-text">LKR 0</strong></span>
+                <button
+                  type="button"
+                  id="btn-use-customer-advance"
+                  style="
+                    background: #059669;
+                    color: #fff;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 3px 10px;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    font-weight: 600;
+                  "
+                >Use Advance</button>
+              </div>
             </div>
             <div class="input-group">
               <label>Phone Number (Optional)</label>
@@ -215,6 +247,7 @@
                 <option value="bank">Bank Transfer</option>
                 <option value="cheque">Cheque</option>
                 <option value="credit">Credit</option>
+                <option value="advance">Customer Advance</option>
               </select>
             </div>
             <div id="cheque-details" class="cheque-details hidden">
@@ -303,6 +336,12 @@
             <div class="summary-row" style="margin-bottom: 0">
               <span>Change</span>
               <span id="label-change" style="display: none">LKR 0</span>
+            </div>
+            <div id="save-advance-row" style="display: none; margin-top: 6px; padding: 6px 10px; background: #ecfdf5; border-radius: 6px; border: 1px solid #a7f3d0;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #065f46; cursor: pointer; margin: 0;">
+                <input type="checkbox" id="save-as-advance-check" style="cursor: pointer; width: 16px; height: 16px; accent-color: #059669;">
+                <span>Save excess <strong id="excess-advance-amount">LKR 0</strong> as customer advance</span>
+              </label>
             </div>
           </div>
 
@@ -1459,6 +1498,9 @@
               <button type="button" id="profile-btn-collect-due" class="btn-profile-action">
                 Collect Outstanding Payment
               </button>
+              <button type="button" id="profile-btn-refund-advance" class="btn-profile-action hidden" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; margin-top: 6px;">
+                Refund Advance
+              </button>
             </div>
 
             <!-- Payment History Section -->
@@ -1637,7 +1679,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=124")
+            .register("./sw.js?v=125")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })

@@ -447,12 +447,16 @@ class Database {
 
       const now = new Date().getTime();
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
-      const tx = this.db.transaction(['bills', 'collection_logs', 'audit_logs'], 'readwrite');
+      const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
+      const customersStore = tx.objectStore('customers');
       const logsStore = tx.objectStore('collection_logs');
       const auditStore = tx.objectStore('audit_logs');
       let updatedBill = null;
       let abortMessage = 'Failed to collect payment.';
+      let cascadedCount = 0;
+      let openingSettled = 0;
+      let advanceCredited = 0;
 
       const billReq = billsStore.get(numericId);
       billReq.onsuccess = () => {
@@ -471,19 +475,17 @@ class Database {
         const total = Money.round(bill.total);
         const received = Money.round(bill.receivedAmount || 0);
         const balance = Money.clampZero(Money.subtract(total, received));
-        if (Money.isGreaterThan(collectAmount, balance)) {
-          abortMessage = `Amount is greater than due. Maximum collectable is LKR ${balance.toLocaleString()}.`;
-          tx.abort();
-          return;
-        }
 
-        const nextReceived = Money.add(received, collectAmount);
+        const isOverpayment = Money.isGreaterThan(collectAmount, balance);
+        const targetCollect = isOverpayment ? balance : collectAmount;
+        let remainingExcess = isOverpayment ? Money.subtract(collectAmount, balance) : 0;
+
+        const nextReceived = Money.add(received, targetCollect);
         const nextBalance = Money.clampZero(Money.subtract(total, nextReceived));
-        const nextChange = Money.clampZero(Money.subtract(nextReceived, total));
-        const paymentRow = payment || {
+        const paymentRow = payment ? { ...payment, amount: targetCollect } : {
           id: `pay-${now}-${Math.random().toString(36).slice(2, 6)}`,
           method: finalMethod,
-          amount: collectAmount,
+          amount: targetCollect,
           chequeDate: finalMethod === 'cheque' ? chequeDetails.chequeDate || '' : '',
           chequeNumber: finalMethod === 'cheque' ? chequeDetails.chequeNumber || '' : '',
           chequeBank: finalMethod === 'cheque' ? chequeDetails.chequeBank || '' : '',
@@ -497,7 +499,7 @@ class Database {
           ...bill,
           receivedAmount: nextReceived,
           balanceAmount: nextBalance,
-          changeAmount: nextChange,
+          changeAmount: 0,
           payments: nextPayments,
           paymentMethod: nextPayments.length > 1 ? 'multiple' : finalMethod,
           lastCollectionMethod: finalMethod,
@@ -510,7 +512,7 @@ class Database {
         logsStore.add({
           billId: numericId,
           customerName: bill.customerName || 'Walk-in Customer',
-          amount: collectAmount,
+          amount: targetCollect,
           method: finalMethod,
           paymentId: paymentRow.id,
           ...chequeDetails,
@@ -527,9 +529,133 @@ class Database {
             timestamp: now
           });
         }
+
+        if (remainingExcess > 0) {
+          const normCustName = this.normalizeText(bill.customerName || '');
+          const isWalkIn = !normCustName || normCustName === this.normalizeText('Walk-in Customer');
+
+          if (isWalkIn) {
+            updatedBill.changeAmount = remainingExcess;
+            billsStore.put(updatedBill);
+          } else {
+            const custReq = customersStore.getAll();
+            custReq.onsuccess = () => {
+              const allCust = custReq.result || [];
+              const customer = allCust.find(c => this.normalizeText(c.name) === normCustName);
+
+              const allBillsReq = billsStore.getAll();
+              allBillsReq.onsuccess = () => {
+                const allBills = allBillsReq.result || [];
+                const otherDueBills = allBills.filter(b => 
+                  Number(b.id) !== numericId &&
+                  (b.billStatus || 'active') === 'active' &&
+                  this.normalizeText(b.customerName) === normCustName
+                ).map(b => {
+                  const bTot = Money.round(b.total);
+                  const bRec = Money.round(b.receivedAmount || 0);
+                  const bBal = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(bTot, bRec));
+                  return { ...b, computedBalance: bBal };
+                }).filter(b => b.computedBalance > 0)
+                  .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                for (const otherBill of otherDueBills) {
+                  if (remainingExcess <= 0) break;
+                  const allocate = Math.min(remainingExcess, otherBill.computedBalance);
+                  const oRec = Money.add(otherBill.receivedAmount || 0, allocate);
+                  const oBal = Money.clampZero(Money.subtract(otherBill.total, oRec));
+                  const oPayRow = {
+                    id: `pay-${now}-${Math.random().toString(36).slice(2, 6)}`,
+                    method: finalMethod,
+                    amount: allocate,
+                    timestamp: now
+                  };
+                  const oPayments = [...this.getBillPaymentsForCollection(otherBill), oPayRow];
+                  const updatedOther = {
+                    ...otherBill,
+                    receivedAmount: oRec,
+                    balanceAmount: oBal,
+                    payments: oPayments,
+                    paymentStatus: oBal > 0 ? 'due' : 'paid',
+                    updated_at: now
+                  };
+                  delete updatedOther.computedBalance;
+                  billsStore.put(updatedOther);
+
+                  logsStore.add({
+                    billId: otherBill.id,
+                    customerName: bill.customerName,
+                    amount: allocate,
+                    method: finalMethod,
+                    paymentId: oPayRow.id,
+                    action: 'collection',
+                    notes: `Cascaded from Bill #${numericId}`,
+                    beforeReceived: otherBill.receivedAmount || 0,
+                    afterReceived: oRec,
+                    timestamp: now
+                  });
+
+                  remainingExcess = Money.subtract(remainingExcess, allocate);
+                  cascadedCount++;
+                }
+
+                if (remainingExcess > 0 && customer) {
+                  const opBal = Money.clampZero(customer.openingBalance || 0);
+                  if (opBal > 0) {
+                    const opAlloc = Math.min(remainingExcess, opBal);
+                    const nextOp = Money.subtract(opBal, opAlloc);
+                    customer.openingBalance = nextOp;
+                    customer.updated_at = now;
+
+                    logsStore.add({
+                      billId: `OB-${customer.id}`,
+                      customerId: customer.id,
+                      customerName: customer.name,
+                      isOpeningBalance: true,
+                      amount: opAlloc,
+                      method: finalMethod,
+                      action: 'opening_collection',
+                      notes: `Cascaded from Bill #${numericId}`,
+                      beforeReceived: opBal,
+                      afterReceived: nextOp,
+                      timestamp: now
+                    });
+
+                    remainingExcess = Money.subtract(remainingExcess, opAlloc);
+                    openingSettled = opAlloc;
+                  }
+                }
+
+                if (remainingExcess > 0 && customer) {
+                  customer.creditBalance = Money.add(customer.creditBalance || 0, remainingExcess);
+                  customer.updated_at = now;
+                  advanceCredited = remainingExcess;
+
+                  logsStore.add({
+                    billId: `ADV-${customer.id}`,
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    amount: remainingExcess,
+                    method: finalMethod,
+                    action: 'advance_credit',
+                    notes: `Excess payment saved as customer advance`,
+                    timestamp: now
+                  });
+                  remainingExcess = 0;
+                } else if (remainingExcess > 0) {
+                  updatedBill.changeAmount = remainingExcess;
+                  billsStore.put(updatedBill);
+                }
+
+                if (customer && (openingSettled > 0 || advanceCredited > 0)) {
+                  customersStore.put(customer);
+                }
+              };
+            };
+          }
+        }
       };
 
-      tx.oncomplete = () => resolve(updatedBill);
+      tx.oncomplete = () => resolve({ updatedBill, cascadedCount, openingSettled, advanceCredited });
       tx.onerror = () => reject(tx.error || new Error(abortMessage));
       tx.onabort = () => reject(new Error(abortMessage));
     });
@@ -830,11 +956,14 @@ class Database {
 
       const now = new Date().getTime();
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
-      const tx = this.db.transaction(['customers', 'collection_logs', 'audit_logs'], 'readwrite');
+      const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
+      const billsStore = tx.objectStore('bills');
       const customersStore = tx.objectStore('customers');
       const logsStore = tx.objectStore('collection_logs');
       const auditStore = tx.objectStore('audit_logs');
       let abortMessage = 'Failed to collect payment.';
+      let cascadedCount = 0;
+      let advanceCredited = 0;
 
       const custReq = customersStore.get(numericId);
       custReq.onsuccess = () => {
@@ -846,26 +975,20 @@ class Database {
         }
 
         const currentBalance = Money.clampZero(customer.openingBalance || 0);
-        if (Money.isGreaterThan(collectAmount, currentBalance)) {
-          abortMessage = `Amount is greater than opening due. Maximum collectable is LKR ${currentBalance.toLocaleString()}.`;
-          tx.abort();
-          return;
-        }
+        const isOverpayment = Money.isGreaterThan(collectAmount, currentBalance);
+        const targetCollect = isOverpayment ? currentBalance : collectAmount;
+        let remainingExcess = isOverpayment ? Money.subtract(collectAmount, currentBalance) : 0;
 
-        const nextBalance = Money.clampZero(Money.subtract(currentBalance, collectAmount));
-        const updatedCustomer = {
-          ...customer,
-          openingBalance: nextBalance,
-          updated_at: now
-        };
-        customersStore.put(updatedCustomer);
+        const nextBalance = Money.clampZero(Money.subtract(currentBalance, targetCollect));
+        customer.openingBalance = nextBalance;
+        customer.updated_at = now;
 
         logsStore.add({
           billId: `OB-${numericId}`,
           customerId: numericId,
           customerName: customer.name || 'Customer',
           isOpeningBalance: true,
-          amount: collectAmount,
+          amount: targetCollect,
           method: finalMethod,
           ...(finalMethod === 'cheque' ? chequeDetails : {}),
           action: 'opening_collection',
@@ -878,12 +1001,88 @@ class Database {
           action: 'collection_opening_create',
           entity: 'customer',
           entityId: numericId,
-          details: { amount: collectAmount, method: finalMethod, nextBalance },
+          details: { amount: targetCollect, method: finalMethod, nextBalance },
           timestamp: now
         });
+
+        if (remainingExcess > 0) {
+          const normCustName = this.normalizeText(customer.name || '');
+          const billsReq = billsStore.getAll();
+          billsReq.onsuccess = () => {
+            const allBills = billsReq.result || [];
+            const otherDueBills = allBills.filter(b => 
+              (b.billStatus || 'active') === 'active' &&
+              this.normalizeText(b.customerName) === normCustName
+            ).map(b => {
+              const bTot = Money.round(b.total);
+              const bRec = Money.round(b.receivedAmount || 0);
+              const bBal = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(bTot, bRec));
+              return { ...b, computedBalance: bBal };
+            }).filter(b => b.computedBalance > 0)
+              .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+            for (const otherBill of otherDueBills) {
+              if (remainingExcess <= 0) break;
+              const allocate = Math.min(remainingExcess, otherBill.computedBalance);
+              const oRec = Money.add(otherBill.receivedAmount || 0, allocate);
+              const oBal = Money.clampZero(Money.subtract(otherBill.total, oRec));
+              const oPayRow = {
+                id: `pay-${now}-${Math.random().toString(36).slice(2, 6)}`,
+                method: finalMethod,
+                amount: allocate,
+                timestamp: now
+              };
+              const oPayments = [...this.getBillPaymentsForCollection(otherBill), oPayRow];
+              const updatedOther = {
+                ...otherBill,
+                receivedAmount: oRec,
+                balanceAmount: oBal,
+                payments: oPayments,
+                paymentStatus: oBal > 0 ? 'due' : 'paid',
+                updated_at: now
+              };
+              delete updatedOther.computedBalance;
+              billsStore.put(updatedOther);
+
+              logsStore.add({
+                billId: otherBill.id,
+                customerName: customer.name,
+                amount: allocate,
+                method: finalMethod,
+                paymentId: oPayRow.id,
+                action: 'collection',
+                notes: `Cascaded from Opening Balance of ${customer.name}`,
+                beforeReceived: otherBill.receivedAmount || 0,
+                afterReceived: oRec,
+                timestamp: now
+              });
+
+              remainingExcess = Money.subtract(remainingExcess, allocate);
+              cascadedCount++;
+            }
+
+            if (remainingExcess > 0) {
+              customer.creditBalance = Money.add(customer.creditBalance || 0, remainingExcess);
+              advanceCredited = remainingExcess;
+              logsStore.add({
+                billId: `ADV-${customer.id}`,
+                customerId: customer.id,
+                customerName: customer.name,
+                amount: remainingExcess,
+                method: finalMethod,
+                action: 'advance_credit',
+                notes: `Excess opening payment saved as customer advance`,
+                timestamp: now
+              });
+            }
+            customersStore.put(customer);
+          };
+        } else {
+          customersStore.put(customer);
+        }
       };
 
-      tx.oncomplete = () => resolve({ ok: true });
+      tx.oncomplete = () => resolve({ ok: true, cascadedCount, advanceCredited });
       tx.onerror = () => reject(tx.error || new Error(abortMessage));
       tx.onabort = () => reject(new Error(abortMessage));
     });
@@ -1112,7 +1311,7 @@ class Database {
     });
   }
 
-  async upsertCustomerByName(name, phone = '', address = '', openingBalance = undefined) {
+  async upsertCustomerByName(name, phone = '', address = '', openingBalance = undefined, creditAdjustment = 0) {
     return new Promise((resolve) => {
       const normalizedName = (name || '').trim();
       if (!normalizedName) {
@@ -1136,6 +1335,9 @@ class Database {
           if (openingBalance !== undefined) {
             next.openingBalance = Money.clampZero(Money.round(openingBalance || 0));
           }
+          if (creditAdjustment) {
+            next.creditBalance = Money.clampZero(Money.add(existing.creditBalance || 0, creditAdjustment));
+          }
           store.put(next);
         } else {
           store.add({
@@ -1143,6 +1345,7 @@ class Database {
             phone: (phone || '').trim(),
             address: (address || '').trim(),
             openingBalance: openingBalance !== undefined ? Money.clampZero(Money.round(openingBalance || 0)) : 0,
+            creditBalance: creditAdjustment > 0 ? Money.clampZero(creditAdjustment) : 0,
             created_at: now,
             updated_at: now
           });
@@ -1150,6 +1353,38 @@ class Database {
       };
 
       tx.oncomplete = () => resolve();
+    });
+  }
+
+  async refundCustomerCredit(customerId) {
+    return new Promise((resolve, reject) => {
+      const numericId = Number(customerId);
+      const now = Date.now();
+      const tx = this.db.transaction(['customers', 'audit_logs'], 'readwrite');
+      const store = tx.objectStore('customers');
+      const audit = tx.objectStore('audit_logs');
+      const req = store.get(numericId);
+      req.onsuccess = () => {
+        const cust = req.result;
+        if (!cust) {
+          tx.abort();
+          reject(new Error('Customer not found.'));
+          return;
+        }
+        const refunded = Money.round(cust.creditBalance || 0);
+        cust.creditBalance = 0;
+        cust.updated_at = now;
+        store.put(cust);
+        audit.add({
+          action: 'customer_advance_refund',
+          entity: 'customer',
+          entityId: numericId,
+          details: { refundedAmount: refunded },
+          timestamp: now
+        });
+      };
+      tx.oncomplete = () => resolve({ ok: true });
+      tx.onerror = () => reject(tx.error || new Error('Failed to refund customer advance.'));
     });
   }
 
@@ -1669,6 +1904,7 @@ const REMOTE_DB_METHODS = [
   'renameCustomerInBills',
   'addCustomer',
   'deleteCustomer',
+  'refundCustomerCredit',
   'upsertCustomerByName',
   'syncCustomersFromBills',
   'deleteBillAndReturnStock',

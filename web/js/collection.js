@@ -179,8 +179,9 @@ class CollectionPage {
     const newPayment = this.createCollectionPayment(method, amount, chequeDetails);
 
     await window.app.withLoading(async () => {
+      let result = null;
       try {
-        await window.db.collectBillPaymentAtomic({
+        result = await window.db.collectBillPaymentAtomic({
           billId,
           amount,
           method,
@@ -206,6 +207,12 @@ class CollectionPage {
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
       if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
+
+      if (result?.advanceCredited > 0) {
+        alert(`Payment recorded! Bill settled and excess LKR ${result.advanceCredited.toLocaleString()} saved as customer advance.`);
+      } else if (result?.cascadedCount > 0) {
+        alert(`Payment recorded! Bill settled and remaining payment applied to customer's other pending dues.`);
+      }
     }, 'Recording collection...', 'Updating bill and balance');
   }
 
@@ -224,8 +231,9 @@ class CollectionPage {
     if (method === 'cheque' && !this.validateChequeDetails(chequeDetails)) return;
 
     await window.app.withLoading(async () => {
+      let result = null;
       try {
-        await window.db.collectCustomerOpeningBalanceAtomic({
+        result = await window.db.collectCustomerOpeningBalanceAtomic({
           customerId,
           amount,
           method,
@@ -244,6 +252,12 @@ class CollectionPage {
         window.billing.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
       }
       if (window.reportsView && window.app.currentPage === 'reports') await window.reportsView.render();
+
+      if (result?.advanceCredited > 0) {
+        alert(`Payment recorded! Opening balance settled and excess LKR ${result.advanceCredited.toLocaleString()} saved as customer advance.`);
+      } else if (result?.cascadedCount > 0) {
+        alert(`Payment recorded! Opening balance settled and remaining payment applied to customer's pending bills.`);
+      }
     }, 'Recording collection...', 'Updating customer opening balance');
   }
 

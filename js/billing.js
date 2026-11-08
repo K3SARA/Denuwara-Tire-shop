@@ -246,6 +246,7 @@ class Billing {
     this.customers = customers || [];
     const map = new Map();
     const opMap = new Map();
+    const creditMap = new Map();
 
     (customers || []).forEach((customer) => {
       const key = this.normalizeCustomerName(customer.name);
@@ -254,6 +255,10 @@ class Billing {
       if (Money.isPositive(op)) {
         opMap.set(key, op);
         map.set(key, op);
+      }
+      const cred = Money.clampZero(customer.creditBalance || 0);
+      if (Money.isPositive(cred)) {
+        creditMap.set(key, cred);
       }
     });
 
@@ -275,16 +280,22 @@ class Billing {
 
     this.customerOutstandingMap = map;
     this.customerOpeningMap = opMap;
+    this.customerCreditMap = creditMap;
   }
 
   renderOutstandingHint(customerName) {
     const hint = document.getElementById('customer-outstanding');
-    if (!hint) return;
+    const advancePill = document.getElementById('customer-advance-pill');
+    const advanceText = document.getElementById('customer-advance-text');
+    const useAdvanceBtn = document.getElementById('btn-use-customer-advance');
 
     const key = this.normalizeCustomerName(customerName);
     if (!key) {
-      hint.style.display = 'none';
-      hint.textContent = '';
+      if (hint) {
+        hint.style.display = 'none';
+        hint.textContent = '';
+      }
+      if (advancePill) advancePill.style.display = 'none';
       return;
     }
 
@@ -313,13 +324,40 @@ class Billing {
     const currentTotal = Money.round(this.currentTotal);
     const received = this.isSplitPaymentActive() ? this.getSplitReceivedAmount() : Money.clampZero(document.getElementById('received-amount')?.value || '0');
     const outstanding = Money.clampZero(Money.subtract(Money.add(previousOutstanding, currentTotal), received));
+    const customerCredit = (this.customerCreditMap && this.customerCreditMap.get(key)) || 0;
 
     if (Money.isPositive(outstanding)) {
-      hint.textContent = `Outstanding: LKR ${outstanding.toLocaleString()}`;
-      hint.style.display = 'block';
+      if (hint) {
+        hint.textContent = `Outstanding: LKR ${outstanding.toLocaleString()}`;
+        hint.style.display = 'block';
+      }
+      if (advancePill) advancePill.style.display = 'none';
     } else {
-      hint.style.display = 'none';
-      hint.textContent = '';
+      if (hint) {
+        hint.style.display = 'none';
+        hint.textContent = '';
+      }
+      if (advancePill && customerCredit > 0) {
+        advancePill.style.display = 'flex';
+        if (advanceText) advanceText.textContent = `LKR ${customerCredit.toLocaleString()}`;
+        if (useAdvanceBtn) {
+          useAdvanceBtn.onclick = () => {
+            const billTotal = Money.round(this.currentTotal);
+            const applyAmt = Math.min(customerCredit, billTotal > 0 ? billTotal : customerCredit);
+            const receivedInput = document.getElementById('received-amount');
+            if (receivedInput) {
+              receivedInput.value = applyAmt ? applyAmt.toFixed(2) : '';
+            }
+            const paymentMethodSelect = document.getElementById('payment-method');
+            if (paymentMethodSelect) {
+              paymentMethodSelect.value = 'advance';
+            }
+            this.updatePaymentSummary();
+          };
+        }
+      } else if (advancePill) {
+        advancePill.style.display = 'none';
+      }
     }
   }
 
@@ -705,6 +743,10 @@ class Billing {
 
     const balanceLabel = document.getElementById('label-balance');
     const changeLabel = document.getElementById('label-change');
+    const saveAdvanceRow = document.getElementById('save-advance-row');
+    const excessAdvanceAmount = document.getElementById('excess-advance-amount');
+    const customerName = (document.getElementById('customer-name')?.value || '').trim();
+    const isRegisteredCustomer = customerName && customerName.toLowerCase() !== 'walk-in customer';
 
     if (balanceLabel) {
       balanceLabel.innerText = 'LKR ' + this.formatAmount(balance);
@@ -714,8 +756,18 @@ class Billing {
       changeLabel.innerText = 'LKR ' + this.formatAmount(change);
       changeLabel.style.display = Money.isPositive(change) ? 'inline' : 'none';
     }
+    if (saveAdvanceRow) {
+      if (Money.isPositive(change) && isRegisteredCustomer) {
+        saveAdvanceRow.style.display = 'block';
+        if (excessAdvanceAmount) excessAdvanceAmount.innerText = 'LKR ' + this.formatAmount(change);
+      } else {
+        saveAdvanceRow.style.display = 'none';
+        const chk = document.getElementById('save-as-advance-check');
+        if (chk && !Money.isPositive(change)) chk.checked = false;
+      }
+    }
 
-    this.renderOutstandingHint(document.getElementById('customer-name')?.value || '');
+    this.renderOutstandingHint(customerName);
   }
 
   toggleChequeDetails() {
@@ -733,7 +785,8 @@ class Billing {
       card: 'Card',
       bank: 'Bank Transfer',
       cheque: 'Cheque',
-      credit: 'Credit'
+      credit: 'Credit',
+      advance: 'Customer Advance'
     };
     return labels[String(method || '').toLowerCase()] || 'Payment';
   }
@@ -889,7 +942,7 @@ class Billing {
             <div class="input-group" style="margin-bottom:0;">
               <label>Method ${index + 1}</label>
               <select class="input-field" data-payment-field="method" data-payment-id="${this.escapeAttribute(payment.id)}">
-                ${['cash', 'card', 'bank', 'cheque', 'credit'].map((method) => `<option value="${method}"${payment.method === method ? ' selected' : ''}>${this.methodLabel(method)}</option>`).join('')}
+                ${['cash', 'card', 'bank', 'cheque', 'credit', 'advance'].map((method) => `<option value="${method}"${payment.method === method ? ' selected' : ''}>${this.methodLabel(method)}</option>`).join('')}
               </select>
             </div>
             <div class="input-group" style="margin-bottom:0;">
@@ -1268,6 +1321,8 @@ class Billing {
     this.setChequeImage('');
     this.toggleChequeDetails();
     this.addItem();
+    const saveAdvChk = document.getElementById('save-as-advance-check');
+    if (saveAdvChk) saveAdvChk.checked = false;
     this.renderOutstandingHint('');
     this.updatePaymentSummary();
   }
@@ -1394,8 +1449,19 @@ class Billing {
     }
 
     const balanceAmount = Money.clampZero(Money.subtract(total, receivedAmount));
-    const changeAmount = Money.clampZero(Money.subtract(receivedAmount, total));
+    let changeAmount = Money.clampZero(Money.subtract(receivedAmount, total));
     const paymentStatus = Money.isPositive(balanceAmount) ? 'due' : 'paid';
+
+    const saveAsAdvanceCheck = document.getElementById('save-as-advance-check');
+    const isSaveAsAdvance = Boolean(saveAsAdvanceCheck && saveAsAdvanceCheck.checked && Money.isPositive(changeAmount));
+    const advanceCredited = isSaveAsAdvance ? changeAmount : 0;
+    if (isSaveAsAdvance) {
+      changeAmount = 0;
+    }
+
+    const advanceUsed = payments.reduce((sum, p) => (
+      String(p.method || '').toLowerCase() === 'advance' ? Money.add(sum, Money.clampZero(p.amount || 0)) : sum
+    ), 0);
 
     const nextBill = {
       customerName,
@@ -1415,6 +1481,7 @@ class Billing {
       receivedAmount,
       balanceAmount,
       changeAmount,
+      advanceCredited,
       paymentStatus,
       billStatus: 'active',
       date: new Date().toISOString().slice(0, 10),
@@ -1506,7 +1573,8 @@ class Billing {
     try {
       if (customerName.toLowerCase() !== 'walk-in customer') {
         const openingToSave = inputOpening !== undefined ? customerOpeningBalance : undefined;
-        await window.db.upsertCustomerByName(customerName, customerPhone, customerAddress, openingToSave);
+        const netCreditAdjustment = Money.subtract(advanceCredited, advanceUsed);
+        await window.db.upsertCustomerByName(customerName, customerPhone, customerAddress, openingToSave, netCreditAdjustment);
       }
       await this.loadCustomerDirectory();
       await this.loadOutstandingDirectory();

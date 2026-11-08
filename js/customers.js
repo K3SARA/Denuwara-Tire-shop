@@ -1148,6 +1148,7 @@ class CustomersPage {
     if (paidEl) paidEl.textContent = `LKR ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     if (paidCountEl) paidCountEl.textContent = `${records.length} payment${records.length === 1 ? '' : 's'}`;
 
+    const hasAdvance = Boolean(customer.creditBalance && customer.creditBalance > 0);
     if (dueEl) {
       if (totalOutstanding > 0) {
         dueEl.textContent = `LKR ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1155,6 +1156,13 @@ class CustomersPage {
         if (dueCardEl) {
           dueCardEl.classList.remove('settled');
           dueCardEl.classList.add('profile-stat-due');
+        }
+      } else if (hasAdvance) {
+        dueEl.textContent = `+ LKR ${customer.creditBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (dueStatusEl) dueStatusEl.textContent = 'Customer Advance Credit';
+        if (dueCardEl) {
+          dueCardEl.classList.add('settled');
+          dueCardEl.classList.remove('profile-stat-due');
         }
       } else {
         dueEl.textContent = 'Settled ✓';
@@ -1169,18 +1177,43 @@ class CustomersPage {
     if (invoicesCountEl) invoicesCountEl.textContent = String(activeBills.length);
     if (invoicesTotalEl) invoicesTotalEl.textContent = `Total billed: LKR ${billsTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    if (quickActionsEl && collectDueBtn) {
+    const refundAdvanceBtn = document.getElementById('profile-btn-refund-advance');
+    if (quickActionsEl) {
       if (totalOutstanding > 0) {
         quickActionsEl.classList.remove('hidden');
-        collectDueBtn.onclick = () => {
-          this.closeProfileModal();
-          app.navigate('collection');
-          const searchInput = document.getElementById('collection-search');
-          if (searchInput) {
-            searchInput.value = customer.name || '';
-            window.collectionPage?.render();
-          }
-        };
+        if (collectDueBtn) {
+          collectDueBtn.classList.remove('hidden');
+          collectDueBtn.onclick = () => {
+            this.closeProfileModal();
+            app.navigate('collection');
+            const searchInput = document.getElementById('collection-search');
+            if (searchInput) {
+              searchInput.value = customer.name || '';
+              window.collectionPage?.render();
+            }
+          };
+        }
+        if (refundAdvanceBtn) refundAdvanceBtn.classList.add('hidden');
+      } else if (hasAdvance) {
+        quickActionsEl.classList.remove('hidden');
+        if (collectDueBtn) collectDueBtn.classList.add('hidden');
+        if (refundAdvanceBtn) {
+          refundAdvanceBtn.classList.remove('hidden');
+          refundAdvanceBtn.textContent = `Refund Advance (LKR ${customer.creditBalance.toLocaleString()})`;
+          refundAdvanceBtn.onclick = async () => {
+            if (!confirm(`Refund customer advance of LKR ${customer.creditBalance.toLocaleString()} to ${customer.name} in cash?`)) return;
+            await window.app.withLoading(async () => {
+              await window.db.refundCustomerCredit(customer.id);
+              this.customers = await window.db.getCustomers();
+              this.renderList(this.getFilteredCustomers());
+              await this.openProfileModal(customer.id);
+              if (window.billing) {
+                await window.billing.loadCustomerDirectory();
+                await window.billing.loadOutstandingDirectory();
+              }
+            }, 'Processing refund...', 'Refunding advance');
+          };
+        }
       } else {
         quickActionsEl.classList.add('hidden');
       }
@@ -1305,9 +1338,13 @@ class CustomersPage {
     const rows = customers.map((c) => {
       const address = c.address || '-';
       const addedAt = this.formatCustomerAddedAt(c);
-      const outstanding = c.outstanding > 0
-        ? `<span class="customers-due">LKR ${c.outstanding.toLocaleString()}</span>`
-        : '<span class="customers-paid">Paid</span>';
+      const hasAdvance = Boolean(c.creditBalance && c.creditBalance > 0);
+      let outstanding = '<span class="customers-paid">Paid</span>';
+      if (c.outstanding > 0) {
+        outstanding = `<span class="customers-due">LKR ${c.outstanding.toLocaleString()}</span>`;
+      } else if (hasAdvance) {
+        outstanding = `<span class="customers-advance" style="color: #059669; font-weight: 600;">Advance LKR ${c.creditBalance.toLocaleString()}</span>`;
+      }
 
       return `
         <tr>
