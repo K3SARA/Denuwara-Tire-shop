@@ -13,6 +13,10 @@ class CustomersPage {
     this.importRows = [];
     this.importFileName = '';
     this.importInProgress = false;
+    this.customerStatusFilter = 'all';
+    this.customerSortBy = 'recent';
+    this.profileInvoiceFilter = 'all';
+    this.currentProfileBills = [];
   }
 
   getSearchQuery() {
@@ -813,15 +817,54 @@ class CustomersPage {
       return { ...customer, outstanding };
     });
 
-    const filteredRows = query
-      ? rows.filter((c) => (
+    // Update count badges on filter pills
+    const countAll = rows.length;
+    const countDue = rows.filter((c) => c.outstanding > 0).length;
+    const countAdvance = rows.filter((c) => (c.creditBalance || 0) > 0).length;
+    const countPaid = rows.filter((c) => c.outstanding <= 0 && (!c.creditBalance || c.creditBalance <= 0)).length;
+
+    const elAll = document.getElementById('cust-count-all');
+    const elDue = document.getElementById('cust-count-due');
+    const elAdvance = document.getElementById('cust-count-advance');
+    const elPaid = document.getElementById('cust-count-paid');
+
+    if (elAll) elAll.textContent = countAll;
+    if (elDue) elDue.textContent = countDue;
+    if (elAdvance) elAdvance.textContent = countAdvance;
+    if (elPaid) elPaid.textContent = countPaid;
+
+    // Filter by customer status pill
+    let filtered = rows;
+    if (this.customerStatusFilter === 'due') {
+      filtered = filtered.filter((c) => c.outstanding > 0);
+    } else if (this.customerStatusFilter === 'advance') {
+      filtered = filtered.filter((c) => (c.creditBalance || 0) > 0);
+    } else if (this.customerStatusFilter === 'paid') {
+      filtered = filtered.filter((c) => c.outstanding <= 0 && (!c.creditBalance || c.creditBalance <= 0));
+    }
+
+    // Filter by search query
+    if (query) {
+      filtered = filtered.filter((c) => (
         (c.name || '').toLowerCase().includes(query)
         || (c.address || '').toLowerCase().includes(query)
         || (c.phone || '').toLowerCase().includes(query)
-      ))
-      : rows;
+      ));
+    }
 
-    return this.sortCustomersByCreatedAt(filteredRows);
+    // Sort customers
+    const sort = this.customerSortBy || 'recent';
+    if (sort === 'due_desc') {
+      return [...filtered].sort((a, b) => (b.outstanding || 0) - (a.outstanding || 0) || (a.name || '').localeCompare(b.name || ''));
+    }
+    if (sort === 'advance_desc') {
+      return [...filtered].sort((a, b) => (b.creditBalance || 0) - (a.creditBalance || 0) || (a.name || '').localeCompare(b.name || ''));
+    }
+    if (sort === 'name_asc') {
+      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    return this.sortCustomersByCreatedAt(filtered);
   }
 
   openEditModal(customerId) {
@@ -1144,11 +1187,25 @@ class CustomersPage {
     const invoicesTotalEl = document.getElementById('profile-stat-invoices-total');
     const quickActionsEl = document.getElementById('profile-quick-actions');
     const collectDueBtn = document.getElementById('profile-btn-collect-due');
+    const statusBadge = document.getElementById('profile-status-badge');
 
     if (paidEl) paidEl.textContent = `LKR ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     if (paidCountEl) paidCountEl.textContent = `${records.length} payment${records.length === 1 ? '' : 's'}`;
 
     const hasAdvance = Boolean(customer.creditBalance && customer.creditBalance > 0);
+    if (statusBadge) {
+      if (totalOutstanding > 0) {
+        statusBadge.className = 'profile-status-badge status-due';
+        statusBadge.textContent = `Due: LKR ${totalOutstanding.toLocaleString()}`;
+      } else if (hasAdvance) {
+        statusBadge.className = 'profile-status-badge status-advance';
+        statusBadge.textContent = `To Pay (Advance): LKR ${customer.creditBalance.toLocaleString()}`;
+      } else {
+        statusBadge.className = 'profile-status-badge status-paid';
+        statusBadge.textContent = 'Paid (Settled)';
+      }
+    }
+
     if (dueEl) {
       if (totalOutstanding > 0) {
         dueEl.textContent = `LKR ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1176,6 +1233,12 @@ class CustomersPage {
     if (openingEl) openingEl.textContent = `LKR ${openingDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     if (invoicesCountEl) invoicesCountEl.textContent = String(activeBills.length);
     if (invoicesTotalEl) invoicesTotalEl.textContent = `Total billed: LKR ${billsTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const tabCountPayments = document.getElementById('profile-tab-count-payments');
+    const tabCountInvoices = document.getElementById('profile-tab-count-invoices');
+    if (tabCountPayments) tabCountPayments.textContent = records.length;
+    if (tabCountInvoices) tabCountInvoices.textContent = activeBills.length;
+    this.currentProfileBills = activeBills;
 
     const refundAdvanceBtn = document.getElementById('profile-btn-refund-advance');
     if (quickActionsEl) {
@@ -1227,6 +1290,12 @@ class CustomersPage {
       btn.classList.toggle('active', btn.getAttribute('data-method-filter') === 'all');
     });
 
+    document.querySelectorAll('.profile-inv-tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-inv-filter') === 'all');
+    });
+
+    this.profileInvoiceFilter = 'all';
+    this.switchProfileView('payments');
     this.renderProfilePaymentRows(records);
 
     // Open modal
@@ -1235,6 +1304,95 @@ class CustomersPage {
 
   closeProfileModal() {
     window.app?.closeModal('customer-profile-modal');
+  }
+
+  switchProfileView(view) {
+    const btnPayments = document.getElementById('btn-profile-view-payments');
+    const btnInvoices = document.getElementById('btn-profile-view-invoices');
+    const secPayments = document.getElementById('profile-payments-section');
+    const secInvoices = document.getElementById('profile-invoices-section');
+
+    if (view === 'invoices') {
+      btnPayments?.classList.remove('active');
+      btnInvoices?.classList.add('active');
+      secPayments?.classList.add('hidden');
+      secInvoices?.classList.remove('hidden');
+      this.filterProfileInvoices();
+    } else {
+      btnInvoices?.classList.remove('active');
+      btnPayments?.classList.add('active');
+      secInvoices?.classList.add('hidden');
+      secPayments?.classList.remove('hidden');
+      this.filterProfilePayments();
+    }
+  }
+
+  renderProfileInvoiceRows(bills) {
+    const tbody = document.getElementById('profile-invoices-tbody');
+    const emptyState = document.getElementById('profile-invoices-empty');
+    const badge = document.getElementById('profile-invoices-badge');
+    if (badge) badge.textContent = `${bills.length} Invoice${bills.length === 1 ? '' : 's'}`;
+    if (!tbody) return;
+
+    if (!bills.length) {
+      tbody.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+    if (emptyState) emptyState.classList.add('hidden');
+
+    tbody.innerHTML = bills.map((b) => {
+      const d = new Date(b.timestamp || Date.now());
+      const dateStr = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+      const total = Money.round(b.total || 0);
+      const received = Money.round(b.receivedAmount || 0);
+      const bal = typeof b.balanceAmount === 'number' ? Money.clampZero(b.balanceAmount) : Money.clampZero(Money.subtract(total, received));
+      const isDue = Money.isPositive(bal);
+      const statusHtml = isDue
+        ? `<span class="customers-due" style="font-weight: 700;">Due LKR ${bal.toLocaleString()}</span>`
+        : `<span class="customers-paid" style="font-weight: 700;">Paid &#10003;</span>`;
+
+      const itemsSummary = (b.items || []).map((i) => `${i.name || 'Item'} (x${i.quantity || 1})`).join(', ') || '-';
+
+      return `
+        <tr>
+          <td>
+            <div class="rec-ref-pill">Bill #${this.escapeHtml(b.billNumber || b.id)}</div>
+            <div class="rec-date-sub" style="margin-top: 3px;">${this.escapeHtml(dateStr)}</div>
+          </td>
+          <td>
+            <div style="font-size: 0.78rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${this.escapeHtml(itemsSummary)}">${this.escapeHtml(itemsSummary)}</div>
+          </td>
+          <td>
+            <div style="font-weight: 600;">LKR ${total.toLocaleString()}</div>
+            <div class="rec-date-sub">Paid: LKR ${received.toLocaleString()}</div>
+          </td>
+          <td style="text-align: right;">
+            ${statusHtml}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  filterProfileInvoices() {
+    if (!Array.isArray(this.currentProfileBills)) return;
+    const filter = this.profileInvoiceFilter || 'all';
+    let filtered = this.currentProfileBills;
+
+    if (filter === 'due') {
+      filtered = filtered.filter((b) => {
+        const bal = typeof b.balanceAmount === 'number' ? b.balanceAmount : Money.subtract(b.total || 0, b.receivedAmount || 0);
+        return Money.isPositive(bal);
+      });
+    } else if (filter === 'paid') {
+      filtered = filtered.filter((b) => {
+        const bal = typeof b.balanceAmount === 'number' ? b.balanceAmount : Money.subtract(b.total || 0, b.receivedAmount || 0);
+        return !Money.isPositive(bal);
+      });
+    }
+
+    this.renderProfileInvoiceRows(filtered);
   }
 
   renderProfilePaymentRows(records) {
@@ -1492,6 +1650,42 @@ class CustomersPage {
         btn.classList.add('active');
         this.profileActiveFilter = btn.getAttribute('data-method-filter') || 'all';
         this.filterProfilePayments();
+      });
+    });
+
+    // Customer Directory status filter pills (All, Due, Advance, Paid)
+    document.querySelectorAll('.cust-filter-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cust-filter-pill').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.customerStatusFilter = btn.getAttribute('data-cust-filter') || 'all';
+        this.renderList(this.getFilteredCustomers());
+      });
+    });
+
+    // Customer Directory sort select
+    const sortSelect = document.getElementById('customers-sort-select');
+    sortSelect?.addEventListener('change', () => {
+      this.customerSortBy = sortSelect.value || 'recent';
+      this.renderList(this.getFilteredCustomers());
+    });
+
+    // Profile modal view switch (Payments vs Invoices)
+    document.getElementById('btn-profile-view-payments')?.addEventListener('click', () => {
+      this.switchProfileView('payments');
+    });
+
+    document.getElementById('btn-profile-view-invoices')?.addEventListener('click', () => {
+      this.switchProfileView('invoices');
+    });
+
+    // Profile modal invoices filter pills (all / due / paid)
+    document.querySelectorAll('.profile-inv-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.profile-inv-tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.profileInvoiceFilter = btn.getAttribute('data-inv-filter') || 'all';
+        this.filterProfileInvoices();
       });
     });
 

@@ -466,10 +466,39 @@
                 type="text"
                 id="customers-search"
                 class="input-field"
-                placeholder="Type customer name"
+                placeholder="Type customer name, address, or phone..."
               />
             </div>
-            <div class="customers-page-actions">
+
+            <!-- Customer Filter & Sort Toolbar -->
+            <div class="customer-filter-toolbar">
+              <div class="customer-filter-pills" id="customer-filter-pills">
+                <button type="button" class="cust-filter-pill active" data-cust-filter="all">
+                  All <span id="cust-count-all" class="cust-pill-badge">0</span>
+                </button>
+                <button type="button" class="cust-filter-pill pill-due" data-cust-filter="due">
+                  Due <span id="cust-count-due" class="cust-pill-badge">0</span>
+                </button>
+                <button type="button" class="cust-filter-pill pill-advance" data-cust-filter="advance">
+                  To Pay (Advance) <span id="cust-count-advance" class="cust-pill-badge">0</span>
+                </button>
+                <button type="button" class="cust-filter-pill pill-paid" data-cust-filter="paid">
+                  Paid <span id="cust-count-paid" class="cust-pill-badge">0</span>
+                </button>
+              </div>
+
+              <div class="customer-sort-control">
+                <label for="customers-sort-select" class="customer-sort-label">Sort:</label>
+                <select id="customers-sort-select" class="customer-sort-select">
+                  <option value="recent">Recently Added</option>
+                  <option value="due_desc">Highest Due</option>
+                  <option value="advance_desc">Highest Advance</option>
+                  <option value="name_asc">Name (A &rarr; Z)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="customers-page-actions" style="margin-top: 10px;">
               <button id="btn-import-customers" type="button" class="btn-tool customers-import-btn">
                 Import Customers (CSV)
               </button>
@@ -1503,8 +1532,18 @@
               </button>
             </div>
 
+            <!-- Profile Section Switcher -->
+            <div class="profile-section-switch" style="display: flex; gap: 8px; margin: 16px 0 10px 0;">
+              <button type="button" id="btn-profile-view-payments" class="profile-switch-btn active" style="flex: 1; padding: 7px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color, rgba(0,0,0,0.12)); background: var(--bg-card, #fff); color: var(--text-main); cursor: pointer;">
+                Payments Received (<span id="profile-tab-count-payments">0</span>)
+              </button>
+              <button type="button" id="btn-profile-view-invoices" class="profile-switch-btn" style="flex: 1; padding: 7px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color, rgba(0,0,0,0.12)); background: transparent; color: var(--text-muted); cursor: pointer;">
+                Invoices &amp; Dues (<span id="profile-tab-count-invoices">0</span>)
+              </button>
+            </div>
+
             <!-- Payment History Section -->
-            <div class="profile-history-section">
+            <div id="profile-payments-section" class="profile-history-section">
               <div class="profile-history-toolbar">
                 <div class="profile-history-title-wrap">
                   <h3 class="profile-section-heading">Payment History</h3>
@@ -1548,6 +1587,43 @@
                   <div class="profile-empty-sub">Any payments made for invoices or opening balance will appear here.</div>
                 </div>
               </div>
+            </div>
+
+            <!-- Invoices & Dues Section -->
+            <div id="profile-invoices-section" class="profile-history-section hidden">
+              <div class="profile-history-toolbar">
+                <div class="profile-history-title-wrap">
+                  <h3 class="profile-section-heading">Invoices &amp; Dues</h3>
+                  <span id="profile-invoices-badge" class="profile-count-pill">0 Invoices</span>
+                </div>
+                <div class="profile-filter-tabs">
+                  <button type="button" class="profile-inv-tab-btn active" data-inv-filter="all">All</button>
+                  <button type="button" class="profile-inv-tab-btn" data-inv-filter="due">Due</button>
+                  <button type="button" class="profile-inv-tab-btn" data-inv-filter="paid">Paid</button>
+                </div>
+              </div>
+
+              <div class="profile-table-container">
+                <table class="profile-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Bill # &amp; Date</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th style="text-align: right;">Status / Due</th>
+                    </tr>
+                  </thead>
+                  <tbody id="profile-invoices-tbody">
+                    <!-- Rows injected dynamically via JS -->
+                  </tbody>
+                </table>
+                <div id="profile-invoices-empty" class="profile-empty-state hidden">
+                  <div class="profile-empty-icon">&#128196;</div>
+                  <div class="profile-empty-text">No invoices found</div>
+                  <div class="profile-empty-sub">Invoices generated for this customer will appear here.</div>
+                </div>
+              </div>
+            </div>
 
               <div class="profile-footer-bar">
                 <span id="profile-footer-summary" class="profile-footer-text">Showing 0 payments</span>
@@ -1679,7 +1755,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=125")
+            .register("./sw.js?v=126")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })
