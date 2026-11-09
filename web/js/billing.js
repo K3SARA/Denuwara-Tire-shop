@@ -237,6 +237,15 @@ class Billing {
       .replaceAll('>', '&gt;');
   }
 
+  escapeHtml(value) {
+    return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
   getUnitOptions(selectedUnit = 'pcs') {
     const units = [
       { value: 'pcs', label: 'Pcs' },
@@ -496,7 +505,8 @@ class Billing {
       qty: 1,
       unit: 'pcs',
       price: '',
-      costPrice: 0
+      costPrice: 0,
+      collapsed: false
     });
     this.renderItems();
   }
@@ -605,13 +615,27 @@ class Billing {
         item.price = String(Number(matchedProduct.billingPrice) || 0);
         item.costPrice = Number(matchedProduct.invoicePrice) || 0;
       }
+
+      const titleEl = document.getElementById(`item-title-${id}`);
+      if (titleEl) {
+        const index = this.items.findIndex((i) => i.id === id);
+        const num = index !== -1 ? index + 1 : 1;
+        const displayName = value ? value.trim() : '';
+        titleEl.textContent = `Item #${num}${displayName ? ` - ${displayName}` : ''}`;
+      }
     } else {
       item[field] = value;
     }
 
     const subtotalEl = document.getElementById(`item-subtotal-val-${id}`);
+    const summaryEl = document.getElementById(`item-summary-${id}`);
+    const lineTotal = Money.multiply(item.price, item.qty);
+
     if (subtotalEl) {
-      subtotalEl.textContent = 'LKR ' + this.formatAmount(Money.multiply(item.price, item.qty));
+      subtotalEl.textContent = 'LKR ' + this.formatAmount(lineTotal);
+    }
+    if (summaryEl) {
+      summaryEl.textContent = `${item.qty} ${item.unit || 'pcs'} \u2022 LKR ${this.formatAmount(lineTotal)}`;
     }
 
     this.updateTotals();
@@ -857,62 +881,131 @@ class Billing {
     }, { passive: true });
   }
 
+  toggleItemCollapse(id, event) {
+    if (event && event.target && event.target.closest('.item-drag-handle, .btn-item-reorder, .item-remove')) {
+      return;
+    }
+    const item = this.items.find((i) => i.id === id);
+    if (!item) return;
+    item.collapsed = !item.collapsed;
+
+    const card = document.querySelector(`.bill-item[data-item-id="${id}"]`);
+    if (card) {
+      card.classList.toggle('is-collapsed', item.collapsed);
+      const body = card.querySelector('.item-body');
+      const toggleBtn = card.querySelector('.btn-item-toggle');
+      const summaryEl = card.querySelector('.item-collapsed-summary');
+      if (body) body.style.display = item.collapsed ? 'none' : '';
+      if (toggleBtn) {
+        toggleBtn.innerHTML = item.collapsed ? '&#x25BE;' : '&#x25B4;';
+        toggleBtn.title = item.collapsed ? 'Expand details' : 'Minimize details';
+      }
+      if (summaryEl) {
+        summaryEl.style.display = item.collapsed ? 'block' : 'none';
+        const lineTotal = Money.multiply(item.price, item.qty);
+        summaryEl.textContent = `${item.qty} ${item.unit || 'pcs'} \u2022 LKR ${this.formatAmount(lineTotal)}`;
+      }
+    }
+    const toggleAllBtn = document.getElementById('btn-toggle-all-items');
+    if (toggleAllBtn) {
+      toggleAllBtn.textContent = this.areAllItemsCollapsed() ? 'Expand All' : 'Minimize All';
+    }
+  }
+
+  areAllItemsCollapsed() {
+    return this.items.length > 0 && this.items.every((it) => it.collapsed);
+  }
+
+  toggleAllItemsCollapse() {
+    const shouldCollapse = !this.areAllItemsCollapsed();
+    this.items.forEach((it) => { it.collapsed = shouldCollapse; });
+    this.renderItems();
+  }
+
   renderItems() {
     const container = document.getElementById('bill-items-container');
     if (!container) return;
     container.innerHTML = '';
 
+    if (this.items.length > 1) {
+      const topBar = document.createElement('div');
+      topBar.className = 'items-list-header';
+      topBar.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 2px;';
+      topBar.innerHTML = `
+        <span style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Products (${this.items.length})</span>
+        <button type="button" id="btn-toggle-all-items" class="btn-step-edit-link" onclick="billing.toggleAllItemsCollapse()" style="text-decoration:none; font-size:0.75rem; background:rgba(0,0,0,0.05); padding:3px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.08);">
+          ${this.areAllItemsCollapsed() ? 'Expand All' : 'Minimize All'}
+        </button>
+      `;
+      container.appendChild(topBar);
+    }
+
     this.items.forEach((item, index) => {
       const el = document.createElement('div');
-      el.className = 'card bill-item';
+      const isCollapsed = Boolean(item.collapsed);
+      el.className = `card bill-item ${isCollapsed ? 'is-collapsed' : ''}`;
       el.setAttribute('data-item-id', item.id);
       el.setAttribute('data-index', String(index));
 
       const lineTotal = Money.multiply(item.price, item.qty);
+      const displayName = item.name ? item.name.trim() : '';
+      const titleText = `Item #${index + 1}${displayName ? ` - ${displayName}` : ''}`;
 
       el.innerHTML = `
-        <div class="item-header-row">
-          <div class="item-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+        <div class="item-header-row" onclick="billing.toggleItemCollapse('${item.id}', event)">
+          <div class="item-drag-handle" title="Drag to reorder" aria-label="Drag to reorder" onclick="event.stopPropagation()">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="opacity: 0.65;">
               <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
               <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
               <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
             </svg>
-            <span class="item-index-badge">Item #${index + 1}</span>
           </div>
-          <div class="item-header-actions">
+          <div class="item-title-wrap">
+            <span class="item-index-badge" id="item-title-${item.id}">
+              ${this.escapeHtml(titleText)}
+            </span>
+            <span class="item-collapsed-summary" id="item-summary-${item.id}" style="${isCollapsed ? '' : 'display: none;'}">
+              ${item.qty} ${item.unit || 'pcs'} &bull; LKR ${this.formatAmount(lineTotal)}
+            </span>
+          </div>
+          <div class="item-header-actions" onclick="event.stopPropagation()">
             ${index > 0 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, -1)" title="Move Up">&#x25B2;</button>` : ''}
             ${index < this.items.length - 1 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, 1)" title="Move Down">&#x25BC;</button>` : ''}
+            <button type="button" class="btn-item-reorder btn-item-toggle" onclick="billing.toggleItemCollapse('${item.id}')" title="${isCollapsed ? 'Expand details' : 'Minimize details'}">
+              ${isCollapsed ? '&#x25BE;' : '&#x25B4;'}
+            </button>
             ${this.items.length > 1 ? `<button type="button" class="item-remove" onclick="billing.removeItem('${item.id}')" title="Remove Item">&times;</button>` : ''}
           </div>
         </div>
-        <div class="item-name-row">
-          <div class="product-input-wrap">
-            <label>Product Name</label>
-            <input type="text" id="product-name-${item.id}" class="input-field product-name-input" placeholder="Type or select product..." value="${this.escapeAttribute(item.name)}" style="font-size:1.05rem; font-weight:500;">
-            <div id="product-autocomplete-${item.id}" class="customer-dropdown"></div>
-            <div id="product-stock-hint-${item.id}" class="product-stock-hint"></div>
+        <div class="item-body" id="item-body-${item.id}" style="${isCollapsed ? 'display: none;' : ''}">
+          <div class="item-name-row">
+            <div class="product-input-wrap">
+              <label>Product Name</label>
+              <input type="text" id="product-name-${item.id}" class="input-field product-name-input" placeholder="Type or select product..." value="${this.escapeAttribute(item.name)}" style="font-size:1.05rem; font-weight:500;">
+              <div id="product-autocomplete-${item.id}" class="customer-dropdown"></div>
+              <div id="product-stock-hint-${item.id}" class="product-stock-hint"></div>
+            </div>
           </div>
-        </div>
-        <div class="item-controls-grid">
-          <div class="item-field-block">
-            <label>Quantity</label>
-            <input type="number" class="input-field" value="${item.qty}" min="0.01" step="0.01" oninput="billing.updateItem('${item.id}', 'qty', this.value)">
+          <div class="item-controls-grid">
+            <div class="item-field-block">
+              <label>Quantity</label>
+              <input type="number" class="input-field" value="${item.qty}" min="0.01" step="0.01" oninput="billing.updateItem('${item.id}', 'qty', this.value)">
+            </div>
+            <div class="item-field-block">
+              <label>Unit</label>
+              <select class="input-field item-unit-select" onchange="billing.updateItem('${item.id}', 'unit', this.value)">
+                ${this.getUnitOptions(item.unit || 'pcs')}
+              </select>
+            </div>
+            <div class="item-field-block">
+              <label>Rate (Price/Unit)</label>
+              <input type="number" class="input-field" placeholder="0.00" value="${(item.price !== undefined && item.price !== null && item.price !== '' && Number(item.price) !== 0) ? item.price : ''}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
+            </div>
           </div>
-          <div class="item-field-block">
-            <label>Unit</label>
-            <select class="input-field item-unit-select" onchange="billing.updateItem('${item.id}', 'unit', this.value)">
-              ${this.getUnitOptions(item.unit || 'pcs')}
-            </select>
+          <div class="item-subtotal-row">
+            <span class="item-subtotal-label">Item Total:</span>
+            <span class="item-subtotal-value" id="item-subtotal-val-${item.id}">LKR ${this.formatAmount(lineTotal)}</span>
           </div>
-          <div class="item-field-block">
-            <label>Rate (Price/Unit)</label>
-            <input type="number" class="input-field" placeholder="0.00" value="${(item.price !== undefined && item.price !== null && item.price !== '' && Number(item.price) !== 0) ? item.price : ''}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
-          </div>
-        </div>
-        <div class="item-subtotal-row">
-          <span class="item-subtotal-label">Item Total:</span>
-          <span class="item-subtotal-value" id="item-subtotal-val-${item.id}">LKR ${this.formatAmount(lineTotal)}</span>
         </div>
       `;
       container.appendChild(el);
@@ -1516,7 +1609,8 @@ class Billing {
       qty: Math.max(0.01, parseFloat(item.qty) || 1),
       unit: item.unit || 'pcs',
       price: Number(item.price) || 0,
-      costPrice: Number(item.costPrice || 0)
+      costPrice: Number(item.costPrice || 0),
+      collapsed: false
     }));
     if (this.items.length === 0) this.addItem();
     else this.renderItems();
