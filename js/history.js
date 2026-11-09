@@ -1,9 +1,47 @@
 class HistoryView {
   constructor() {
     this.bills = [];
+    this.products = [];
     this.bound = false;
     this._processing = false;
     this._displayLimit = 50;
+    this.showProfit = false;
+    try {
+      this.showProfit = localStorage.getItem('show_history_profit') === 'true';
+    } catch (e) {}
+  }
+
+  calculateBillProfit(bill) {
+    const total = Number(bill.total) || 0;
+    let cogs = 0;
+    (bill.items || []).forEach((item) => {
+      const qty = Math.max(0, parseFloat(item.qty) || 0);
+      let unitCost = 0;
+      if (Object.prototype.hasOwnProperty.call(item || {}, 'costPrice')) {
+        const explicit = Number(item.costPrice);
+        if (Number.isFinite(explicit) && explicit >= 0) unitCost = explicit;
+      }
+      if (unitCost === 0 && this.products) {
+        let p = null;
+        if (item.productId !== undefined && item.productId !== null && item.productId !== '') {
+          p = this.products.find((prod) => Number(prod.id) === Number(item.productId));
+        }
+        if (!p && item.name) {
+          const n = String(item.name).trim().toLowerCase();
+          p = this.products.find((prod) => String(prod.name || '').trim().toLowerCase() === n);
+        }
+        unitCost = Number(p?.invoicePrice) || 0;
+      }
+      cogs += unitCost * qty;
+    });
+    const profit = total - cogs;
+    const margin = total > 0 ? (profit / total) * 100 : 0;
+    return {
+      cost: cogs,
+      profit,
+      margin,
+      isLoss: profit < 0
+    };
   }
 
   getFilterValues() {
@@ -366,6 +404,12 @@ class HistoryView {
       const dateStr = this.formatCompactDate(bill.timestamp);
       const { total, balance } = this.getBillSummary(bill);
       const billStatus = bill.billStatus || 'active';
+      const profitInfo = this.calculateBillProfit(bill);
+      const profitColor = billStatus !== 'active' ? 'var(--text-muted)' : (profitInfo.isLoss ? '#dc2626' : '#059669');
+      const profitPrefix = profitInfo.profit >= 0 ? '+' : '';
+      const profitText = billStatus !== 'active'
+        ? '-'
+        : `${profitPrefix}${this.formatRecordAmount(profitInfo.profit)} <span style="font-size:0.75rem; font-weight:normal; opacity:0.85;">(${profitInfo.margin.toFixed(0)}%)</span>`;
 
       let statusLabel = this.getPaymentMethodLabel(bill);
       let statusClass = 'sale';
@@ -396,6 +440,11 @@ class HistoryView {
               <div class="history-sale-label">Balance</div>
               <div class="history-sale-value">${this.formatRecordAmount(balance)}</div>
             </div>
+            ${this.showProfit ? `
+            <div class="history-sale-metric history-sale-metric-profit">
+              <div class="history-sale-label">Profit</div>
+              <div class="history-sale-value" style="color:${profitColor}; font-weight:700;">${profitText}</div>
+            </div>` : ''}
           </div>
           <div class="history-sale-actions">
             ${(bill.chequeImage || bill.payments?.some((p) => p.chequeImage)) ? `<button class="history-icon-btn" data-history-action="view-cheque" data-bill-id="${bill.id}" title="View Cheque Photo" style="font-size: 1.05rem;">📷</button>` : ''}
@@ -625,6 +674,19 @@ class HistoryView {
     }
   }
 
+  updateProfitToggleUI() {
+    const btn = document.getElementById('btn-toggle-history-profit');
+    const text = document.getElementById('history-profit-toggle-text');
+    if (!btn || !text) return;
+    if (this.showProfit) {
+      text.textContent = 'Profit: Shown';
+      btn.classList.add('active');
+    } else {
+      text.textContent = 'Profit: Hidden';
+      btn.classList.remove('active');
+    }
+  }
+
   bindFilters() {
     if (this.bound) return;
 
@@ -635,11 +697,21 @@ class HistoryView {
     const importBtn = document.getElementById('btn-import-backup');
     const rollbackBtn = document.getElementById('btn-rollback-import');
     const importInput = document.getElementById('backup-import-file');
+    const toggleProfitBtn = document.getElementById('btn-toggle-history-profit');
 
     const onFilterChange = () => { this._displayLimit = 50; this.applyFiltersAndRender(); };
     searchInput?.addEventListener('input', onFilterChange);
     fromInput?.addEventListener('change', onFilterChange);
     toInput?.addEventListener('change', onFilterChange);
+
+    toggleProfitBtn?.addEventListener('click', () => {
+      this.showProfit = !this.showProfit;
+      try {
+        localStorage.setItem('show_history_profit', this.showProfit ? 'true' : 'false');
+      } catch (e) {}
+      this.updateProfitToggleUI();
+      this.applyFiltersAndRender();
+    });
 
     exportBtn?.addEventListener('click', () => this.exportBackup());
     importBtn?.addEventListener('click', () => importInput?.click());
@@ -649,6 +721,7 @@ class HistoryView {
       await this.importBackup(file);
     });
 
+    this.updateProfitToggleUI();
     this.bound = true;
   }
 
@@ -661,7 +734,13 @@ class HistoryView {
     }
 
     this._displayLimit = 50;
-    this.bills = await window.db.getBills();
+    const [bills, products] = await Promise.all([
+      window.db.getBills(),
+      window.db.getProducts()
+    ]);
+    this.bills = bills;
+    this.products = products;
+    this.updateProfitToggleUI();
     this.applyFiltersAndRender();
   }
 

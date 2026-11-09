@@ -382,7 +382,18 @@
         >
           <div class="card history-filters">
             <div class="input-group" style="margin-bottom: 12px">
-              <label>Search Customer</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="margin-bottom: 0;">Search Customer</label>
+                <button
+                  type="button"
+                  id="btn-toggle-history-profit"
+                  class="profit-toggle-btn"
+                  title="Toggle profit display on bill cards"
+                >
+                  <span id="history-profit-toggle-icon">👁️</span>
+                  <span id="history-profit-toggle-text">Profit: Hidden</span>
+                </button>
+              </div>
               <input
                 type="text"
                 id="history-search"
@@ -765,6 +776,7 @@
                 <select id="reports-type" class="input-field">
                   <option value="sales">Sales Summary</option>
                   <option value="profit">Net Profit</option>
+                  <option value="billprofit">Bill-wise Profit</option>
                   <option value="receivables">Outstanding</option>
                   <option value="collections">Collections</option>
                   <option value="products">Top Products</option>

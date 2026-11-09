@@ -424,9 +424,11 @@
 
   function tableFromElement(table) {
     const headers = Array.from(table.querySelectorAll('thead th')).map((cell) => normalizeText(cell.textContent));
-    const rows = Array.from(table.querySelectorAll('tbody tr')).map((row) => (
-      Array.from(row.querySelectorAll('th, td')).map((cell) => normalizeText(cell.textContent))
-    )).filter((row) => row.some(Boolean));
+    const rows = Array.from(table.querySelectorAll('tbody tr'))
+      .filter((row) => row.style.display !== 'none' && !row.classList.contains('no-pdf'))
+      .map((row) => (
+        Array.from(row.querySelectorAll('th, td')).map((cell) => normalizeText(cell.textContent))
+      )).filter((row) => row.some(Boolean));
     return { headers, rows };
   }
 

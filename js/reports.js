@@ -924,6 +924,183 @@ class ReportsView {
     `;
   }
 
+  renderBillProfitReport(range, rangeBills) {
+    const active = rangeBills.filter((b) => (b.billStatus || 'active') === 'active');
+    active.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+
+    let totalSales = 0;
+    let totalCost = 0;
+
+    const billRows = active.map((bill) => {
+      const billTotal = Money.round(bill.total || 0);
+      let billCost = 0;
+      const items = Array.isArray(bill.items) ? bill.items : [];
+
+      const itemBreakdown = items.map((item) => {
+        const qty = Math.max(0, parseFloat(item.qty) || 0);
+        const unitCost = this.getItemCost(item);
+        const unitPrice = Number(item.price) || 0;
+        const lineCost = unitCost * qty;
+        const lineSales = unitPrice * qty;
+        const lineProfit = lineSales - lineCost;
+        const lineMargin = lineSales > 0 ? (lineProfit / lineSales) * 100 : 0;
+        billCost += lineCost;
+
+        return {
+          name: item.name || 'Item',
+          qty,
+          unitCost,
+          unitPrice,
+          lineCost,
+          lineSales,
+          lineProfit,
+          lineMargin
+        };
+      });
+
+      const billProfit = billTotal - billCost;
+      const billMargin = billTotal > 0 ? (billProfit / billTotal) * 100 : 0;
+
+      totalSales += billTotal;
+      totalCost += billCost;
+
+      return {
+        bill,
+        total: billTotal,
+        cost: billCost,
+        profit: billProfit,
+        margin: billMargin,
+        items: itemBreakdown
+      };
+    });
+
+    const netProfit = totalSales - totalCost;
+    const avgMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+
+    return `
+      <div class="report-title-row">
+        <h3 class="report-title">Bill-wise Profit</h3>
+        <button class="btn-tool report-pdf-btn" onclick="reportsView.printCurrentReport('Bill-wise Profit')">Download PDF</button>
+      </div>
+      ${this.metricGrid([
+        { label: 'Bills', value: active.length.toLocaleString() },
+        { label: 'Total Sales', value: this.fmtLkr(totalSales) },
+        { label: 'Total Cost', value: this.fmtLkr(totalCost) },
+        { label: 'Total Profit', value: this.fmtLkr(netProfit) },
+        { label: 'Average Margin', value: `${avgMargin.toFixed(1)}%` }
+      ])}
+      <div class="bill-profit-toolbar" style="margin: 16px 0 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">Tap "items &#x25BE;" on any bill to see product profit breakdown</span>
+        <input type="text" id="bill-profit-search" class="input-field" placeholder="Search bill # or customer..." style="max-width: 240px; margin: 0; padding: 6px 12px; font-size: 0.82rem;" />
+      </div>
+      <div class="report-table-wrap">
+        <table class="report-table" id="bill-profit-table">
+          <thead>
+            <tr>
+              <th style="width: 75px;">Bill #</th>
+              <th>Customer &amp; Date</th>
+              <th style="text-align: right;">Sales</th>
+              <th style="text-align: right;">Cost</th>
+              <th style="text-align: right;">Profit</th>
+              <th style="text-align: right; width: 75px;">Margin</th>
+              <th style="width: 100px; text-align: center;">Items</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${billRows.length ? billRows.map((r) => {
+              const dateStr = this.esc(new Date(r.bill.timestamp || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }));
+              const custName = this.esc(r.bill.customerName || 'Walk-in Customer');
+              const isLoss = r.profit < 0;
+              const profitColor = isLoss ? '#dc2626' : '#059669';
+              const profitPrefix = r.profit >= 0 ? '+' : '';
+              const searchKey = `${r.bill.id} ${custName}`.toLowerCase();
+
+              return `
+                <tr class="bill-profit-row" data-search="${this.esc(searchKey)}">
+                  <td><b>#${this.esc(r.bill.id)}</b></td>
+                  <td>
+                    <div style="font-weight: 600; color: var(--text-main);">${custName}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">${dateStr}</div>
+                  </td>
+                  <td style="text-align: right;">${this.esc(this.fmtLkr(r.total))}</td>
+                  <td style="text-align: right; color: var(--text-muted);">${this.esc(this.fmtLkr(r.cost))}</td>
+                  <td style="text-align: right; font-weight: 700; color: ${profitColor};">${profitPrefix}${this.esc(this.fmtLkr(r.profit))}</td>
+                  <td style="text-align: right; font-weight: 600; color: ${profitColor};">${r.margin.toFixed(1)}%</td>
+                  <td style="text-align: center;">
+                    <button type="button" class="btn-bill-profit-toggle" data-bill-id="${r.bill.id}" style="background: none; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; padding: 3px 8px; font-size: 0.75rem; cursor: pointer; color: var(--primary-color, #2563eb);">
+                      ${r.items.length} items &#x25BE;
+                    </button>
+                  </td>
+                </tr>
+                <tr id="bill-profit-items-${r.bill.id}" class="bill-profit-items-row no-pdf" data-search="${this.esc(searchKey)}" style="display: none; background: rgba(0,0,0,0.02);">
+                  <td colspan="7" style="padding: 10px 14px;">
+                    <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase;">
+                      Products in Bill #${r.bill.id}
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                      ${r.items.map((it) => {
+                        const itLoss = it.lineProfit < 0;
+                        const itColor = itLoss ? '#dc2626' : '#059669';
+                        return `
+                          <div class="bill-profit-item-card">
+                            <div>
+                              <span style="font-weight: 600; color: var(--text-main);">${this.esc(it.name)}</span>
+                              <span style="font-weight: 600; color: var(--text-muted); margin-left: 6px;">&times; ${it.qty}</span>
+                              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                Cost: ${this.esc(this.fmtLkr(it.unitCost))} &bull; Sell: ${this.esc(this.fmtLkr(it.unitPrice))}
+                              </div>
+                            </div>
+                            <div style="text-align: right;">
+                              <div style="font-weight: 700; color: ${itColor};">${it.lineProfit >= 0 ? '+' : ''}${this.esc(this.fmtLkr(it.lineProfit))}</div>
+                              <div style="font-size: 0.72rem; color: ${itColor}; font-weight: 600;">${it.lineMargin.toFixed(1)}% margin</div>
+                            </div>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('') : `<tr><td colspan="7" class="report-empty">No active bills found for this period.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  bindBillProfitEvents(view) {
+    if (!view) return;
+    const searchInput = view.querySelector('#bill-profit-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim().toLowerCase();
+        const rows = view.querySelectorAll('.bill-profit-row');
+        rows.forEach((row) => {
+          const key = row.getAttribute('data-search') || '';
+          const match = !q || key.includes(q);
+          row.style.display = match ? '' : 'none';
+          const billId = row.querySelector('.btn-bill-profit-toggle')?.getAttribute('data-bill-id');
+          if (billId) {
+            const itemsRow = view.querySelector(`#bill-profit-items-${billId}`);
+            if (itemsRow && !match) itemsRow.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    view.querySelectorAll('.btn-bill-profit-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const billId = btn.getAttribute('data-bill-id');
+        const itemsRow = view.querySelector(`#bill-profit-items-${billId}`);
+        if (!itemsRow) return;
+        const isHidden = itemsRow.style.display === 'none';
+        itemsRow.style.display = isHidden ? '' : 'none';
+        const count = btn.textContent.trim().split(' ')[0];
+        btn.innerHTML = isHidden ? `${count} items &#x25B4;` : `${count} items &#x25BE;`;
+      });
+    });
+  }
+
   renderExpenseReport(range) {
     const expenses = this.getRangeExpenses(range);
     const total = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
@@ -1726,6 +1903,11 @@ class ReportsView {
     }
     if (selected === 'profit') {
       view.innerHTML = this.renderProfitReport(range, rangeBills);
+      return;
+    }
+    if (selected === 'billprofit') {
+      view.innerHTML = this.renderBillProfitReport(range, rangeBills);
+      this.bindBillProfitEvents(view);
       return;
     }
     if (selected === 'receivables') {
