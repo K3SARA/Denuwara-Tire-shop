@@ -11,6 +11,8 @@ class Billing {
     this.payments = [];
     this.splitPaymentsEnabled = false;
     this.currentChequeImage = '';
+    this.currentStep = 1;
+    this._draggedIndex = null;
   }
 
   async init() {
@@ -19,12 +21,35 @@ class Billing {
     await this.loadOutstandingDirectory();
     this.setupCustomerAutocomplete();
 
-    document.getElementById('btn-add-item').addEventListener('click', () => this.addItem());
-    document.getElementById('btn-generate-bill').addEventListener('click', () => this.generateBill());
+    document.getElementById('btn-add-item')?.addEventListener('click', () => this.addItem());
+    document.getElementById('btn-generate-bill')?.addEventListener('click', () => this.generateBill());
     document.getElementById('btn-cancel-edit')?.addEventListener('click', () => this.cancelEditMode());
 
-    document.getElementById('received-amount').addEventListener('input', () => this.updatePaymentSummary());
-    document.getElementById('payment-method').addEventListener('change', () => this.toggleChequeDetails());
+    // 3-step navigation bindings
+    document.getElementById('btn-step1-next')?.addEventListener('click', () => this.goToStep(2));
+    document.getElementById('btn-step2-prev')?.addEventListener('click', () => this.goToStep(1));
+    document.getElementById('btn-step2-next')?.addEventListener('click', () => this.goToStep(3));
+    document.getElementById('btn-step3-prev')?.addEventListener('click', () => this.goToStep(2));
+
+    document.getElementById('btn-step2-edit-customer')?.addEventListener('click', () => this.goToStep(1));
+    document.getElementById('btn-step3-edit-customer')?.addEventListener('click', () => this.goToStep(1));
+    document.getElementById('btn-step3-edit-items')?.addEventListener('click', () => this.goToStep(2));
+
+    document.getElementById('btn-quick-walkin')?.addEventListener('click', () => {
+      const nameInput = document.getElementById('customer-name');
+      if (nameInput) nameInput.value = 'Walk-in Customer';
+      this.renderOutstandingHint('Walk-in Customer');
+    });
+
+    document.querySelectorAll('.billing-step-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const s = Number(btn.getAttribute('data-step'));
+        if (s) this.goToStep(s);
+      });
+    });
+
+    document.getElementById('received-amount')?.addEventListener('input', () => this.updatePaymentSummary());
+    document.getElementById('payment-method')?.addEventListener('change', () => this.toggleChequeDetails());
     document.getElementById('btn-add-payment-method')?.addEventListener('click', () => this.addAnotherPaymentMethod());
     document.getElementById('btn-clear-split-payments')?.addEventListener('click', () => this.disableSplitPayments());
     document.getElementById('cheque-amount')?.addEventListener('input', () => this.syncChequeAmountToReceived());
@@ -52,6 +77,7 @@ class Billing {
 
     this.addItem();
     this.toggleChequeDetails();
+    this.renderCurrentStep();
 
     window.addEventListener('beforeunload', (e) => {
       if (this._hasUnsavedWork()) {
@@ -582,6 +608,12 @@ class Billing {
     } else {
       item[field] = value;
     }
+
+    const subtotalEl = document.getElementById(`item-subtotal-val-${id}`);
+    if (subtotalEl) {
+      subtotalEl.textContent = 'LKR ' + this.formatAmount(Money.multiply(item.price, item.qty));
+    }
+
     this.updateTotals();
     this.renderAllProductStockHints();
   }
@@ -657,22 +689,210 @@ class Billing {
     else this.hideProductSuggestions(itemId);
   }
 
+  goToStep(step) {
+    let nextStep = Number(step);
+    if (!nextStep || nextStep < 1) nextStep = 1;
+    if (nextStep > 3) nextStep = 3;
+
+    // Moving from Step 1 forward:
+    if (this.currentStep === 1 && nextStep > 1) {
+      const nameInput = document.getElementById('customer-name');
+      if (nameInput && !nameInput.value.trim()) {
+        nameInput.value = 'Walk-in Customer';
+      }
+    }
+
+    // Moving from Step 2 to Step 3:
+    if (this.currentStep === 2 && nextStep === 3) {
+      const hasAnyItem = this.items.some((it) => (it.name && it.name.trim()) || (Number(it.price) > 0));
+      if (!hasAnyItem) {
+        alert('Please add at least one product with name or price before proceeding to payment.');
+        return;
+      }
+    }
+
+    this.currentStep = nextStep;
+    this.renderCurrentStep();
+  }
+
+  renderCurrentStep() {
+    const step1 = document.getElementById('billing-step-1');
+    const step2 = document.getElementById('billing-step-2');
+    const step3 = document.getElementById('billing-step-3');
+
+    if (step1) step1.style.display = this.currentStep === 1 ? 'block' : 'none';
+    if (step2) step2.style.display = this.currentStep === 2 ? 'block' : 'none';
+    if (step3) step3.style.display = this.currentStep === 3 ? 'block' : 'none';
+
+    // Update stepper header buttons
+    document.querySelectorAll('.billing-step-btn').forEach((btn) => {
+      const s = Number(btn.getAttribute('data-step'));
+      btn.classList.toggle('active', s === this.currentStep);
+      btn.classList.toggle('completed', s < this.currentStep);
+    });
+
+    // Update Step 2 customer banner
+    const custName = (document.getElementById('customer-name')?.value || '').trim() || 'Walk-in Customer';
+    const step2Cust = document.getElementById('step2-customer-name');
+    if (step2Cust) step2Cust.textContent = custName;
+
+    // Update Step 3 recap
+    const phone = (document.getElementById('customer-phone')?.value || '').trim();
+    const recapCust = document.getElementById('step3-recap-customer');
+    const recapPhone = document.getElementById('step3-recap-phone');
+    const recapCount = document.getElementById('step3-recap-item-count');
+    const recapTotal = document.getElementById('step3-recap-total');
+
+    if (recapCust) recapCust.textContent = custName;
+    if (recapPhone) {
+      recapPhone.textContent = phone ? `Phone: ${phone}` : '';
+      recapPhone.style.display = phone ? 'block' : 'none';
+    }
+    const validItems = this.items.filter((it) => (it.name && it.name.trim()) || (Number(it.price) > 0));
+    if (recapCount) recapCount.textContent = `${validItems.length} product${validItems.length === 1 ? '' : 's'}`;
+    if (recapTotal) recapTotal.textContent = 'LKR ' + this.formatAmount(this.currentTotal);
+
+    // Scroll to top of billing container smoothly on step change
+    const scrollContainer = document.querySelector('#billing-page > div');
+    if (scrollContainer) scrollContainer.scrollTop = 0;
+  }
+
+  moveItem(index, direction) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= this.items.length) return;
+    const [moved] = this.items.splice(index, 1);
+    this.items.splice(targetIndex, 0, moved);
+    this.renderItems();
+  }
+
+  reorderItem(fromIndex, toIndex) {
+    if (fromIndex < 0 || fromIndex >= this.items.length || toIndex < 0 || toIndex >= this.items.length) return;
+    const [moved] = this.items.splice(fromIndex, 1);
+    this.items.splice(toIndex, 0, moved);
+    this.renderItems();
+  }
+
+  setupDragAndDrop(cardEl, index) {
+    const handle = cardEl.querySelector('.item-drag-handle');
+    if (!handle) return;
+
+    // Desktop HTML5 Drag
+    cardEl.setAttribute('draggable', 'true');
+
+    cardEl.addEventListener('dragstart', (e) => {
+      this._draggedIndex = index;
+      cardEl.classList.add('item-dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+      }
+    });
+
+    cardEl.addEventListener('dragend', () => {
+      cardEl.classList.remove('item-dragging');
+      document.querySelectorAll('.bill-item').forEach((el) => {
+        el.classList.remove('item-drag-over');
+      });
+    });
+
+    cardEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      cardEl.classList.add('item-drag-over');
+    });
+
+    cardEl.addEventListener('dragleave', () => {
+      cardEl.classList.remove('item-drag-over');
+    });
+
+    cardEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      cardEl.classList.remove('item-drag-over');
+      const fromIndex = this._draggedIndex;
+      const toIndex = index;
+      if (fromIndex !== undefined && fromIndex !== null && fromIndex !== toIndex) {
+        this.reorderItem(fromIndex, toIndex);
+      }
+    });
+
+    // Mobile / Touch Drag
+    let initialCards = [];
+    handle.addEventListener('touchstart', () => {
+      this._draggedIndex = index;
+      cardEl.classList.add('item-dragging');
+      if (navigator.vibrate) {
+        try { navigator.vibrate(20); } catch (_) {}
+      }
+      initialCards = Array.from(document.querySelectorAll('.bill-item'));
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = targetElement ? targetElement.closest('.bill-item') : null;
+
+      initialCards.forEach((c) => c.classList.remove('item-drag-over'));
+      if (targetCard && targetCard !== cardEl) {
+        targetCard.classList.add('item-drag-over');
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    handle.addEventListener('touchend', (e) => {
+      cardEl.classList.remove('item-dragging');
+      const touch = e.changedTouches[0];
+      const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = targetElement ? targetElement.closest('.bill-item') : null;
+
+      initialCards.forEach((c) => c.classList.remove('item-drag-over'));
+      if (targetCard && targetCard !== cardEl) {
+        const toIndex = initialCards.indexOf(targetCard);
+        if (toIndex !== -1 && toIndex !== index) {
+          if (navigator.vibrate) {
+            try { navigator.vibrate(25); } catch (_) {}
+          }
+          this.reorderItem(index, toIndex);
+        }
+      }
+    }, { passive: true });
+  }
+
   renderItems() {
     const container = document.getElementById('bill-items-container');
+    if (!container) return;
     container.innerHTML = '';
 
-    this.items.forEach((item) => {
+    this.items.forEach((item, index) => {
       const el = document.createElement('div');
       el.className = 'card bill-item';
+      el.setAttribute('data-item-id', item.id);
+      el.setAttribute('data-index', String(index));
+
+      const lineTotal = Money.multiply(item.price, item.qty);
+
       el.innerHTML = `
+        <div class="item-header-row">
+          <div class="item-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="opacity: 0.65;">
+              <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+              <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+              <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+            </svg>
+            <span class="item-index-badge">Item #${index + 1}</span>
+          </div>
+          <div class="item-header-actions">
+            ${index > 0 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, -1)" title="Move Up">&#x25B2;</button>` : ''}
+            ${index < this.items.length - 1 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, 1)" title="Move Down">&#x25BC;</button>` : ''}
+            ${this.items.length > 1 ? `<button type="button" class="item-remove" onclick="billing.removeItem('${item.id}')" title="Remove Item">&times;</button>` : ''}
+          </div>
+        </div>
         <div class="item-name-row">
           <div class="product-input-wrap">
-            <label>Item Name</label>
-            <input type="text" id="product-name-${item.id}" class="input-field product-name-input" placeholder="Product Name" value="${this.escapeAttribute(item.name)}" style="font-size:1.1rem; font-weight:500;">
+            <label>Product Name</label>
+            <input type="text" id="product-name-${item.id}" class="input-field product-name-input" placeholder="Type or select product..." value="${this.escapeAttribute(item.name)}" style="font-size:1.05rem; font-weight:500;">
             <div id="product-autocomplete-${item.id}" class="customer-dropdown"></div>
             <div id="product-stock-hint-${item.id}" class="product-stock-hint"></div>
           </div>
-          ${this.items.length > 1 ? `<button class="item-remove" onclick="billing.removeItem('${item.id}')">x</button>` : ''}
         </div>
         <div class="item-controls-grid">
           <div class="item-field-block">
@@ -685,13 +905,19 @@ class Billing {
               ${this.getUnitOptions(item.unit || 'pcs')}
             </select>
           </div>
+          <div class="item-field-block">
+            <label>Rate (Price/Unit)</label>
+            <input type="number" class="input-field" placeholder="0.00" value="${(item.price !== undefined && item.price !== null && item.price !== '' && Number(item.price) !== 0) ? item.price : ''}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
+          </div>
         </div>
-        <div class="item-field-block">
-          <label>Rate (price/unit)</label>
-          <input type="number" class="input-field" placeholder="Price" value="${(item.price !== undefined && item.price !== null && item.price !== '' && Number(item.price) !== 0) ? item.price : ''}" step="0.01" oninput="billing.updateItem('${item.id}', 'price', this.value)">
+        <div class="item-subtotal-row">
+          <span class="item-subtotal-label">Item Total:</span>
+          <span class="item-subtotal-value" id="item-subtotal-val-${item.id}">LKR ${this.formatAmount(lineTotal)}</span>
         </div>
       `;
       container.appendChild(el);
+
+      this.setupDragAndDrop(el, index);
 
       const productInput = document.getElementById(`product-name-${item.id}`);
       if (productInput) {
@@ -716,6 +942,7 @@ class Billing {
         });
       }
     });
+
     this.updateTotals();
     this.renderAllProductStockHints();
   }
@@ -725,8 +952,18 @@ class Billing {
     this.items.forEach((item) => {
       total = Money.add(total, Money.multiply(item.price, item.qty));
     });
-    document.getElementById('label-subtotal').innerText = 'LKR ' + this.formatAmount(total);
-    document.getElementById('label-total').innerText = 'LKR ' + this.formatAmount(total);
+    const subtotalLabel = document.getElementById('label-subtotal');
+    const totalLabel = document.getElementById('label-total');
+    const recapTotal = document.getElementById('step3-recap-total');
+    const recapCount = document.getElementById('step3-recap-item-count');
+
+    if (subtotalLabel) subtotalLabel.innerText = 'LKR ' + this.formatAmount(total);
+    if (totalLabel) totalLabel.innerText = 'LKR ' + this.formatAmount(total);
+    if (recapTotal) recapTotal.innerText = 'LKR ' + this.formatAmount(total);
+
+    const validItems = this.items.filter((it) => (it.name && it.name.trim()) || (Number(it.price) > 0));
+    if (recapCount) recapCount.textContent = `${validItems.length} product${validItems.length === 1 ? '' : 's'}`;
+
     this.currentTotal = total;
     this.updatePaymentSummary();
   }
@@ -1287,6 +1524,8 @@ class Billing {
     this.toggleChequeDetails();
     this.updatePaymentSummary();
     this.renderOutstandingHint(document.getElementById('customer-name').value || '');
+    this.currentStep = 2;
+    this.renderCurrentStep();
     const navPromise = window.app.navigate('billing');
     if (navPromise && typeof navPromise.then === 'function') {
       navPromise.then(() => {
@@ -1325,6 +1564,8 @@ class Billing {
     if (saveAdvChk) saveAdvChk.checked = false;
     this.renderOutstandingHint('');
     this.updatePaymentSummary();
+    this.currentStep = 1;
+    this.renderCurrentStep();
   }
 
   async generateBill() {

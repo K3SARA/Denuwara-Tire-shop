@@ -2790,36 +2790,23 @@ html[data-theme="dark"] .reports-notes-body {
   }
 
   #billing-page > div {
-    display: grid;
-    grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
-    align-content: start;
-    gap: 18px;
-  }
-
-  #billing-page > div > .card,
-  #billing-page > div > .summary-card,
-  #billing-page > div > #bill-items-container,
-  #billing-page > div > div[style*="text-align: center"] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    max-width: none;
-    margin: 0;
   }
 
-  #billing-page > div > .card:first-of-type,
-  #bill-items-container,
-  #billing-page > div > div[style*="text-align: center"] {
-    grid-column: 1;
-  }
-
-  #billing-page > div > .summary-card,
-  #billing-page > div > .card:last-of-type,
-  #btn-generate-bill,
-  #btn-cancel-edit {
-    grid-column: 2;
+  .billing-stepper-wrap,
+  .billing-step-panel {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
   }
 
   #backup-reminder {
-    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto 14px;
   }
 
   #bill-items-container {
@@ -3531,4 +3518,337 @@ html[data-theme="dark"] .bill-profit-items-row {
     flex-wrap: wrap;
   }
 }
+
+/* ==========================================================================
+   3-Step Billing Section Styles
+   ========================================================================== */
+
+.billing-stepper-wrap {
+  width: 100%;
+  margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: inherit;
+  padding: 4px 0;
+}
+
+.billing-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+  padding: 8px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.billing-step-btn {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.billing-step-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.step-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.billing-step-btn.active .step-badge {
+  background: var(--accent-color, #059669);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+}
+
+.billing-step-btn.active .step-text {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.billing-step-btn.completed .step-badge {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+  border: 1px solid #059669;
+}
+
+.billing-step-btn.completed .step-text {
+  color: var(--text-main);
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 6px;
+  border-radius: 2px;
+}
+
+html[data-theme="dark"] .billing-stepper {
+  background: var(--desktop-surface, #171d19);
+  border-color: var(--desktop-border, rgba(255, 255, 255, 0.12));
+}
+
+html[data-theme="dark"] .step-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--desktop-muted);
+}
+
+html[data-theme="dark"] .billing-step-btn.active .step-badge {
+  background: #10b981;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .billing-step-btn.completed .step-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: #34d399;
+}
+
+html[data-theme="dark"] .step-line {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.billing-step-nav {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.step-nav-btn {
+  font-size: 0.96rem;
+  font-weight: 600;
+  padding: 13px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.step2-customer-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme="dark"] .step2-customer-banner {
+  background: var(--desktop-surface, #171d19);
+  border-color: var(--desktop-border, rgba(255, 255, 255, 0.12));
+}
+
+.btn-step-edit-link {
+  background: none;
+  border: none;
+  color: var(--accent-color, #059669);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-decoration: underline;
+  transition: all 0.15s ease;
+}
+
+.btn-step-edit-link:hover {
+  opacity: 0.8;
+}
+
+.billing-summary-recap {
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  background: var(--bg-card, #ffffff);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+}
+
+html[data-theme="dark"] .billing-summary-recap {
+  background: var(--desktop-surface, #171d19);
+  border-color: var(--desktop-border, rgba(255, 255, 255, 0.12));
+}
+
+/* Drag & Drop Reordering Styles for Bill Items */
+.bill-item {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.bill-item.item-dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--accent-color, #059669) !important;
+  transform: scale(0.98);
+}
+
+.bill-item.item-drag-over {
+  border-top: 3px solid var(--accent-color, #059669) !important;
+  box-shadow: 0 -4px 14px rgba(5, 150, 105, 0.2);
+}
+
+.item-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="dark"] .item-header-row {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+.item-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  color: var(--text-muted);
+  user-select: none;
+  touch-action: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background var(--transition-fast);
+}
+
+.item-drag-handle:active {
+  cursor: grabbing;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="dark"] .item-drag-handle:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.item-index-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.item-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-item-reorder {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-item-reorder:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .btn-item-reorder {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--desktop-muted);
+}
+
+.item-subtotal-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="dark"] .item-subtotal-row {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.item-subtotal-label {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.item-subtotal-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+@media (max-width: 480px) {
+  .billing-stepper {
+    padding: 6px 8px;
+  }
+  .billing-step-btn {
+    padding: 4px 6px;
+    gap: 5px;
+  }
+  .step-text {
+    font-size: 0.76rem;
+  }
+  .step-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+  }
+  .item-controls-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 350px) {
+  .step-text {
+    display: none;
+  }
+  .billing-step-btn {
+    padding: 4px;
+  }
+}
+
 
