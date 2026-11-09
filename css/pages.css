@@ -3745,6 +3745,13 @@ html[data-theme="dark"] .item-header-row {
   border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
+.item-header-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .item-drag-handle {
   display: inline-flex;
   align-items: center;
@@ -3806,6 +3813,7 @@ html[data-theme="dark"] .item-drag-handle:active {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-shrink: 0;
 }
 
 .btn-item-reorder {

@@ -882,7 +882,7 @@ class Billing {
   }
 
   toggleItemCollapse(id, event) {
-    if (event && event.target && event.target.closest('.item-drag-handle, .btn-item-reorder, .item-remove')) {
+    if (event && event.target && event.target.closest('.item-drag-handle, .item-header-actions')) {
       return;
     }
     const item = this.items.find((i) => i.id === id);
@@ -899,6 +899,7 @@ class Billing {
       if (toggleBtn) {
         toggleBtn.innerHTML = item.collapsed ? '&#x25BE;' : '&#x25B4;';
         toggleBtn.title = item.collapsed ? 'Expand details' : 'Minimize details';
+        toggleBtn.setAttribute('aria-label', item.collapsed ? 'Expand details' : 'Minimize details');
       }
       if (summaryEl) {
         summaryEl.style.display = item.collapsed ? 'block' : 'none';
@@ -953,12 +954,17 @@ class Billing {
 
       el.innerHTML = `
         <div class="item-header-row" onclick="billing.toggleItemCollapse('${item.id}', event)">
-          <div class="item-drag-handle" title="Drag to reorder" aria-label="Drag to reorder" onclick="event.stopPropagation()">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="opacity: 0.65;">
-              <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
-              <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-              <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
-            </svg>
+          <div class="item-header-leading" onclick="event.stopPropagation()">
+            <button type="button" class="btn-item-reorder btn-item-toggle" onclick="billing.toggleItemCollapse('${item.id}')" title="${isCollapsed ? 'Expand details' : 'Minimize details'}" aria-label="${isCollapsed ? 'Expand details' : 'Minimize details'}">
+              ${isCollapsed ? '&#x25BE;' : '&#x25B4;'}
+            </button>
+            <div class="item-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="opacity: 0.65;">
+                <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+              </svg>
+            </div>
           </div>
           <div class="item-title-wrap">
             <span class="item-index-badge" id="item-title-${item.id}">
@@ -971,9 +977,6 @@ class Billing {
           <div class="item-header-actions" onclick="event.stopPropagation()">
             ${index > 0 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, -1)" title="Move Up">&#x25B2;</button>` : ''}
             ${index < this.items.length - 1 ? `<button type="button" class="btn-item-reorder" onclick="billing.moveItem(${index}, 1)" title="Move Down">&#x25BC;</button>` : ''}
-            <button type="button" class="btn-item-reorder btn-item-toggle" onclick="billing.toggleItemCollapse('${item.id}')" title="${isCollapsed ? 'Expand details' : 'Minimize details'}">
-              ${isCollapsed ? '&#x25BE;' : '&#x25B4;'}
-            </button>
             ${this.items.length > 1 ? `<button type="button" class="item-remove" onclick="billing.removeItem('${item.id}')" title="Remove Item">&times;</button>` : ''}
           </div>
         </div>
