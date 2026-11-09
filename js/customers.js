@@ -1241,6 +1241,7 @@ class CustomersPage {
     this.currentProfileBills = activeBills;
 
     const refundAdvanceBtn = document.getElementById('profile-btn-refund-advance');
+    const printDueBtn = document.getElementById('profile-btn-print-due');
     if (quickActionsEl) {
       if (totalOutstanding > 0) {
         quickActionsEl.classList.remove('hidden');
@@ -1256,10 +1257,17 @@ class CustomersPage {
             }
           };
         }
+        if (printDueBtn) {
+          printDueBtn.classList.remove('hidden');
+          printDueBtn.onclick = () => {
+            this.printCustomerDueReceipt(customer, activeBills);
+          };
+        }
         if (refundAdvanceBtn) refundAdvanceBtn.classList.add('hidden');
       } else if (hasAdvance) {
         quickActionsEl.classList.remove('hidden');
         if (collectDueBtn) collectDueBtn.classList.add('hidden');
+        if (printDueBtn) printDueBtn.classList.add('hidden');
         if (refundAdvanceBtn) {
           refundAdvanceBtn.classList.remove('hidden');
           refundAdvanceBtn.textContent = `Refund Advance (LKR ${customer.creditBalance.toLocaleString()})`;
@@ -1370,9 +1378,59 @@ class CustomersPage {
           <td style="text-align: right;">
             ${statusHtml}
           </td>
+          <td style="text-align: center;">
+            <button type="button" class="btn-profile-tool" onclick="customersPage.printBillReceipt('${b.id}')" title="Print Receipt" style="padding: 5px 8px; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+          </td>
         </tr>
       `;
     }).join('');
+  }
+
+  printBillReceipt(billId) {
+    if (!this.currentProfileBills || !window.share) return;
+    const bill = this.currentProfileBills.find((b) => String(b.id) === String(billId));
+    if (!bill) return;
+    window.share.currentBill = bill;
+    window.share.printReceipt();
+  }
+
+  printCustomerDueReceipt(customer, bills = []) {
+    if (!customer || !window.share) return;
+    const activeDueBills = (bills || []).filter((b) => {
+      const bal = typeof b.balanceAmount === 'number' ? b.balanceAmount : Money.subtract(b.total || 0, b.receivedAmount || 0);
+      return Money.isPositive(bal);
+    });
+    activeDueBills.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    const targetBill = activeDueBills[0] || (bills && bills[0]);
+
+    if (targetBill) {
+      window.share.currentBill = targetBill;
+      window.share.printReceipt();
+      return;
+    }
+
+    const openingBal = Money.round(customer.openingBalance || 0);
+    const mockBill = {
+      id: Date.now(),
+      billNumber: `DUE-${customer.id}`,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      customerAddress: customer.address,
+      date: customer.createdAt ? new Date(customer.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      timestamp: customer.createdAt ? new Date(customer.createdAt).getTime() : Date.now(),
+      items: [{ name: 'Outstanding Opening Balance', qty: 1, price: openingBal, unit: '' }],
+      itemsTotal: openingBal,
+      total: openingBal,
+      customerOpeningBalance: openingBal,
+      receivedAmount: 0,
+      balanceAmount: openingBal,
+      billStatus: 'active',
+      paymentStatus: 'due'
+    };
+    window.share.currentBill = mockBill;
+    window.share.printReceipt();
   }
 
   filterProfileInvoices() {

@@ -1645,11 +1645,15 @@
             </div>
 
             <!-- Quick action if due balance exists -->
-            <div id="profile-quick-actions" class="profile-quick-actions hidden">
-              <button type="button" id="profile-btn-collect-due" class="btn-profile-action">
+            <div id="profile-quick-actions" class="profile-quick-actions hidden" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="profile-btn-collect-due" class="btn-profile-action" style="flex: 1; min-width: 140px;">
                 Collect Outstanding Payment
               </button>
-              <button type="button" id="profile-btn-refund-advance" class="btn-profile-action hidden" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; margin-top: 6px;">
+              <button type="button" id="profile-btn-print-due" class="btn-profile-action" style="background: var(--bg-card, #fff); color: var(--text-main); border: 1px solid var(--border-color, #cbd5e1); font-weight: 700; border-radius: 8px; cursor: pointer; padding: 10px 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Print Due Receipt</span>
+              </button>
+              <button type="button" id="profile-btn-refund-advance" class="btn-profile-action hidden" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; width: 100%; margin-top: 6px;">
                 Refund Advance
               </button>
             </div>
@@ -1733,6 +1737,7 @@
                       <th>Items</th>
                       <th>Total</th>
                       <th style="text-align: right;">Status / Due</th>
+                      <th style="text-align: center; width: 48px;">Print</th>
                     </tr>
                   </thead>
                   <tbody id="profile-invoices-tbody">

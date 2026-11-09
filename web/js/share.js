@@ -196,6 +196,7 @@ class ShareManager {
     const received = Money.round(b.receivedAmount || 0);
     const currentBillOutstand = Money.clampZero(Money.subtract(billValue, received));
     const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
+    const dueAging = Money.isPositive(totalDue) ? this.getDueAgingInfo(b) : null;
     const billDateStr = b.date || (b.timestamp ? new Date(b.timestamp).toISOString().slice(0, 10) : '');
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
@@ -219,7 +220,12 @@ class ShareManager {
     } else {
       text += `Paid Amount: LKR 0.00\n`;
     }
-    text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
+    if (Money.isPositive(totalDue) && dueAging) {
+      const ageSuffix = dueAging.diffDays > 0 ? ` • ${dueAging.ageText}` : '';
+      text += `*Total Due: LKR ${this.formatCurrency(totalDue)}* (Due: ${dueAging.dateStr}${ageSuffix})\n`;
+    } else {
+      text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
+    }
     if (Money.isPositive(change)) text += `Change: LKR ${this.formatCurrency(change)}\n`;
     if (Money.isPositive(b.advanceCredited)) text += `Advance Credited: LKR ${this.formatCurrency(b.advanceCredited)}\n`;
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
@@ -250,6 +256,47 @@ class ShareManager {
     text += `\nThank you for your business!\n`;
     text += `Powered by Denuwara Tyre Care`;
     return text;
+  }
+
+  getDueAgingInfo(bill, asOfDate = new Date()) {
+    if (!bill) return null;
+    const rawDate = bill.dueDate || bill.date || (bill.timestamp ? new Date(bill.timestamp) : null);
+    if (!rawDate) return null;
+
+    let billDate = null;
+    if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+      const parts = rawDate.slice(0, 10).split('-').map(Number);
+      billDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      billDate = new Date(rawDate);
+    }
+    if (isNaN(billDate.getTime())) return null;
+
+    const dToday = new Date(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate.getDate());
+    const dBill = new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate());
+
+    const diffMs = dToday.getTime() - dBill.getTime();
+    const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+    const y = billDate.getFullYear();
+    const m = String(billDate.getMonth() + 1).padStart(2, '0');
+    const d = String(billDate.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+
+    let ageText = '';
+    if (diffDays === 0) {
+      ageText = 'Today';
+    } else if (diffDays === 1) {
+      ageText = '1 day old';
+    } else {
+      ageText = `${diffDays} days old`;
+    }
+
+    return {
+      dateStr,
+      diffDays,
+      ageText
+    };
   }
 
   buildPrintHtml(bill, options = {}) {
@@ -366,6 +413,7 @@ class ShareManager {
 
     const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
     const totalDueSplit = this.splitRsCts(totalDue);
+    const dueAging = Money.isPositive(totalDue) ? this.getDueAgingInfo(b) : null;
 
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
     const paymentRowsCount = payments.length > 1 ? payments.length : 1;
@@ -784,6 +832,27 @@ class ShareManager {
     white-space: nowrap;
     line-height: 1.2;
   }
+  .ft-due-desc-wrap {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding-right: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .ft-due-date-tag {
+    font-size: 10px;
+    font-weight: 800;
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 3px;
+    padding: 1px 6px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
   .ft-total-qty {
     text-align: center;
     font-size: 11.5px;
@@ -1120,8 +1189,15 @@ class ShareManager {
             <tr class="a5-tfoot-row a5-tfoot-balance">
               <td class="col-no">&nbsp;</td>
               <td class="col-qty">&nbsp;</td>
-              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
-                <span class="ft-sub-title" style="font-weight: 900; color: #7d1838;">${t('totalDue')}</span>
+              <td class="col-desc-footer" colspan="2">
+                <div class="ft-due-desc-wrap">
+                  ${Money.isPositive(totalDue) && dueAging ? `
+                    <span class="ft-due-date-tag">
+                      Due: ${dueAging.dateStr} (${dueAging.ageText})
+                    </span>
+                  ` : ''}
+                  <span class="ft-sub-title" style="font-weight: 900; color: #7d1838;">${t('totalDue')}</span>
+                </div>
               </td>
               <td class="col-amt-rs ft-sub-rs" style="font-weight: 900; color: #7d1838;">${totalDueSplit.rs}</td>
               <td class="col-amt-cts ft-sub-cts" style="font-weight: 900; color: #7d1838;">${totalDueSplit.cts}</td>
@@ -1418,6 +1494,7 @@ class ShareManager {
     const received = Money.round(b.receivedAmount || 0);
     const currentBillOutstand = Money.clampZero(Money.subtract(billValue, received));
     const totalDue = Money.clampZero(Money.subtract(totalPayable, received));
+    const dueAging = Money.isPositive(totalDue) ? this.getDueAgingInfo(b) : null;
     const change = Money.clampZero(b.changeAmount || Money.subtract(received, totalPayable));
     const billStatus = b.billStatus || 'active';
     const paymentMethod = this.getPaymentMethod(b);
@@ -1724,7 +1801,15 @@ class ShareManager {
       ${showPreviousDueRow ? `<div class="row"><span>${t('previousDue')}</span><strong>${this.formatCurrency(previousBillDue)}</strong></div>` : ''}
       ${showPayableRow ? `<div class="row"><span>${t('totalPayable')}</span><strong>${this.formatCurrency(totalPayable)}</strong></div>` : ''}
       ${hasChequePayment ? '' : `<div class="row"><span>${t('paidAmount')} ${received > 0 ? `<span class="paid-date-tag">(${this.escapeHtml(b.date || dateStr)})</span>` : ''}</span><span>${this.formatCurrency(received)}</span></div>`}
-      <div class="row"><span>${t('totalDue')}</span><strong>${this.formatCurrency(totalDue)}</strong></div>
+      <div class="row">
+        <span>
+          ${t('totalDue')}
+          ${Money.isPositive(totalDue) && dueAging ? `
+            <span class="paid-date-tag" style="color: #b91c1c; border-color: #fca5a5; background: #fef2f2; margin-left: 4px;">(${dueAging.dateStr} &bull; ${dueAging.diffDays > 0 ? `${dueAging.diffDays}d old` : 'Today'})</span>
+          ` : ''}
+        </span>
+        <strong style="color: #7d1838;">${this.formatCurrency(totalDue)}</strong>
+      </div>
       ${Money.isPositive(change) ? `<div class="row"><span>${t('change')}</span><span>${this.formatCurrency(change)}</span></div>` : ''}
       ${Money.isPositive(b.advanceCredited) ? `<div class="row"><span>Advance Credited</span><strong>${this.formatCurrency(b.advanceCredited)}</strong></div>` : ''}
       ${paymentRows}
