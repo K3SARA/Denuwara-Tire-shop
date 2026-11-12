@@ -694,7 +694,7 @@ class ShareManager {
   }
 
   .a5-biz-card {
-    width: 68mm;
+    width: 69mm;
     border: 1.5px solid #7d1838;
     border-radius: 6px;
     padding: 3px 6px;
@@ -702,13 +702,14 @@ class ShareManager {
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
   }
   .a5-biz-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    margin-left: 5px;
   }
   .a5-biz-logo svg {
     width: 38px;
