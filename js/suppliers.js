@@ -115,9 +115,7 @@ class SuppliersPage {
   updateMetrics() {
     const totalCountEl = document.getElementById('supp-metric-count');
     const totalDueEl = document.getElementById('supp-metric-due');
-    const dueCountEl = document.getElementById('supp-metric-due-count');
     const totalPurchasesEl = document.getElementById('supp-metric-purchases');
-    const purchasesCountEl = document.getElementById('supp-metric-purchases-count');
 
     let totalDueSum = 0;
     let dueCount = 0;
@@ -134,9 +132,7 @@ class SuppliersPage {
 
     if (totalCountEl) totalCountEl.textContent = this.suppliers.length;
     if (totalDueEl) totalDueEl.textContent = `LKR ${this.formatAmount(totalDueSum)}`;
-    if (dueCountEl) dueCountEl.textContent = `${dueCount} with pending balance`;
     if (totalPurchasesEl) totalPurchasesEl.textContent = `LKR ${this.formatAmount(allPurchasesTotal)}`;
-    if (purchasesCountEl) purchasesCountEl.textContent = `${this.purchases.length} stock inward bills`;
   }
 
   updateFilterBadges() {
