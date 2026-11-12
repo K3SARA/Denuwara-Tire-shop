@@ -210,7 +210,9 @@ class ShareManager {
       text += `Opening Outstand: LKR ${this.formatCurrency(openingOutstand)}\n`;
     }
     if (showPreviousDueRow) {
-      text += `Previous Due: LKR ${this.formatCurrency(previousBillDue)}\n`;
+      const ageSuffix = dueAging && dueAging.diffDays > 0 ? ` • ${dueAging.ageText}` : '';
+      const dueInfo = dueAging ? ` (Due: ${dueAging.dateStr}${ageSuffix})` : '';
+      text += `Previous Due: LKR ${this.formatCurrency(previousBillDue)}${dueInfo}\n`;
     }
     if (Money.isPositive(totalPriorOutstand)) {
       text += `Total Payable: LKR ${this.formatCurrency(totalPayable)}\n`;
@@ -220,12 +222,7 @@ class ShareManager {
     } else {
       text += `Paid Amount: LKR 0.00\n`;
     }
-    if (Money.isPositive(totalDue) && dueAging) {
-      const ageSuffix = dueAging.diffDays > 0 ? ` • ${dueAging.ageText}` : '';
-      text += `*Total Due: LKR ${this.formatCurrency(totalDue)}* (Due: ${dueAging.dateStr}${ageSuffix})\n`;
-    } else {
-      text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
-    }
+    text += `*Total Due: LKR ${this.formatCurrency(totalDue)}*\n`;
     if (Money.isPositive(change)) text += `Change: LKR ${this.formatCurrency(change)}\n`;
     if (Money.isPositive(b.advanceCredited)) text += `Advance Credited: LKR ${this.formatCurrency(b.advanceCredited)}\n`;
     const payments = this.getPayments(b).filter((payment) => Number(payment.amount) > 0);
@@ -1143,8 +1140,15 @@ class ShareManager {
             <tr class="a5-tfoot-row a5-tfoot-prevdue">
               <td class="col-no">&nbsp;</td>
               <td class="col-qty">&nbsp;</td>
-              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
-                <span class="ft-sub-title">${t('previousDue')}</span>
+              <td class="col-desc-footer" colspan="2">
+                <div class="ft-due-desc-wrap">
+                  ${dueAging ? `
+                    <span class="ft-due-date-tag">
+                      Due: ${dueAging.dateStr} (${dueAging.ageText})
+                    </span>
+                  ` : ''}
+                  <span class="ft-sub-title">${t('previousDue')}</span>
+                </div>
               </td>
               <td class="col-amt-rs ft-sub-rs">${prevDueSplit.rs}</td>
               <td class="col-amt-cts ft-sub-cts">${prevDueSplit.cts}</td>
@@ -1196,15 +1200,8 @@ class ShareManager {
             <tr class="a5-tfoot-row a5-tfoot-balance">
               <td class="col-no">&nbsp;</td>
               <td class="col-qty">&nbsp;</td>
-              <td class="col-desc-footer" colspan="2">
-                <div class="ft-due-desc-wrap">
-                  ${Money.isPositive(totalDue) && dueAging ? `
-                    <span class="ft-due-date-tag">
-                      Due: ${dueAging.dateStr} (${dueAging.ageText})
-                    </span>
-                  ` : ''}
-                  <span class="ft-sub-title" style="font-weight: 900; color: #7d1838;">${t('totalDue')}</span>
-                </div>
+              <td class="col-desc-footer" colspan="2" style="text-align: right; padding-right: 8px;">
+                <span class="ft-sub-title" style="font-weight: 900; color: #7d1838;">${t('totalDue')}</span>
               </td>
               <td class="col-amt-rs ft-sub-rs" style="font-weight: 900; color: #7d1838;">${totalDueSplit.rs}</td>
               <td class="col-amt-cts ft-sub-cts" style="font-weight: 900; color: #7d1838;">${totalDueSplit.cts}</td>
@@ -1805,16 +1802,11 @@ class ShareManager {
     <div class="totals">
       <div class="row"><span>${t('totalAmount')}</span><strong>${this.formatCurrency(billValue)}</strong></div>
       ${showOpeningRow ? `<div class="row"><span>${t('openingOutstand')}</span><strong>${this.formatCurrency(openingOutstand)}</strong></div>` : ''}
-      ${showPreviousDueRow ? `<div class="row"><span>${t('previousDue')}</span><strong>${this.formatCurrency(previousBillDue)}</strong></div>` : ''}
+      ${showPreviousDueRow ? `<div class="row"><span>${t('previousDue')} ${dueAging ? `<span class="paid-date-tag" style="color: #b91c1c; border-color: #fca5a5; background: #fef2f2; margin-left: 4px;">(${dueAging.dateStr} &bull; ${dueAging.diffDays > 0 ? `${dueAging.diffDays}d old` : 'Today'})</span>` : ''}</span><strong>${this.formatCurrency(previousBillDue)}</strong></div>` : ''}
       ${showPayableRow ? `<div class="row"><span>${t('totalPayable')}</span><strong>${this.formatCurrency(totalPayable)}</strong></div>` : ''}
       ${hasChequePayment ? '' : `<div class="row"><span>${t('paidAmount')} ${received > 0 ? `<span class="paid-date-tag">(${this.escapeHtml(b.date || dateStr)})</span>` : ''}</span><span>${this.formatCurrency(received)}</span></div>`}
       <div class="row">
-        <span>
-          ${t('totalDue')}
-          ${Money.isPositive(totalDue) && dueAging ? `
-            <span class="paid-date-tag" style="color: #b91c1c; border-color: #fca5a5; background: #fef2f2; margin-left: 4px;">(${dueAging.dateStr} &bull; ${dueAging.diffDays > 0 ? `${dueAging.diffDays}d old` : 'Today'})</span>
-          ` : ''}
-        </span>
+        <span>${t('totalDue')}</span>
         <strong style="color: #7d1838;">${this.formatCurrency(totalDue)}</strong>
       </div>
       ${Money.isPositive(change) ? `<div class="row"><span>${t('change')}</span><span>${this.formatCurrency(change)}</span></div>` : ''}
