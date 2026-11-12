@@ -694,22 +694,22 @@ class ShareManager {
   }
 
   .a5-biz-card {
-    width: 69mm;
+    width: 62mm;
     border: 1.5px solid #7d1838;
     border-radius: 6px;
-    padding: 3px 6px;
+    padding: 3px 5px;
     background: #fff;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 7px;
   }
   .a5-biz-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-left: 5px;
   }
   .a5-biz-logo svg {
     width: 38px;
@@ -717,8 +717,7 @@ class ShareManager {
     display: block;
   }
   .a5-biz-details {
-    flex: 1;
-    min-width: 0;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
