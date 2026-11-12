@@ -694,35 +694,15 @@ class ShareManager {
   }
 
   .a5-biz-card {
-    width: 63mm;
+    width: 68mm;
     border: 1.5px solid #7d1838;
     border-radius: 6px;
-    padding: 2px 4px;
-    text-align: center;
+    padding: 3px 6px;
     background: #fff;
     flex-shrink: 0;
-  }
-  .a5-biz-name {
-    font-size: 13px;
-    font-weight: 900;
-    color: #7d1838;
-    letter-spacing: 0.5px;
-    line-height: 1.1;
-    -webkit-text-stroke: 0.75px #7d1838;
-  }
-  .a5-biz-addr {
-    font-size: 9.5px;
-    color: #222;
-    font-weight: 700;
-    margin-top: 1px;
-    line-height: 1.1;
-  }
-  .a5-biz-contact-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 2px;
+    gap: 7px;
   }
   .a5-biz-logo {
     display: inline-flex;
@@ -731,18 +711,45 @@ class ShareManager {
     flex-shrink: 0;
   }
   .a5-biz-logo svg {
-    width: 19px;
-    height: 19px;
+    width: 38px;
+    height: 38px;
     display: block;
   }
+  .a5-biz-details {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .a5-biz-name {
+    font-size: 12.5px;
+    font-weight: 900;
+    color: #7d1838;
+    letter-spacing: 0.4px;
+    line-height: 1.15;
+    -webkit-text-stroke: 0.65px #7d1838;
+    white-space: nowrap;
+  }
+  .a5-biz-addr {
+    font-size: 9px;
+    color: #222;
+    font-weight: 700;
+    margin-top: 1px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
   .a5-biz-phones {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 800;
     color: #111;
-    line-height: 1;
-    text-align: left;
+    line-height: 1.15;
+    text-align: center;
     letter-spacing: 0.2px;
     white-space: nowrap;
+    margin-top: 2px;
   }
 
   .a5-table-wrap {
@@ -1060,15 +1067,15 @@ class ShareManager {
         </div>
 
         <div class="a5-biz-card">
-          <div class="a5-biz-name"><strong>${this.escapeHtml(this.businessName)}</strong></div>
-          <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
-          <div class="a5-biz-contact-row">
-            <div class="a5-biz-logo">
-              <svg viewBox="0 0 28 28" width="19" height="19" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 14 3 C 8.5 3 4 7.5 4 13 C 4 14.9 4.5 16.7 5.4 18.2 L 3.8 23.8 L 9.6 22.3 C 10.9 23 12.4 23.4 14 23.4 C 19.5 23.4 24 18.8 24 13 C 24 7.3 19.5 3 14 3 Z" stroke="#7d1838" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="#fff" />
-                <text x="14" y="13" text-anchor="middle" dominant-baseline="central" alignment-baseline="central" font-family="'SamsungOne', Arial, sans-serif" font-weight="800" font-size="16" fill="#7d1838" stroke="#7d1838" stroke-width="0.45" stroke-linejoin="round">D</text>
-              </svg>
-            </div>
+          <div class="a5-biz-logo">
+            <svg viewBox="0 0 28 28" width="38" height="38" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 14 3 C 8.5 3 4 7.5 4 13 C 4 14.9 4.5 16.7 5.4 18.2 L 3.8 23.8 L 9.6 22.3 C 10.9 23 12.4 23.4 14 23.4 C 19.5 23.4 24 18.8 24 13 C 24 7.3 19.5 3 14 3 Z" stroke="#7d1838" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="#fff" />
+              <text x="14" y="13" text-anchor="middle" dominant-baseline="central" alignment-baseline="central" font-family="'SamsungOne', Arial, sans-serif" font-weight="800" font-size="16" fill="#7d1838" stroke="#7d1838" stroke-width="0.45" stroke-linejoin="round">D</text>
+            </svg>
+          </div>
+          <div class="a5-biz-details">
+            <div class="a5-biz-name"><strong>${this.escapeHtml(this.businessName)}</strong></div>
+            <div class="a5-biz-addr">${this.escapeHtml(this.businessAddress)}</div>
             <div class="a5-biz-phones">
               ${phonesHtml}
             </div>
