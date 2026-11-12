@@ -147,6 +147,7 @@ class App {
     if (window.historyView) window.historyView.init();
     if (window.inventory) await window.inventory.init();
     if (window.customersPage) window.customersPage.init();
+    if (window.suppliersPage) window.suppliersPage.init();
     if (window.collectionPage) window.collectionPage.init();
     if (window.reportsView) window.reportsView.init();
     if (window.expensesPage) window.expensesPage.init();
@@ -256,6 +257,7 @@ class App {
       billing: 'Billing',
       inventory: 'Inventory',
       customers: 'Customers',
+      suppliers: 'Suppliers',
       collection: 'Collection',
       expenses: 'Expenses',
       reports: 'Reports',
@@ -294,6 +296,9 @@ class App {
         }
         if (pageId === 'customers' && window.customersPage) {
           await window.customersPage.render();
+        }
+        if (pageId === 'suppliers' && window.suppliersPage) {
+          await window.suppliersPage.render();
         }
         if (pageId === 'collection' && window.collectionPage) {
           await window.collectionPage.render();

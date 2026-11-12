@@ -634,6 +634,96 @@
         </div>
       </div>
 
+      <!-- Suppliers Page -->
+      <div id="suppliers-page" class="page">
+        <header class="top-header">
+          <button class="logout-btn" onclick="app.logout()" title="Logout">
+            <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Logout</span>
+          </button>
+          <h1>Suppliers</h1>
+          <button class="settings-btn" onclick="app.navigate('settings')" title="Settings" aria-label="Settings">
+            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </header>
+        <div style="flex: 1; overflow-y: auto; padding-bottom: calc(140px + env(safe-area-inset-bottom));">
+          <!-- Financial Snapshot Metrics -->
+          <div class="suppliers-kpi-grid">
+            <div class="suppliers-kpi-card">
+              <span class="suppliers-kpi-label">Total Suppliers</span>
+              <span id="supp-metric-count" class="suppliers-kpi-val">0</span>
+              <span class="suppliers-kpi-sub">Registered vendors</span>
+            </div>
+            <div class="suppliers-kpi-card suppliers-kpi-due">
+              <span class="suppliers-kpi-label">Total Due (We Owe)</span>
+              <span id="supp-metric-due" class="suppliers-kpi-val" style="color: #dc2626;">LKR 0</span>
+              <span id="supp-metric-due-count" class="suppliers-kpi-sub">0 with pending balance</span>
+            </div>
+            <div class="suppliers-kpi-card">
+              <span class="suppliers-kpi-label">Total Purchases</span>
+              <span id="supp-metric-purchases" class="suppliers-kpi-val">LKR 0</span>
+              <span id="supp-metric-purchases-count" class="suppliers-kpi-sub">0 stock inward bills</span>
+            </div>
+          </div>
+
+          <div class="card history-filters">
+            <div class="input-group" style="margin-bottom: 0">
+              <label>Search Supplier</label>
+              <input
+                type="text"
+                id="suppliers-search"
+                class="input-field"
+                placeholder="Search by supplier name, phone, or company..."
+              />
+            </div>
+
+            <!-- Supplier Filter & Sort Toolbar -->
+            <div class="customer-filter-toolbar">
+              <div class="customer-filter-pills" id="supplier-filter-pills">
+                <button type="button" class="cust-filter-pill active" data-supp-filter="all">
+                  All <span id="supp-pill-all" class="cust-pill-badge">0</span>
+                </button>
+                <button type="button" class="cust-filter-pill pill-due" data-supp-filter="due">
+                  Due (We Owe) <span id="supp-pill-due" class="cust-pill-badge">0</span>
+                </button>
+                <button type="button" class="cust-filter-pill pill-paid" data-supp-filter="paid">
+                  Paid / Clear <span id="supp-pill-paid" class="cust-pill-badge">0</span>
+                </button>
+              </div>
+
+              <div class="customer-sort-control">
+                <label for="suppliers-sort-select" class="customer-sort-label">Sort:</label>
+                <select id="suppliers-sort-select" class="customer-sort-select">
+                  <option value="due_desc">Highest Due</option>
+                  <option value="recent">Recently Added</option>
+                  <option value="name_asc">Name (A &rarr; Z)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="customers-page-actions" style="margin-top: 10px; display: flex; gap: 8px;">
+              <button id="btn-add-supplier" type="button" class="btn-tool customers-add-btn" style="flex: 1;" onclick="suppliersPage.openSupplierModal()">
+                + Add Supplier
+              </button>
+              <button id="btn-record-purchase" type="button" class="btn-primary" style="flex: 1.2; padding: 10px 14px; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="suppliersPage.openPurchaseModal()">
+                <span>&#128230; Record Stock-In</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="suppliers-list" style="padding-bottom: 24px">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
       <!-- Collection Page -->
       <div id="collection-page" class="page">
         <header class="top-header">
@@ -1208,6 +1298,14 @@
         >
           <span class="nav-icon">&#128101;</span>
           <span>Customers</span>
+        </button>
+        <button
+          class="nav-item"
+          id="nav-suppliers"
+          onclick="app.navigate('suppliers')"
+        >
+          <span class="nav-icon">&#128666;</span>
+          <span>Suppliers</span>
         </button>
         <button
           class="nav-item"
@@ -1837,6 +1935,327 @@
         </div>
       </div>
 
+      <!-- Add / Edit Supplier Modal -->
+      <div id="supplier-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+          <div class="modal-handle"></div>
+          <h2 id="supplier-modal-title" style="margin-bottom: 20px; text-align: center">Add New Supplier</h2>
+          <input type="hidden" id="supplier-modal-id" />
+          <div class="input-group">
+            <label>Supplier / Company Name *</label>
+            <input type="text" id="supplier-modal-name" class="input-field" placeholder="e.g. DSI Tyres, CEAT Distributor, Auto Zone" required />
+          </div>
+          <div class="input-group">
+            <label>Phone Number</label>
+            <input type="tel" id="supplier-modal-phone" class="input-field" placeholder="e.g. 077 123 4567" />
+          </div>
+          <div class="input-group">
+            <label>Contact Person / Agent</label>
+            <input type="text" id="supplier-modal-contact" class="input-field" placeholder="e.g. Mr. Samantha, Sales Rep" />
+          </div>
+          <div class="input-group">
+            <label>Address / Warehouse Location</label>
+            <input type="text" id="supplier-modal-address" class="input-field" placeholder="e.g. 45 Colombo Rd, Kurunegala" />
+          </div>
+          <div class="input-group">
+            <label>Bank Account Details (For Payments)</label>
+            <input type="text" id="supplier-modal-bank" class="input-field" placeholder="e.g. Commercial Bank - 8001234567 (Kurunegala)" />
+          </div>
+          <div class="input-group" id="supplier-modal-opening-wrap">
+            <label>Opening Due (We Owe Supplier)</label>
+            <input type="number" id="supplier-modal-opening" class="input-field" placeholder="0.00" step="0.01" />
+            <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">Initial unpaid balance owed before using this app.</div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="button" class="btn-primary" style="flex: 1;" onclick="suppliersPage.saveSupplier()">Save Supplier</button>
+            <button type="button" class="btn-tool" onclick="app.closeModal('supplier-modal')" style="flex: 1;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Record Stock-In / Supplier Purchase Modal -->
+      <div id="purchase-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 650px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+          <div class="modal-handle"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h2 style="margin: 0; font-size: 1.2rem;">Record Stock-In / Purchase</h2>
+            <button type="button" class="btn-tool" onclick="app.closeModal('purchase-modal')" style="padding: 4px 10px;">&times;</button>
+          </div>
+          <div style="flex: 1; overflow-y: auto; padding-right: 4px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+              <div class="input-group" style="margin-bottom: 0;">
+                <label>Supplier *</label>
+                <select id="purchase-supplier-select" class="input-field" style="height: 42px;">
+                  <option value="">Select Supplier...</option>
+                </select>
+              </div>
+              <div class="input-group" style="margin-bottom: 0;">
+                <label>Date</label>
+                <input type="date" id="purchase-date" class="input-field" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Supplier Invoice / Bill # (Optional)</label>
+              <input type="text" id="purchase-invoice-no" class="input-field" placeholder="e.g. INV-88421" />
+            </div>
+
+            <!-- Items Container -->
+            <div style="margin: 16px 0 10px 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-weight: 700; font-size: 0.9rem;">Supplied Items &amp; Qty</label>
+                <button type="button" class="btn-tool" onclick="suppliersPage.addPurchaseItemRow()" style="font-size: 0.78rem; padding: 4px 10px;">+ Add Item</button>
+              </div>
+              <div id="purchase-items-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Item rows injected via JS -->
+              </div>
+            </div>
+
+            <!-- Auto-update inventory toggle -->
+            <div style="background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.2); border-radius: 8px; padding: 10px 12px; margin: 12px 0; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="purchase-auto-stock" checked style="width: 18px; height: 18px; accent-color: #059669; cursor: pointer;" />
+              <label for="purchase-auto-stock" style="margin: 0; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-main);">
+                Automatically add received quantities to Inventory Stock &amp; update cost prices
+              </label>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="card" style="margin-top: 10px; background: var(--bg-surface, #f9fafb); border: 1px solid var(--border-color, #e5e7eb);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 600;">Total Purchase Amount:</span>
+                <span id="purchase-total-display" style="font-weight: 800; font-size: 1.15rem; color: var(--text-main);">LKR 0</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div class="input-group" style="margin-bottom: 0;">
+                  <label>Amount Paid Now</label>
+                  <input type="number" id="purchase-paid-amount" class="input-field" placeholder="0.00" step="0.01" oninput="suppliersPage.updatePurchaseBalance()" />
+                </div>
+                <div class="input-group" style="margin-bottom: 0;">
+                  <label>Payment Method</label>
+                  <select id="purchase-payment-method" class="input-field">
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank Transfer</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px dashed var(--border-color, #ddd);">
+                <span style="font-weight: 700; color: #dc2626;">Remaining Due (We Owe):</span>
+                <span id="purchase-due-display" style="font-weight: 800; font-size: 1.15rem; color: #dc2626;">LKR 0</span>
+              </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 10px;">
+              <label>Notes / Remarks (Optional)</label>
+              <input type="text" id="purchase-notes" class="input-field" placeholder="e.g. Delivered by lorry, warranty terms..." />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color, #eee);">
+            <button type="button" class="btn-primary" style="flex: 1;" onclick="suppliersPage.savePurchase()">Save &amp; Record Stock-In</button>
+            <button type="button" class="btn-tool" onclick="app.closeModal('purchase-modal')" style="flex: 0.6;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Record Payment to Supplier Modal -->
+      <div id="supplier-payment-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+          <div class="modal-handle"></div>
+          <h2 style="margin-bottom: 14px; text-align: center">Pay Supplier Due</h2>
+          <input type="hidden" id="supp-pay-supplier-id" />
+          
+          <div style="background: var(--bg-surface, #f9fafb); padding: 12px; border-radius: 8px; margin-bottom: 14px; border: 1px solid var(--border-color, #eee);">
+            <div id="supp-pay-supplier-name" style="font-weight: 700; font-size: 1.05rem;">Supplier</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Current Outstanding Due:</span>
+              <span id="supp-pay-due-badge" class="collection-badge" style="font-size: 0.9rem;">LKR 0</span>
+            </div>
+            <div id="supp-pay-bank-hint" style="margin-top: 8px; font-size: 0.8rem; color: #0369a1; background: #e0f2fe; padding: 6px 10px; border-radius: 6px; display: none;"></div>
+          </div>
+
+          <div class="input-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label>Amount to Pay (LKR) *</label>
+              <button type="button" onclick="suppliersPage.fillFullSupplierDue()" style="background: none; border: none; color: var(--accent-color, #059669); font-size: 0.78rem; font-weight: 700; cursor: pointer; padding: 0;">Pay Full Due</button>
+            </div>
+            <input type="number" id="supp-pay-amount" class="input-field" placeholder="0.00" step="0.01" required />
+          </div>
+
+          <div class="input-group">
+            <label>Payment Method</label>
+            <select id="supp-pay-method" class="input-field" onchange="suppliersPage.toggleChequeFields()">
+              <option value="cash">Cash</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+
+          <!-- Cheque Fields -->
+          <div id="supp-pay-cheque-group" style="display: none; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-color, #eee);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <div>
+                <label style="font-size: 0.8rem;">Cheque #</label>
+                <input type="text" id="supp-pay-cheque-no" class="input-field" placeholder="Cheque No" />
+              </div>
+              <div>
+                <label style="font-size: 0.8rem;">Cheque Date</label>
+                <input type="date" id="supp-pay-cheque-date" class="input-field" />
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Bank Name</label>
+              <input type="text" id="supp-pay-cheque-bank" class="input-field" placeholder="e.g. Commercial, Sampath" />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>Date</label>
+            <input type="date" id="supp-pay-date" class="input-field" />
+          </div>
+
+          <div class="input-group">
+            <label>Reference / Note</label>
+            <input type="text" id="supp-pay-reference" class="input-field" placeholder="e.g. Transfer receipt #, cheque ref..." />
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="button" class="btn-primary" style="flex: 1;" onclick="suppliersPage.savePayment()">Record Payment</button>
+            <button type="button" class="btn-tool" onclick="app.closeModal('supplier-payment-modal')" style="flex: 0.8;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supplier Profile & Ledger Modal -->
+      <div id="supplier-profile-modal" class="modal-overlay">
+        <div class="modal-content customer-profile-modal-content" style="max-width: 820px; width: 95%;">
+          <div class="profile-header">
+            <div class="profile-avatar-wrap">
+              <div id="supp-profile-avatar" class="profile-avatar" style="background: linear-gradient(135deg, #0284c7, #0369a1);">SP</div>
+              <div class="profile-title-block">
+                <div class="profile-badge-row">
+                  <span class="profile-kicker">Supplier Profile &amp; Ledger</span>
+                  <span id="supp-profile-status-badge" class="profile-status-badge">Active</span>
+                </div>
+                <h2 id="supp-profile-name" class="profile-customer-name">-</h2>
+                <div class="profile-meta-row">
+                  <span id="supp-profile-phone" class="profile-meta-item">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span id="supp-profile-phone-text">-</span>
+                  </span>
+                  <span id="supp-profile-address" class="profile-meta-item">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span id="supp-profile-address-text">-</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="profile-header-actions">
+              <button type="button" id="supp-profile-btn-edit" class="btn-profile-tool" title="Edit Supplier Details" onclick="suppliersPage.editCurrentProfileSupplier()">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span>Edit</span>
+              </button>
+              <button type="button" class="btn-profile-close" onclick="app.closeModal('supplier-profile-modal')" title="Close profile">&times;</button>
+            </div>
+          </div>
+
+          <div class="profile-scroll-body">
+            <!-- Financial Snapshot Metrics -->
+            <div class="profile-stats-grid">
+              <div class="profile-stat-card profile-stat-paid">
+                <span class="stat-label">Total Paid to Date</span>
+                <span id="supp-stat-paid-amount" class="stat-value">LKR 0</span>
+                <span id="supp-stat-paid-count" class="stat-sub">0 payments made</span>
+              </div>
+              <div id="supp-due-card" class="profile-stat-card profile-stat-due">
+                <span class="stat-label">Total Outstanding Owed</span>
+                <span id="supp-stat-due-amount" class="stat-value">LKR 0</span>
+                <span id="supp-stat-due-status" class="stat-sub">No pending balance</span>
+              </div>
+              <div class="profile-stat-card">
+                <span class="stat-label">Opening Due</span>
+                <span id="supp-stat-opening-amount" class="stat-value">LKR 0</span>
+                <span class="stat-sub">Initial balance</span>
+              </div>
+              <div class="profile-stat-card">
+                <span class="stat-label">Total Purchases</span>
+                <span id="supp-stat-purchases-count" class="stat-value">0</span>
+                <span id="supp-stat-purchases-total" class="stat-sub">Total: LKR 0</span>
+              </div>
+            </div>
+
+            <!-- Quick Action Bar -->
+            <div style="display: flex; gap: 8px; margin: 12px 0;">
+              <button type="button" id="supp-profile-btn-pay" class="btn-profile-action" style="flex: 1;" onclick="suppliersPage.payCurrentProfileSupplier()">
+                💳 Pay Outstanding Due
+              </button>
+              <button type="button" class="btn-tool" style="padding: 10px 14px; font-weight: 700; border-radius: 8px;" onclick="suppliersPage.newPurchaseForCurrentProfile()">
+                📦 Record Inward Stock
+              </button>
+            </div>
+
+            <!-- Section Switcher -->
+            <div class="profile-section-switch" style="display: flex; gap: 8px; margin: 14px 0 10px 0;">
+              <button type="button" id="btn-supp-view-purchases" class="profile-switch-btn active" style="flex: 1; padding: 7px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color, rgba(0,0,0,0.12)); background: var(--bg-card, #fff); color: var(--text-main); cursor: pointer;" onclick="suppliersPage.switchProfileView('purchases')">
+                Purchases &amp; Supply Bills (<span id="supp-tab-count-purchases">0</span>)
+              </button>
+              <button type="button" id="btn-supp-view-payments" class="profile-switch-btn" style="flex: 1; padding: 7px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color, rgba(0,0,0,0.12)); background: transparent; color: var(--text-muted); cursor: pointer;" onclick="suppliersPage.switchProfileView('payments')">
+                Payments Made (<span id="supp-tab-count-payments">0</span>)
+              </button>
+            </div>
+
+            <!-- Purchases Section -->
+            <div id="supp-purchases-section" class="profile-history-section">
+              <div class="profile-table-container">
+                <table class="profile-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Invoice # &amp; Date</th>
+                      <th>Items Supplied</th>
+                      <th>Total Value</th>
+                      <th style="text-align: right;">Status / Due</th>
+                      <th style="text-align: center; width: 44px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supp-purchases-tbody">
+                    <!-- Injected via JS -->
+                  </tbody>
+                </table>
+                <div id="supp-purchases-empty" class="profile-empty-state hidden">
+                  <div class="profile-empty-icon">&#128230;</div>
+                  <div class="profile-empty-text">No purchases recorded yet</div>
+                  <div class="profile-empty-sub">Inward stock shipments from this supplier will appear here.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payments Section -->
+            <div id="supp-payments-section" class="profile-history-section hidden">
+              <div class="profile-table-container">
+                <table class="profile-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Reference / Details</th>
+                      <th>Method</th>
+                      <th style="text-align: right;">Amount Paid</th>
+                      <th style="text-align: center; width: 44px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supp-payments-tbody">
+                    <!-- Injected via JS -->
+                  </tbody>
+                </table>
+                <div id="supp-payments-empty" class="profile-empty-state hidden">
+                  <div class="profile-empty-icon">&#128179;</div>
+                  <div class="profile-empty-text">No payment records found</div>
+                  <div class="profile-empty-sub">Payments recorded for this supplier will appear here.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Image Viewer Modal -->
       <div id="image-viewer-modal" class="modal-overlay" style="align-items: center; justify-content: center;">
         <div class="modal-content" style="max-width: 580px; width: 92%; padding: 16px; text-align: center; border-radius: 16px;">
@@ -1870,6 +2289,7 @@
     <script src="js/billing.js?v=124"></script>
     <script src="js/history.js?v=124"></script>
     <script src="js/customers.js?v=124"></script>
+    <script src="js/suppliers.js?v=132"></script>
     <script src="js/collection.js?v=124"></script>
     <script src="js/expenses.js?v=124"></script>
     <script src="js/pdf.js?v=124"></script>

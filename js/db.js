@@ -1,5 +1,5 @@
 const DB_NAME = 'cashew_billing_db';
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 const Money = (() => {
   const toCents = (value) => {
@@ -122,6 +122,15 @@ class Database {
         }
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('suppliers')) {
+          db.createObjectStore('suppliers', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains('supplier_purchases')) {
+          db.createObjectStore('supplier_purchases', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains('supplier_payments')) {
+          db.createObjectStore('supplier_payments', { keyPath: 'id', autoIncrement: true });
         }
       };
     });
@@ -1397,6 +1406,471 @@ class Database {
     }
   }
 
+  // =================== SUPPLIERS & PURCHASES ===================
+  async getSuppliers() {
+    return new Promise((resolve) => {
+      if (!this.db || !this.db.objectStoreNames.contains('suppliers')) {
+        resolve([]);
+        return;
+      }
+      const store = this.db.transaction('suppliers', 'readonly').objectStore('suppliers');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const sorted = (req.result || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        resolve(sorted);
+      };
+      req.onerror = () => resolve([]);
+    });
+  }
+
+  async getSupplierById(id) {
+    return new Promise((resolve) => {
+      if (!this.db || !this.db.objectStoreNames.contains('suppliers')) {
+        resolve(null);
+        return;
+      }
+      const store = this.db.transaction('suppliers', 'readonly').objectStore('suppliers');
+      const req = store.get(Number(id));
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async addSupplier(name, phone = '', address = '', contactPerson = '', bankDetails = '', openingBalance = 0) {
+    const normalizedName = String(name || '').trim();
+    if (!normalizedName) {
+      return { ok: false, error: 'Supplier name is required.' };
+    }
+    const all = await this.getSuppliers();
+    const exists = all.some((s) => this.normalizeText(s.name) === this.normalizeText(normalizedName));
+    if (exists) {
+      return { ok: false, error: 'Supplier already exists with this name.' };
+    }
+    const parsedOpening = Money.clampZero(Money.round(openingBalance || 0));
+    return new Promise((resolve) => {
+      const tx = this.db.transaction('suppliers', 'readwrite');
+      const store = tx.objectStore('suppliers');
+      const now = Date.now();
+      const req = store.add({
+        name: normalizedName,
+        phone: (phone || '').trim(),
+        address: (address || '').trim(),
+        contactPerson: (contactPerson || '').trim(),
+        bankDetails: (bankDetails || '').trim(),
+        openingBalance: parsedOpening,
+        currentBalance: parsedOpening,
+        created_at: now,
+        updated_at: now
+      });
+      req.onsuccess = () => resolve({ ok: true, id: req.result });
+      req.onerror = () => resolve({ ok: false, error: 'Failed to add supplier.' });
+    });
+  }
+
+  async updateSupplier(id, updates = {}) {
+    const numericId = Number(id);
+    if (!numericId) return { ok: false, error: 'Invalid supplier ID.' };
+    return new Promise((resolve) => {
+      const tx = this.db.transaction('suppliers', 'readwrite');
+      const store = tx.objectStore('suppliers');
+      const getReq = store.get(numericId);
+      getReq.onsuccess = () => {
+        const supplier = getReq.result;
+        if (!supplier) {
+          resolve({ ok: false, error: 'Supplier not found.' });
+          return;
+        }
+        if (updates.name && String(updates.name).trim()) supplier.name = String(updates.name).trim();
+        if (updates.phone !== undefined) supplier.phone = String(updates.phone || '').trim();
+        if (updates.address !== undefined) supplier.address = String(updates.address || '').trim();
+        if (updates.contactPerson !== undefined) supplier.contactPerson = String(updates.contactPerson || '').trim();
+        if (updates.bankDetails !== undefined) supplier.bankDetails = String(updates.bankDetails || '').trim();
+        if (updates.openingBalance !== undefined) {
+          supplier.openingBalance = Money.clampZero(Money.round(updates.openingBalance || 0));
+        }
+        if (updates.currentBalance !== undefined) {
+          supplier.currentBalance = Money.round(updates.currentBalance || 0);
+        }
+        supplier.updated_at = Date.now();
+        const putReq = store.put(supplier);
+        putReq.onsuccess = () => resolve({ ok: true, supplier });
+        putReq.onerror = () => resolve({ ok: false, error: 'Failed to update supplier.' });
+      };
+      getReq.onerror = () => resolve({ ok: false, error: 'Failed to find supplier.' });
+    });
+  }
+
+  async deleteSupplier(id) {
+    const numericId = Number(id);
+    return new Promise((resolve) => {
+      const tx = this.db.transaction(['suppliers', 'supplier_purchases', 'supplier_payments'], 'readwrite');
+      const suppStore = tx.objectStore('suppliers');
+      const purStore = tx.objectStore('supplier_purchases');
+      const payStore = tx.objectStore('supplier_payments');
+
+      suppStore.delete(numericId);
+
+      const purReq = purStore.getAll();
+      purReq.onsuccess = () => {
+        (purReq.result || []).forEach((p) => {
+          if (Number(p.supplierId) === numericId) purStore.delete(p.id);
+        });
+      };
+      const payReq = payStore.getAll();
+      payReq.onsuccess = () => {
+        (payReq.result || []).forEach((pay) => {
+          if (Number(pay.supplierId) === numericId) payStore.delete(pay.id);
+        });
+      };
+
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  }
+
+  async getPurchases(supplierId = null) {
+    return new Promise((resolve) => {
+      if (!this.db || !this.db.objectStoreNames.contains('supplier_purchases')) {
+        resolve([]);
+        return;
+      }
+      const store = this.db.transaction('supplier_purchases', 'readonly').objectStore('supplier_purchases');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let list = req.result || [];
+        if (supplierId) {
+          list = list.filter((p) => Number(p.supplierId) === Number(supplierId));
+        }
+        list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        resolve(list);
+      };
+      req.onerror = () => resolve([]);
+    });
+  }
+
+  async getPurchaseById(id) {
+    return new Promise((resolve) => {
+      if (!this.db || !this.db.objectStoreNames.contains('supplier_purchases')) {
+        resolve(null);
+        return;
+      }
+      const store = this.db.transaction('supplier_purchases', 'readonly').objectStore('supplier_purchases');
+      const req = store.get(Number(id));
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async addPurchase(purchaseData) {
+    return new Promise((resolve, reject) => {
+      const txStores = ['supplier_purchases', 'suppliers', 'products', 'inventory_logs', 'audit_logs'];
+      const tx = this.db.transaction(txStores, 'readwrite');
+      const purStore = tx.objectStore('supplier_purchases');
+      const suppStore = tx.objectStore('suppliers');
+      const prodStore = tx.objectStore('products');
+      const invLogStore = tx.objectStore('inventory_logs');
+      const auditStore = tx.objectStore('audit_logs');
+
+      const now = Date.now();
+      const totalAmount = Money.round(purchaseData.totalAmount || 0);
+      const paidAmount = Money.round(purchaseData.paidAmount || 0);
+      const balanceAmount = Money.clampZero(Money.subtract(totalAmount, paidAmount));
+      const autoUpdateStock = purchaseData.autoUpdateStock !== false;
+
+      const purchaseRecord = {
+        invoiceNumber: String(purchaseData.invoiceNumber || '').trim() || `PUR-${now}`,
+        supplierId: Number(purchaseData.supplierId),
+        supplierName: String(purchaseData.supplierName || '').trim(),
+        date: purchaseData.date || new Date().toISOString().slice(0, 10),
+        timestamp: purchaseData.timestamp || now,
+        items: Array.isArray(purchaseData.items) ? purchaseData.items : [],
+        totalAmount,
+        paidAmount,
+        balanceAmount,
+        paymentMethod: purchaseData.paymentMethod || (balanceAmount > 0 ? (paidAmount > 0 ? 'partially_paid' : 'credit') : 'cash'),
+        notes: String(purchaseData.notes || '').trim(),
+        autoUpdateStock,
+        status: balanceAmount > 0 ? 'due' : 'paid',
+        created_at: now
+      };
+
+      const addReq = purStore.add(purchaseRecord);
+      addReq.onsuccess = () => {
+        const purchaseId = addReq.result;
+        purchaseRecord.id = purchaseId;
+
+        // 1. Update Supplier balance if due exists
+        if (purchaseRecord.supplierId) {
+          const suppReq = suppStore.get(purchaseRecord.supplierId);
+          suppReq.onsuccess = () => {
+            const supplier = suppReq.result;
+            if (supplier) {
+              const currentDue = Money.round(supplier.currentBalance !== undefined ? supplier.currentBalance : (supplier.openingBalance || 0));
+              supplier.currentBalance = Money.add(currentDue, balanceAmount);
+              supplier.updated_at = now;
+              suppStore.put(supplier);
+            }
+          };
+        }
+
+        // 2. Auto-update product stock & cost price if enabled
+        if (autoUpdateStock && Array.isArray(purchaseRecord.items)) {
+          const prodReq = prodStore.getAll();
+          prodReq.onsuccess = () => {
+            const allProducts = prodReq.result || [];
+            purchaseRecord.items.forEach((item) => {
+              const qty = Number(item.qty) || 0;
+              const unitCost = Number(item.cost || item.price) || 0;
+              if (qty <= 0) return;
+
+              const matched = allProducts.find((p) => this.normalizeText(p.name) === this.normalizeText(item.name));
+              if (matched) {
+                const prevStock = Number(matched.stock) || 0;
+                matched.stock = prevStock + qty;
+                if (unitCost > 0) {
+                  matched.invoicePrice = unitCost;
+                }
+                matched.updated_at = now;
+                prodStore.put(matched);
+
+                invLogStore.add({
+                  productId: matched.id,
+                  productName: matched.name,
+                  change: qty,
+                  previousStock: prevStock,
+                  newStock: matched.stock,
+                  type: 'purchase_stock_in',
+                  reason: `Supplier Inward Stock: ${purchaseRecord.supplierName} (Inv #${purchaseRecord.invoiceNumber})`,
+                  invoicePrice: unitCost,
+                  timestamp: now
+                });
+              } else if (String(item.name || '').trim()) {
+                prodStore.add({
+                  name: String(item.name).trim(),
+                  stock: qty,
+                  billingPrice: Number(item.billingPrice) || unitCost * 1.2,
+                  invoicePrice: unitCost,
+                  reorderLevel: 5,
+                  created_at: now,
+                  updated_at: now
+                });
+              }
+            });
+          };
+        }
+
+        auditStore.add({
+          action: 'supplier_purchase_create',
+          entity: 'purchase',
+          entityId: purchaseId,
+          details: { supplierName: purchaseRecord.supplierName, totalAmount, paidAmount, balanceAmount },
+          timestamp: now
+        });
+      };
+
+      tx.oncomplete = () => resolve({ ok: true, id: addReq.result });
+      tx.onerror = () => reject(new Error('Failed to save purchase.'));
+    });
+  }
+
+  async deletePurchase(id) {
+    const numericId = Number(id);
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['supplier_purchases', 'suppliers', 'products', 'inventory_logs', 'audit_logs'], 'readwrite');
+      const purStore = tx.objectStore('supplier_purchases');
+      const suppStore = tx.objectStore('suppliers');
+      const prodStore = tx.objectStore('products');
+      const invLogStore = tx.objectStore('inventory_logs');
+      const auditStore = tx.objectStore('audit_logs');
+      const now = Date.now();
+
+      const getReq = purStore.get(numericId);
+      getReq.onsuccess = () => {
+        const purchase = getReq.result;
+        if (!purchase) {
+          resolve(false);
+          return;
+        }
+
+        if (purchase.supplierId && Money.isPositive(purchase.balanceAmount)) {
+          const suppReq = suppStore.get(purchase.supplierId);
+          suppReq.onsuccess = () => {
+            const supplier = suppReq.result;
+            if (supplier) {
+              supplier.currentBalance = Money.clampZero(Money.subtract(supplier.currentBalance || 0, purchase.balanceAmount));
+              supplier.updated_at = now;
+              suppStore.put(supplier);
+            }
+          };
+        }
+
+        if (purchase.autoUpdateStock && Array.isArray(purchase.items)) {
+          const prodReq = prodStore.getAll();
+          prodReq.onsuccess = () => {
+            const allProducts = prodReq.result || [];
+            purchase.items.forEach((item) => {
+              const qty = Number(item.qty) || 0;
+              const matched = allProducts.find((p) => this.normalizeText(p.name) === this.normalizeText(item.name));
+              if (matched && qty > 0) {
+                const prev = Number(matched.stock) || 0;
+                matched.stock = Math.max(0, prev - qty);
+                matched.updated_at = now;
+                prodStore.put(matched);
+
+                invLogStore.add({
+                  productId: matched.id,
+                  productName: matched.name,
+                  change: -qty,
+                  previousStock: prev,
+                  newStock: matched.stock,
+                  type: 'purchase_stock_revert',
+                  reason: `Deleted Supplier Purchase #${purchase.invoiceNumber}`,
+                  timestamp: now
+                });
+              }
+            });
+          };
+        }
+
+        purStore.delete(numericId);
+        auditStore.add({
+          action: 'supplier_purchase_delete',
+          entity: 'purchase',
+          entityId: numericId,
+          details: { invoiceNumber: purchase.invoiceNumber, supplierName: purchase.supplierName },
+          timestamp: now
+        });
+      };
+
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(new Error('Failed to delete purchase.'));
+    });
+  }
+
+  async getSupplierPayments(supplierId = null) {
+    return new Promise((resolve) => {
+      if (!this.db || !this.db.objectStoreNames.contains('supplier_payments')) {
+        resolve([]);
+        return;
+      }
+      const store = this.db.transaction('supplier_payments', 'readonly').objectStore('supplier_payments');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let list = req.result || [];
+        if (supplierId) {
+          list = list.filter((p) => Number(p.supplierId) === Number(supplierId));
+        }
+        list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        resolve(list);
+      };
+      req.onerror = () => resolve([]);
+    });
+  }
+
+  async addSupplierPayment({ supplierId, amount, method = 'cash', chequeDetails = {}, reference = '', date = null }) {
+    const numericId = Number(supplierId);
+    const payAmount = Money.round(amount);
+    if (!numericId || payAmount <= 0) {
+      return { ok: false, error: 'Enter a valid payment amount.' };
+    }
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['suppliers', 'supplier_payments', 'audit_logs'], 'readwrite');
+      const suppStore = tx.objectStore('suppliers');
+      const payStore = tx.objectStore('supplier_payments');
+      const auditStore = tx.objectStore('audit_logs');
+      const now = Date.now();
+      const dateStr = date || new Date().toISOString().slice(0, 10);
+
+      const suppReq = suppStore.get(numericId);
+      suppReq.onsuccess = () => {
+        const supplier = suppReq.result;
+        if (!supplier) {
+          tx.abort();
+          resolve({ ok: false, error: 'Supplier not found.' });
+          return;
+        }
+
+        const prevBalance = Money.round(supplier.currentBalance !== undefined ? supplier.currentBalance : (supplier.openingBalance || 0));
+        const nextBalance = Money.subtract(prevBalance, payAmount);
+        supplier.currentBalance = nextBalance;
+        supplier.updated_at = now;
+        suppStore.put(supplier);
+
+        const paymentRecord = {
+          supplierId: numericId,
+          supplierName: supplier.name,
+          amount: payAmount,
+          method,
+          ...(method === 'cheque' ? chequeDetails : {}),
+          reference: String(reference || '').trim(),
+          date: dateStr,
+          timestamp: now,
+          beforeBalance: prevBalance,
+          afterBalance: nextBalance
+        };
+
+        const addReq = payStore.add(paymentRecord);
+        addReq.onsuccess = () => {
+          auditStore.add({
+            action: 'supplier_payment_create',
+            entity: 'supplier_payment',
+            entityId: addReq.result,
+            details: { supplierName: supplier.name, amount: payAmount, method, nextBalance },
+            timestamp: now
+          });
+        };
+      };
+
+      tx.oncomplete = () => resolve({ ok: true });
+      tx.onerror = () => reject(new Error('Failed to record supplier payment.'));
+    });
+  }
+
+  async deleteSupplierPayment(id) {
+    const numericId = Number(id);
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['suppliers', 'supplier_payments', 'audit_logs'], 'readwrite');
+      const suppStore = tx.objectStore('suppliers');
+      const payStore = tx.objectStore('supplier_payments');
+      const auditStore = tx.objectStore('audit_logs');
+      const now = Date.now();
+
+      const getReq = payStore.get(numericId);
+      getReq.onsuccess = () => {
+        const payment = getReq.result;
+        if (!payment) {
+          resolve(false);
+          return;
+        }
+
+        if (payment.supplierId && Money.isPositive(payment.amount)) {
+          const suppReq = suppStore.get(payment.supplierId);
+          suppReq.onsuccess = () => {
+            const supplier = suppReq.result;
+            if (supplier) {
+              supplier.currentBalance = Money.add(supplier.currentBalance || 0, payment.amount);
+              supplier.updated_at = now;
+              suppStore.put(supplier);
+            }
+          };
+        }
+
+        payStore.delete(numericId);
+        auditStore.add({
+          action: 'supplier_payment_delete',
+          entity: 'supplier_payment',
+          entityId: numericId,
+          details: { supplierName: payment.supplierName, amount: payment.amount },
+          timestamp: now
+        });
+      };
+
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(new Error('Failed to delete payment.'));
+    });
+  }
+
   async saveBill() {
     // DEPRECATED ??? this method bypasses stock deduction, collection logs, and audit logs.
     // Always use saveBillWithStockAndCollectionLog() instead.
@@ -1731,14 +2205,17 @@ class Database {
   }
 
   async exportAllData() {
-    const [products, customers, bills, collectionLogs, inventoryLogs, expenses, auditLogs] = await Promise.all([
+    const [products, customers, bills, collectionLogs, inventoryLogs, expenses, auditLogs, suppliers, supplierPurchases, supplierPayments] = await Promise.all([
       this.getProducts(true),
       this.getCustomers(),
       this.getBills(),
       this.getCollectionLogs(),
       this.getInventoryLogs(),
       this.getExpenses(),
-      this.getAuditLogs()
+      this.getAuditLogs(),
+      this.getSuppliers(),
+      this.getPurchases(),
+      this.getSupplierPayments()
     ]);
     return {
       app: 'LynkBay Cashew Billing',
@@ -1751,7 +2228,10 @@ class Database {
         collectionLogs,
         inventoryLogs,
         expenses,
-        auditLogs
+        auditLogs,
+        suppliers,
+        supplier_purchases: supplierPurchases,
+        supplier_payments: supplierPayments
       }
     };
   }
@@ -1792,9 +2272,11 @@ class Database {
     }
 
     const data = payload.data;
-    ['products', 'customers', 'bills', 'collectionLogs', 'inventoryLogs', 'expenses', 'auditLogs'].forEach((key) => {
-      this.validateBackupRecordList(key, data[key] || []);
-      this.validateUniqueIds(key, data[key] || []);
+    ['products', 'customers', 'bills', 'collectionLogs', 'inventoryLogs', 'expenses', 'auditLogs', 'suppliers', 'supplier_purchases', 'supplier_payments'].forEach((key) => {
+      if (data[key] !== undefined) {
+        this.validateBackupRecordList(key, data[key] || []);
+        this.validateUniqueIds(key, data[key] || []);
+      }
     });
 
     (data.products || []).forEach((product) => {
@@ -1826,6 +2308,9 @@ class Database {
     const inventoryLogs = Array.isArray(payload.data.inventoryLogs) ? payload.data.inventoryLogs : [];
     const expenses = Array.isArray(payload.data.expenses) ? payload.data.expenses : [];
     const auditLogs = Array.isArray(payload.data.auditLogs) ? payload.data.auditLogs : [];
+    const suppliers = Array.isArray(payload.data.suppliers) ? payload.data.suppliers : [];
+    const supplierPurchases = Array.isArray(payload.data.supplier_purchases) ? payload.data.supplier_purchases : (Array.isArray(payload.data.supplierPurchases) ? payload.data.supplierPurchases : []);
+    const supplierPayments = Array.isArray(payload.data.supplier_payments) ? payload.data.supplier_payments : (Array.isArray(payload.data.supplierPayments) ? payload.data.supplierPayments : []);
 
     // Preserve rollback snapshots before clearing settings
     const rollbacks = await this.getImportRollbacks();
@@ -1835,7 +2320,12 @@ class Database {
       // Include 'settings' so the stale bill_counter and rollback snapshots
       // from the previous session are cleared. recalculateBillCounter() below
       // will re-derive the correct counter from the imported bills.
-      const tx = this.db.transaction(['products', 'customers', 'bills', 'collection_logs', 'inventory_logs', 'expenses', 'audit_logs', 'settings'], 'readwrite');
+      const storeNames = ['products', 'customers', 'bills', 'collection_logs', 'inventory_logs', 'expenses', 'audit_logs', 'settings'];
+      if (this.db.objectStoreNames.contains('suppliers')) storeNames.push('suppliers');
+      if (this.db.objectStoreNames.contains('supplier_purchases')) storeNames.push('supplier_purchases');
+      if (this.db.objectStoreNames.contains('supplier_payments')) storeNames.push('supplier_payments');
+
+      const tx = this.db.transaction(storeNames, 'readwrite');
       const productsStore = tx.objectStore('products');
       const customersStore = tx.objectStore('customers');
       const billsStore = tx.objectStore('bills');
@@ -1861,6 +2351,22 @@ class Database {
       inventoryLogs.forEach((item) => inventoryLogsStore.put(item));
       expenses.forEach((item) => expensesStore.put(item));
       auditLogs.forEach((item) => auditLogsStore.put(item));
+
+      if (this.db.objectStoreNames.contains('suppliers')) {
+        const suppStore = tx.objectStore('suppliers');
+        suppStore.clear();
+        suppliers.forEach((item) => suppStore.put(item));
+      }
+      if (this.db.objectStoreNames.contains('supplier_purchases')) {
+        const purStore = tx.objectStore('supplier_purchases');
+        purStore.clear();
+        supplierPurchases.forEach((item) => purStore.put(item));
+      }
+      if (this.db.objectStoreNames.contains('supplier_payments')) {
+        const payStore = tx.objectStore('supplier_payments');
+        payStore.clear();
+        supplierPayments.forEach((item) => payStore.put(item));
+      }
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(new Error('Failed to import backup.'));
@@ -1930,7 +2436,19 @@ const REMOTE_DB_METHODS = [
   'getImportRollbacks',
   'clearImportRollback',
   'exportAllData',
-  'importAllData'
+  'importAllData',
+  'getSuppliers',
+  'getSupplierById',
+  'addSupplier',
+  'updateSupplier',
+  'deleteSupplier',
+  'getPurchases',
+  'getPurchaseById',
+  'addPurchase',
+  'deletePurchase',
+  'getSupplierPayments',
+  'addSupplierPayment',
+  'deleteSupplierPayment'
 ];
 
 class SyncCapableDatabase extends Database {

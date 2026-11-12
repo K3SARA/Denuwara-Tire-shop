@@ -3909,4 +3909,78 @@ html[data-theme="dark"] .item-subtotal-row {
   }
 }
 
+/* ============================================================
+   SUPPLIERS & STOCK-IN MANAGEMENT STYLES
+   ============================================================ */
+.suppliers-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 650px) {
+  .suppliers-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.suppliers-kpi-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+}
+
+.suppliers-kpi-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.suppliers-kpi-val {
+  font-size: 1.25rem;
+  font-weight: 850;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.suppliers-kpi-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.suppliers-kpi-due {
+  border-color: rgba(220, 38, 38, 0.25);
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.8), var(--bg-card, #fff));
+}
+
+html[data-theme="dark"] .suppliers-kpi-card {
+  background: var(--bg-card, #1e293b);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] .suppliers-kpi-due {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.25), var(--bg-card, #1e293b));
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 480px) {
+  .nav-item {
+    font-size: 0.54rem;
+    padding: 0;
+    margin: 0;
+  }
+  .nav-icon {
+    font-size: 0.95rem;
+  }
+}
+
 
