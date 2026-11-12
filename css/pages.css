@@ -4056,20 +4056,49 @@ html[data-theme="dark"] .btn-supplier-action.btn-supplier-primary:hover {
   border-color: #7dd3fc;
 }
 
-/* Minimal Supplier Sort Icon Dropdown */
+/* Minimal Supplier Sort Icon Dropdown & Single-Line Toolbar */
+.supplier-filter-toolbar {
+  flex-wrap: nowrap !important;
+  gap: 6px;
+  overflow: visible;
+}
+
+.supplier-filter-pills {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
+  gap: 5px;
+  padding-bottom: 2px;
+}
+
+.supplier-filter-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.supplier-filter-pills .cust-filter-pill {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  font-size: 0.76rem;
+  gap: 5px;
+  white-space: nowrap;
+}
+
 .supp-sort-btn-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .supp-sort-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   height: 28px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: 20px;
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
   background: var(--bg-surface, #f8f9fa);
@@ -4077,6 +4106,7 @@ html[data-theme="dark"] .btn-supplier-action.btn-supplier-primary:hover {
   cursor: pointer;
   transition: all 0.15s ease;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .supp-sort-btn-wrap:hover .supp-sort-btn {
