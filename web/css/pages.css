@@ -3641,6 +3641,16 @@ html[data-theme="dark"] .step-line {
 .billing-step-nav {
   margin-top: 16px;
   margin-bottom: 8px;
+  padding: 0 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+#btn-step1-next {
+  width: 100%;
+  max-width: 280px;
 }
 
 .step-nav-btn {
