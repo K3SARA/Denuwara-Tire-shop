@@ -920,3 +920,4 @@ class SuppliersPage {
 }
 
 window.suppliersPage = new SuppliersPage();
+
