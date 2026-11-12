@@ -4056,6 +4056,76 @@ html[data-theme="dark"] .btn-supplier-action.btn-supplier-primary:hover {
   border-color: #7dd3fc;
 }
 
+/* Minimal Supplier Sort Icon Dropdown */
+.supp-sort-btn-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.supp-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+  background: var(--bg-surface, #f8f9fa);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.supp-sort-btn-wrap:hover .supp-sort-btn {
+  background: var(--bg-card, #ffffff);
+  color: var(--text-main, #1e293b);
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+.supp-sort-native-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  z-index: 2;
+  font-size: 16px;
+}
+
+.supp-sort-native-select:focus + .supp-sort-btn,
+.supp-sort-btn-wrap:focus-within .supp-sort-btn {
+  border-color: var(--text-main, #1e293b);
+  color: var(--text-main, #1e293b);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="dark"] .supp-sort-btn {
+  background: var(--bg-card, #1e293b);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-muted, #94a3b8);
+}
+
+html[data-theme="dark"] .supp-sort-btn-wrap:hover .supp-sort-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .supp-sort-native-select:focus + .supp-sort-btn,
+html[data-theme="dark"] .supp-sort-btn-wrap:focus-within .supp-sort-btn {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
 @media (max-width: 360px) {
   .btn-supplier-action {
     font-size: 0.8rem;

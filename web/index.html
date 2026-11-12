@@ -696,15 +696,25 @@
                 <button type="button" class="cust-filter-pill pill-paid" data-supp-filter="paid">
                   Paid / Clear <span id="supp-pill-paid" class="cust-pill-badge">0</span>
                 </button>
-              </div>
 
-              <div class="customer-sort-control">
-                <label for="suppliers-sort-select" class="customer-sort-label">Sort:</label>
-                <select id="suppliers-sort-select" class="customer-sort-select">
-                  <option value="due_desc">Highest Due</option>
-                  <option value="recent">Recently Added</option>
-                  <option value="name_asc">Name (A &rarr; Z)</option>
-                </select>
+                <div class="supp-sort-btn-wrap" title="Sort suppliers">
+                  <select id="suppliers-sort-select" class="supp-sort-native-select" aria-label="Sort order">
+                    <option value="due_desc">Highest Due</option>
+                    <option value="recent">Recently Added</option>
+                    <option value="name_asc">Name (A &rarr; Z)</option>
+                  </select>
+                  <button type="button" class="supp-sort-btn" tabindex="-1" aria-hidden="true">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m3 16 4 4 4-4"/>
+                      <path d="M7 20V4"/>
+                      <path d="m21 8-4-4-4 4"/>
+                      <path d="M17 4v16"/>
+                    </svg>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; margin-left: -1px;">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 

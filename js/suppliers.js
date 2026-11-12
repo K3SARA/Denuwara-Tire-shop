@@ -50,10 +50,17 @@ class SuppliersPage {
 
     const sortSelect = document.getElementById('suppliers-sort-select');
     if (sortSelect) {
+      const updateSortTitle = () => {
+        const text = sortSelect.options[sortSelect.selectedIndex]?.text || '';
+        const wrap = sortSelect.closest('.supp-sort-btn-wrap');
+        if (wrap) wrap.title = `Sort: ${text}`;
+      };
       sortSelect.addEventListener('change', (e) => {
         this.sortBy = e.target.value || 'due_desc';
+        updateSortTitle();
         this.renderList(this.getFilteredSuppliers());
       });
+      updateSortTitle();
     }
   }
 
