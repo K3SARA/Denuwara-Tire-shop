@@ -456,7 +456,7 @@ class CollectionPage {
             <label>Method</label>
             <select id="collect-method-${keyId}" class="input-field">
               <option value="cash">Cash</option>
-              <option value="card">Card</option>
+              <option value="card">PMT</option>
               <option value="bank">Bank</option>
               <option value="cheque">Cheque</option>
             </select>

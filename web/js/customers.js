@@ -1497,7 +1497,7 @@ class CustomersPage {
             <div style="margin-top: 3px;"><span class="rec-type-badge ${r.typeClass}">${this.escapeHtml(r.type)}</span></div>
           </td>
           <td>
-            <span class="rec-method-badge">${this.escapeHtml(r.method)}</span>
+            <span class="rec-method-badge">${this.escapeHtml(String(r.method || '').toLowerCase() === 'card' ? 'PMT' : r.method)}</span>
             ${methodDetail}
           </td>
           <td style="text-align: right;">

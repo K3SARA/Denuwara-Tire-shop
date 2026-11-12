@@ -1115,7 +1115,8 @@ class Billing {
   methodLabel(method) {
     const labels = {
       cash: 'Cash',
-      card: 'Card',
+      card: 'PMT',
+      pmt: 'PMT',
       bank: 'Bank Transfer',
       cheque: 'Cheque',
       credit: 'Credit',

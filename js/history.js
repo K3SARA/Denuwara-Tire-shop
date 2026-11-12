@@ -78,7 +78,8 @@ class HistoryView {
     const method = String(bill?.paymentMethod || (bill?.markAsCredit ? 'credit' : 'cash')).toLowerCase();
     const labels = {
       cash: 'CASH',
-      card: 'CARD',
+      card: 'PMT',
+      pmt: 'PMT',
       bank: 'BANK',
       cheque: 'CHEQUE',
       credit: 'CREDIT',
@@ -182,11 +183,11 @@ class HistoryView {
       return;
     }
 
-    const methodText = prompt('Payment method (cash/card/bank/cheque):', latestBill.lastCollectionMethod || latestBill.paymentMethod || 'cash');
+    const methodText = prompt('Payment method (cash/pmt/bank/cheque):', latestBill.lastCollectionMethod || latestBill.paymentMethod || 'cash');
     if (methodText === null) return;
     const method = String(methodText || 'cash').trim().toLowerCase();
-    const allowedMethods = ['cash', 'card', 'bank', 'cheque'];
-    const finalMethod = allowedMethods.includes(method) ? method : 'cash';
+    const allowedMethods = ['cash', 'card', 'pmt', 'bank', 'cheque'];
+    const finalMethod = (method === 'pmt') ? 'card' : (allowedMethods.includes(method) ? method : 'cash');
     const chequeDetails = {
       chequeDate: '',
       chequeNumber: '',

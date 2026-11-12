@@ -1254,7 +1254,7 @@ class ReportsView {
     const creditCollectedTotal = creditCollections.reduce((sum, row) => Money.add(sum, row.amount), 0);
     const paymentMethodTotals = [
       { label: 'Cash', amount: cashReceived },
-      { label: 'Card', amount: cardReceived },
+      { label: 'PMT', amount: cardReceived },
       { label: 'Transfer', amount: bankReceived },
       { label: 'Cheque', amount: chequeMethodTotal },
       { label: 'Credit', amount: creditGivenTotal }
@@ -1418,7 +1418,7 @@ class ReportsView {
     <div class="section-title">Received Amount</div>
     ${row('Total Received', fmt(data.totalReceived))}
     ${row('Cash Received', fmt(data.cashReceived))}
-    ${row('Card Received', fmt(data.cardReceived))}
+    ${row('PMT Received', fmt(data.cardReceived))}
     ${row('Bank Received', fmt(data.bankReceived))}
 
     <div class="rule"></div>

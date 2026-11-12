@@ -158,7 +158,7 @@ class ShareManager {
   }
 
   methodLabel(method) {
-    const labels = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', advance: 'Customer Advance', multiple: 'Multiple' };
+    const labels = { cash: 'Cash', card: 'PMT', pmt: 'PMT', bank: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', advance: 'Customer Advance', multiple: 'Multiple' };
     return labels[String(method || '').toLowerCase()] || String(method || 'Payment');
   }
   formatBillText() {
@@ -314,7 +314,7 @@ class ShareManager {
         balance: 'Balance', change: 'Change', paymentMethods: 'Payment Methods', chequeAmount: 'Cheque Amount', chequeDate: 'Cheque Date',
         chequeNo: 'Cheque No', bank: 'Bank', paymentMethod: 'Payment Method', paymentStatus: 'Payment Status', billStatus: 'Bill Status',
         terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
-        cash: 'Cash', card: 'Card', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
+        cash: 'Cash', card: 'PMT', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
         due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
         totalAmount: 'TOTAL AMOUNT', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
       },
@@ -341,7 +341,7 @@ class ShareManager {
     }[language];
     const t = (key) => translations[key] || key;
     const localizedMethodLabel = (method) => {
-      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
+      const key = ({ cash: 'cash', card: 'card', pmt: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
       return key ? (translations[key] || key) : String(method || '-');
     };
     const localizeStatus = (status) => {
@@ -1400,7 +1400,7 @@ class ShareManager {
         balance: 'Balance', change: 'Change', paymentMethods: 'Payment Methods', chequeAmount: 'Cheque Amount', chequeDate: 'Cheque Date',
         chequeNo: 'Cheque No', bank: 'Bank', paymentMethod: 'Payment Method', paymentStatus: 'Payment Status', billStatus: 'Bill Status',
         terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
-        cash: 'Cash', card: 'Card', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
+        cash: 'Cash', card: 'PMT', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
         due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
         totalAmount: 'Total Amount', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
       },
@@ -1427,7 +1427,7 @@ class ShareManager {
     }[language];
     const t = (key) => translations[key] || key;
     const localizedMethodLabel = (method) => {
-      const key = ({ cash: 'cash', card: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
+      const key = ({ cash: 'cash', card: 'card', pmt: 'card', bank: 'bankTransfer', bank_transfer: 'bankTransfer', cheque: 'cheque', credit: 'credit', advance: 'Customer Advance', multiple: 'multiple' })[String(method || '').toLowerCase()];
       return key ? (translations[key] || key) : String(method || '-');
     };
     const localizeStatus = (status) => {
