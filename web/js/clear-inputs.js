@@ -8,7 +8,7 @@ class ClearInputsManager {
     if (!el || el.tagName !== 'INPUT') return false;
     if (!el.classList.contains('input-field')) return false;
     const type = (el.getAttribute('type') || 'text').toLowerCase();
-    if (['hidden', 'checkbox', 'radio', 'file'].includes(type)) return false;
+    if (['hidden', 'checkbox', 'radio', 'file', 'date', 'datetime-local', 'time', 'month'].includes(type)) return false;
     return true;
   }
 

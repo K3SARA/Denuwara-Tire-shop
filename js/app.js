@@ -85,6 +85,7 @@ class App {
         btn.hasAttribute('data-no-loading') ||
         btn.classList.contains('modal-handle') ||
         btn.classList.contains('clear-input-btn') ||
+        btn.classList.contains('date-picker-btn') ||
         btn.classList.contains('theme-toggle') ||
         btn.id === 'theme-toggle'
       ) {
@@ -132,8 +133,37 @@ class App {
     }, true);
   }
 
+  bindGlobalDatePicker() {
+    if (this._datePickerBound) return;
+    this._datePickerBound = true;
+
+    document.addEventListener('click', (e) => {
+      const pickerBtn = e.target.closest ? e.target.closest('.date-picker-btn') : null;
+      if (pickerBtn && pickerBtn.dataset.pickerFor) {
+        e.preventDefault();
+        const input = document.getElementById(pickerBtn.dataset.pickerFor);
+        if (input) {
+          input.focus();
+          if (typeof input.showPicker === 'function') {
+            try { input.showPicker(); return; } catch (_) {}
+          }
+        }
+        return;
+      }
+
+      const dateWrap = e.target.closest ? e.target.closest('.date-picker-wrap') : null;
+      if (dateWrap) {
+        const input = dateWrap.querySelector('input[type="date"]');
+        if (input && typeof input.showPicker === 'function' && e.target !== input) {
+          try { input.showPicker(); } catch (_) {}
+        }
+      }
+    });
+  }
+
   async init() {
     this.bindGlobalButtonFeedback();
+    this.bindGlobalDatePicker();
     this.bindThemeToggle();
     this.updateThemeToggle();
 
