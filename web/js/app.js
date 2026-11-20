@@ -156,8 +156,12 @@ class App {
   async ensureReady() {
     if (this.isReady) return;
     if (this._readyPromise) {
-      await this._readyPromise;
+      await Promise.race([
+        this._readyPromise,
+        new Promise(resolve => setTimeout(resolve, 3000))
+      ]);
     }
+    this.isReady = true;
   }
 
   async initDataAndViews() {
@@ -169,18 +173,20 @@ class App {
       return;
     }
 
-    // Run customer sync in background without blocking readiness
-    window.db.syncCustomersFromBills().catch(e => console.warn('Customer sync error', e));
+    try {
+      if (window.billing) await window.billing.init();
+      if (window.historyView) window.historyView.init();
+      if (window.inventory) await window.inventory.init();
+      if (window.customersPage) window.customersPage.init();
+      if (window.suppliersPage) window.suppliersPage.init();
+      if (window.collectionPage) window.collectionPage.init();
+      if (window.reportsView) window.reportsView.init();
+      if (window.expensesPage) window.expensesPage.init();
+      if (window.clearInputs) window.clearInputs.init();
+    } catch (err) {
+      console.warn('Module init error:', err);
+    }
 
-    if (window.billing) await window.billing.init();
-    if (window.historyView) window.historyView.init();
-    if (window.inventory) await window.inventory.init();
-    if (window.customersPage) window.customersPage.init();
-    if (window.suppliersPage) window.suppliersPage.init();
-    if (window.collectionPage) window.collectionPage.init();
-    if (window.reportsView) window.reportsView.init();
-    if (window.expensesPage) window.expensesPage.init();
-    if (window.clearInputs) window.clearInputs.init();
     this.bindBackupButtons();
     this.updateBackupReminder();
     this.isReady = true;

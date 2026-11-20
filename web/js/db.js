@@ -2563,18 +2563,18 @@ class SupabaseStateSync {
   }
 
   call(method, args) {
-    const task = async () => {
-      if (this.isReadOnly(method)) {
-        if (Date.now() - this.lastPullAt > this.pullIntervalMs) {
-          if (!this._pullingPromise) {
-            this._pullingPromise = this.pullLatest().finally(() => {
-              this._pullingPromise = null;
-            });
-          }
+    if (this.isReadOnly(method)) {
+      if (Date.now() - this.lastPullAt > this.pullIntervalMs) {
+        if (!this._pullingPromise) {
+          this._pullingPromise = this.pullLatest().finally(() => {
+            this._pullingPromise = null;
+          });
         }
-        return this.localCall(method, args);
       }
+      return this.localCall(method, args);
+    }
 
+    const task = async () => {
       await this.pullLatest();
       const result = await this.localCall(method, args);
       const payload = await this.localCall('exportAllData', []);

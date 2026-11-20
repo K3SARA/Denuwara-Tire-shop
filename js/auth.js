@@ -106,19 +106,6 @@ class Auth {
     loginBtn.addEventListener('click', async () => {
       if (getLockEnd() > Date.now()) return;
 
-      if (!window.app?.isReady && window.app && typeof window.app.ensureReady === 'function') {
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Starting...';
-        try {
-          await window.app.ensureReady();
-        } catch (e) {
-          console.error(e);
-        } finally {
-          loginBtn.disabled = false;
-          loginBtn.textContent = 'Continue';
-        }
-      }
-
       const user = document.getElementById('auth-user').value.trim();
       const pass = document.getElementById('auth-pass').value.trim();
 
@@ -135,12 +122,14 @@ class Auth {
           await this.saveCredentials(user, pass);
           localStorage.removeItem(ATTEMPTS_KEY);
           localStorage.removeItem(LOCKED_UNTIL_KEY);
+          if (window.app?.ensureReady) await window.app.ensureReady();
           this.login();
         } else {
           if (await this.verifyCredentials(user, pass, creds)) {
             localStorage.removeItem(ATTEMPTS_KEY);
             localStorage.removeItem(LOCKED_UNTIL_KEY);
             loginError.textContent = '';
+            if (window.app?.ensureReady) await window.app.ensureReady();
             this.login();
           } else {
             const attempts = getAttempts() + 1;
