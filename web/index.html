@@ -28,7 +28,7 @@
   <body>
     <div id="app">
       <!-- Login Page -->
-      <div id="login-page" class="page">
+      <div id="login-page" class="page active">
         <div class="logo-container">
           <img src="icons/banner.png" alt="Denuwara Tyre Care" class="login-banner" />
           <p style="color: var(--text-muted); margin-top: 8px">
@@ -2311,7 +2311,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=126")
+            .register("./sw.js?v=143")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })

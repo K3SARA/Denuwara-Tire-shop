@@ -101,14 +101,23 @@ class Auth {
 
     // Restore lockout if page was refreshed during lockout
     if (getLockEnd() > Date.now()) startLockCountdown();
-    else this.setReadyState(Boolean(window.app?.isReady));
+    else this.setReadyState(true);
 
     loginBtn.addEventListener('click', async () => {
-      if (!this.isReady || !window.app?.isReady) {
-        loginError.textContent = 'App is still loading. Please wait.';
-        return;
-      }
       if (getLockEnd() > Date.now()) return;
+
+      if (!window.app?.isReady && window.app && typeof window.app.ensureReady === 'function') {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Starting...';
+        try {
+          await window.app.ensureReady();
+        } catch (e) {
+          console.error(e);
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Continue';
+        }
+      }
 
       const user = document.getElementById('auth-user').value.trim();
       const pass = document.getElementById('auth-pass').value.trim();
@@ -190,8 +199,8 @@ class Auth {
     if (!loginBtn) return;
 
     const locked = Number(localStorage.getItem('login_locked_until') || '0') > Date.now();
-    loginBtn.disabled = !this.isReady || locked;
-    if (!locked) loginBtn.textContent = this.isReady ? 'Continue' : 'Loading...';
+    loginBtn.disabled = locked;
+    if (!locked) loginBtn.textContent = 'Continue';
   }
 
   checkAuth() {

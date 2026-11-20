@@ -2,6 +2,7 @@ class App {
   constructor() {
     this.currentPage = 'login';
     this.isReady = false;
+    this._readyPromise = null;
     this.theme = localStorage.getItem('lynkbay_theme') || 'light';
     this.applyTheme(this.theme);
     this._loadingCount = 0;
@@ -133,16 +134,44 @@ class App {
 
   async init() {
     this.bindGlobalButtonFeedback();
+    this.bindThemeToggle();
+    this.updateThemeToggle();
+
+    // 1. Immediately activate login screen and init auth for instant 0ms startup
+    if (window.auth) {
+      window.auth.init();
+      window.auth.setReadyState(true);
+    }
+    if (!window.auth?.isAuthenticated) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      const loginEl = document.getElementById('login-page');
+      if (loginEl) loginEl.classList.add('active');
+    }
+
+    // 2. Start background initialization of database and views without blocking login screen
+    this._readyPromise = this.initDataAndViews();
+    return this._readyPromise;
+  }
+
+  async ensureReady() {
+    if (this.isReady) return;
+    if (this._readyPromise) {
+      await this._readyPromise;
+    }
+  }
+
+  async initDataAndViews() {
     try {
       await window.db.init();
-      await window.db.syncCustomersFromBills();
     } catch (e) {
       console.error('DB Init error', e);
-      alert('App failed to start. Please refresh and try again.');
+      alert('App failed to start database. Please refresh and try again.');
       return;
     }
-    
-    window.auth.init();
+
+    // Run customer sync in background without blocking readiness
+    window.db.syncCustomersFromBills().catch(e => console.warn('Customer sync error', e));
+
     if (window.billing) await window.billing.init();
     if (window.historyView) window.historyView.init();
     if (window.inventory) await window.inventory.init();
@@ -153,20 +182,18 @@ class App {
     if (window.expensesPage) window.expensesPage.init();
     if (window.clearInputs) window.clearInputs.init();
     this.bindBackupButtons();
-    this.bindThemeToggle();
-    this.updateThemeToggle();
     this.updateBackupReminder();
     this.isReady = true;
-    if (window.auth && typeof window.auth.setReadyState === 'function') {
-      window.auth.setReadyState(true);
-    }
 
     if (this.restoreReceiptNavigation()) {
       return;
     }
 
     if (!window.auth?.isAuthenticated) {
-      this.navigate('login');
+      const loginEl = document.getElementById('login-page');
+      if (loginEl && !loginEl.classList.contains('active')) {
+        this.navigate('login');
+      }
     }
   }
 

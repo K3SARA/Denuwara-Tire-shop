@@ -2467,7 +2467,9 @@ class SyncCapableDatabase extends Database {
     if (window.LYNKBAY_SUPABASE_URL && window.LYNKBAY_SUPABASE_ANON_KEY && window.LYNKBAY_SUPABASE_SYNC_SECRET) {
       await super.init();
       this.cloud = new SupabaseStateSync(this);
-      await this.cloud.init();
+      this.cloudInitPromise = this.cloud.init().catch(err => {
+        console.warn('Initial cloud sync deferred or failed:', err);
+      });
       return;
     }
 
@@ -2523,18 +2525,22 @@ class SupabaseStateSync {
   }
 
   async init() {
-    const state = await this.getCloudState();
-    if (state?.payload) {
-      this.revision = Number(state.revision || 0);
-      await this.localCall('importAllData', [state.payload]);
-      this.lastPullAt = Date.now();
-      return;
-    }
+    try {
+      const state = await this.getCloudState();
+      if (state?.payload) {
+        this.revision = Number(state.revision || 0);
+        await this.localCall('importAllData', [state.payload]);
+        this.lastPullAt = Date.now();
+        return;
+      }
 
-    const payload = await this.localCall('exportAllData', []);
-    const saved = await this.saveCloudState(payload, 0);
-    this.revision = Number(saved.revision || 1);
-    this.lastPullAt = Date.now();
+      const payload = await this.localCall('exportAllData', []);
+      const saved = await this.saveCloudState(payload, 0);
+      this.revision = Number(saved.revision || 1);
+      this.lastPullAt = Date.now();
+    } catch (err) {
+      console.warn('Initial Supabase sync deferred or offline:', err);
+    }
   }
 
   async localCall(method, args) {
@@ -2558,7 +2564,11 @@ class SupabaseStateSync {
     const task = async () => {
       if (this.isReadOnly(method)) {
         if (Date.now() - this.lastPullAt > this.pullIntervalMs) {
-          await this.pullLatest();
+          if (!this._pullingPromise) {
+            this._pullingPromise = this.pullLatest().finally(() => {
+              this._pullingPromise = null;
+            });
+          }
         }
         return this.localCall(method, args);
       }
@@ -2578,26 +2588,44 @@ class SupabaseStateSync {
   }
 
   async pullLatest() {
-    const state = await this.getCloudState();
-    if (!state?.payload) return;
-    const nextRevision = Number(state.revision || 0);
-    if (nextRevision !== this.revision) {
-      await this.localCall('importAllData', [state.payload]);
-      this.revision = nextRevision;
+    try {
+      const state = await this.getCloudState();
+      if (!state?.payload) return;
+      const nextRevision = Number(state.revision || 0);
+      if (nextRevision !== this.revision) {
+        await this.localCall('importAllData', [state.payload]);
+        this.revision = nextRevision;
+      }
+      this.lastPullAt = Date.now();
+    } catch (err) {
+      console.warn('Supabase sync pull deferred or offline:', err);
     }
-    this.lastPullAt = Date.now();
   }
 
   async rpc(name, body) {
-    const response = await fetch(`${this.url}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: {
-        apikey: this.anonKey,
-        Authorization: `Bearer ${this.anonKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    let response;
+    try {
+      response = await fetch(`${this.url}/rest/v1/rpc/${name}`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          apikey: this.anonKey,
+          Authorization: `Bearer ${this.anonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') {
+        throw new Error('Supabase request timed out.');
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       const message = payload?.message || payload?.error || 'Supabase sync failed.';
