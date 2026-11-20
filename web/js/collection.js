@@ -91,9 +91,12 @@ class CollectionPage {
     }] : [];
   }
 
-  createCollectionPayment(method, amount, chequeDetails = {}) {
+  createCollectionPayment(method, amount, chequeDetails = {}, paymentDate = null) {
+    const now = Date.now();
+    const dateStr = paymentDate || new Date().toISOString().slice(0, 10);
+    const ts = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : now;
     return {
-      id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `pay-${now}-${Math.random().toString(36).slice(2, 6)}`,
       method,
       amount: Money.clampZero(amount),
       chequeDate: method === 'cheque' ? chequeDetails.chequeDate : '',
@@ -101,8 +104,8 @@ class CollectionPage {
       chequeBank: method === 'cheque' ? chequeDetails.chequeBank : '',
       chequeImage: method === 'cheque' ? (chequeDetails.chequeImage || '') : '',
       chequeStatus: method === 'cheque' ? 'pending' : '',
-      date: new Date().toISOString().slice(0, 10),
-      timestamp: Date.now()
+      date: dateStr,
+      timestamp: ts
     };
   }
 
@@ -171,8 +174,10 @@ class CollectionPage {
   async collectPayment(billId) {
     const amountInput = document.getElementById(`collect-amount-${billId}`);
     const methodInput = document.getElementById(`collect-method-${billId}`);
+    const dateInput = document.getElementById(`collect-date-${billId}`);
     const amount = Money.clampZero(amountInput?.value || '0');
     const method = methodInput?.value || 'cash';
+    const paymentDate = (dateInput?.value || '').trim() || null;
     const chequeDetails = this.getChequeDetails(billId, method);
 
     if (!Money.isPositive(amount)) {
@@ -182,7 +187,7 @@ class CollectionPage {
 
     if (method === 'cheque' && !this.validateChequeDetails(chequeDetails)) return;
 
-    const newPayment = this.createCollectionPayment(method, amount, chequeDetails);
+    const newPayment = this.createCollectionPayment(method, amount, chequeDetails, paymentDate);
 
     await window.app.withLoading(async () => {
       let result = null;
@@ -191,12 +196,13 @@ class CollectionPage {
           billId,
           amount,
           method,
+          paymentDate,
           chequeDetails,
           payment: newPayment,
           auditLog: {
             action: 'collection_create',
             entity: 'bill',
-            details: { amount, method }
+            details: { amount, method, paymentDate }
           }
         });
       } catch (error) {
@@ -225,8 +231,10 @@ class CollectionPage {
   async collectOpeningPayment(customerId, keyId) {
     const amountInput = document.getElementById(`collect-amount-${keyId}`);
     const methodInput = document.getElementById(`collect-method-${keyId}`);
+    const dateInput = document.getElementById(`collect-date-${keyId}`);
     const amount = Money.clampZero(amountInput?.value || '0');
     const method = methodInput?.value || 'cash';
+    const paymentDate = (dateInput?.value || '').trim() || null;
     const chequeDetails = this.getChequeDetails(keyId, method);
 
     if (!Money.isPositive(amount)) {
@@ -243,6 +251,7 @@ class CollectionPage {
           customerId,
           amount,
           method,
+          paymentDate,
           chequeDetails
         });
       } catch (error) {
@@ -280,6 +289,7 @@ class CollectionPage {
     const chequeDateEl = document.getElementById('edit-collection-cheque-date');
     const chequeNumEl = document.getElementById('edit-collection-cheque-number');
     const chequeBankEl = document.getElementById('edit-collection-cheque-bank');
+    const dateEl = document.getElementById('edit-collection-date');
 
     if (customerEl) customerEl.textContent = log.customerName || 'Walk-in Customer';
     const dateStr = new Date(log.timestamp).toLocaleString();
@@ -290,6 +300,9 @@ class CollectionPage {
     }
     if (amountEl) amountEl.value = (log.amount && Number(log.amount) > 0) ? log.amount : '';
     if (methodEl) methodEl.value = (log.method || 'cash').toLowerCase();
+    if (dateEl) {
+      dateEl.value = log.date || (log.timestamp ? new Date(log.timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+    }
     if (chequeDateEl) chequeDateEl.value = log.chequeDate || '';
     if (chequeNumEl) chequeNumEl.value = log.chequeNumber || '';
     if (chequeBankEl) chequeBankEl.value = log.chequeBank || '';
@@ -326,8 +339,10 @@ class CollectionPage {
     const log = this.editingLog;
     const amountInput = document.getElementById('edit-collection-amount');
     const methodInput = document.getElementById('edit-collection-method');
+    const dateInput = document.getElementById('edit-collection-date');
     const amount = Money.clampZero(amountInput?.value || '0');
     const method = methodInput?.value || 'cash';
+    const paymentDate = (dateInput?.value || '').trim() || null;
 
     if (!Money.isPositive(amount)) {
       alert('Please enter a valid collection amount.');
@@ -353,6 +368,7 @@ class CollectionPage {
             customerId: log.customerId,
             amount,
             method,
+            paymentDate,
             chequeDetails
           });
         } else {
@@ -361,6 +377,7 @@ class CollectionPage {
             billId: log.billId,
             amount,
             method,
+            paymentDate,
             chequeDetails
           });
         }
@@ -431,6 +448,7 @@ class CollectionPage {
       return;
     }
 
+    const todayDate = new Date().toISOString().slice(0, 10);
     list.innerHTML = '';
     items.forEach((item) => {
       const isOpening = Boolean(item.isOpeningBalance);
@@ -472,7 +490,7 @@ class CollectionPage {
         </div>
         <div class="history-date" style="margin-bottom:12px;">${subtitle}</div>
         ${statsGrid}
-        <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:end;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:end;">
           <div class="input-group" style="margin-bottom:0;">
             <label>Collect Amount</label>
             <input type="number" id="collect-amount-${keyId}" class="input-field" placeholder="Amount" step="0.01">
@@ -486,7 +504,11 @@ class CollectionPage {
               <option value="cheque">Cheque</option>
             </select>
           </div>
-          <button class="btn-primary" style="margin:0; width:auto; padding:10px 16px;" data-collect-key="${keyId}" data-is-opening="${isOpening}" data-customer-id="${item.customerId || ''}">Collect</button>
+          <div class="input-group" style="margin-bottom:0;">
+            <label>Payment Date</label>
+            <input type="date" id="collect-date-${keyId}" class="input-field" value="${todayDate}">
+          </div>
+          <button class="btn-primary" style="margin:0; width:100%; height:42px; padding:10px 16px; display:flex; align-items:center; justify-content:center;" data-collect-key="${keyId}" data-is-opening="${isOpening}" data-customer-id="${item.customerId || ''}">Collect</button>
         </div>
         <div id="collect-cheque-details-${keyId}" class="cheque-details hidden" style="margin-top:10px;">
           <div class="input-group">

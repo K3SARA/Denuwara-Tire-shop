@@ -445,7 +445,7 @@ class Database {
     }];
   }
 
-  async collectBillPaymentAtomic({ billId, amount, method = 'cash', chequeDetails = {}, payment = null, auditLog = null }) {
+  async collectBillPaymentAtomic({ billId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, payment = null, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(billId);
       const collectAmount = Money.round(amount);
@@ -455,6 +455,8 @@ class Database {
       }
 
       const now = new Date().getTime();
+      const dateStr = paymentDate || (payment && payment.date) || new Date().toISOString().slice(0, 10);
+      const logTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : (payment?.timestamp || now);
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
       const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
@@ -491,14 +493,17 @@ class Database {
 
         const nextReceived = Money.add(received, targetCollect);
         const nextBalance = Money.clampZero(Money.subtract(total, nextReceived));
-        const paymentRow = payment ? { ...payment, amount: targetCollect } : {
+        const paymentRow = payment ? { ...payment, amount: targetCollect, date: payment.date || dateStr, timestamp: logTimestamp } : {
           id: `pay-${now}-${Math.random().toString(36).slice(2, 6)}`,
           method: finalMethod,
           amount: targetCollect,
           chequeDate: finalMethod === 'cheque' ? chequeDetails.chequeDate || '' : '',
           chequeNumber: finalMethod === 'cheque' ? chequeDetails.chequeNumber || '' : '',
           chequeBank: finalMethod === 'cheque' ? chequeDetails.chequeBank || '' : '',
-          chequeStatus: finalMethod === 'cheque' ? 'pending' : ''
+          chequeImage: finalMethod === 'cheque' ? (chequeDetails.chequeImage || '') : '',
+          chequeStatus: finalMethod === 'cheque' ? 'pending' : '',
+          date: dateStr,
+          timestamp: logTimestamp
         };
         paymentRow.amount = Money.round(paymentRow.amount);
         if (paymentRow.chequeAmount !== undefined) paymentRow.chequeAmount = Money.round(paymentRow.chequeAmount);
@@ -528,7 +533,8 @@ class Database {
           action: 'collection',
           beforeReceived: received,
           afterReceived: nextReceived,
-          timestamp: now
+          date: dateStr,
+          timestamp: logTimestamp
         });
 
         if (auditLog) {
@@ -670,7 +676,7 @@ class Database {
     });
   }
 
-  async updateCollectionPaymentAtomic({ logId, billId, amount, method = 'cash', chequeDetails = {} }) {
+  async updateCollectionPaymentAtomic({ logId, billId, amount, method = 'cash', paymentDate = null, chequeDetails = {} }) {
     return new Promise((resolve, reject) => {
       const numericBillId = Number(billId);
       const numericLogId = Number(logId);
@@ -741,10 +747,15 @@ class Database {
             return;
           }
 
+          const dateStr = paymentDate || oldPayment.date || log.date || new Date().toISOString().slice(0, 10);
+          const paymentTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : (oldPayment.timestamp || log.timestamp || now);
+
           const updatedPayment = {
             ...oldPayment,
             method: finalMethod,
             amount: newAmount,
+            date: dateStr,
+            timestamp: paymentTimestamp,
             chequeDate: finalMethod === 'cheque' ? (chequeDetails.chequeDate || '') : '',
             chequeNumber: finalMethod === 'cheque' ? (chequeDetails.chequeNumber || '') : '',
             chequeBank: finalMethod === 'cheque' ? (chequeDetails.chequeBank || '') : '',
@@ -774,6 +785,8 @@ class Database {
             ...log,
             amount: newAmount,
             method: finalMethod,
+            date: dateStr,
+            timestamp: paymentTimestamp,
             ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
             action: 'collection_edited',
             updated_at: now
@@ -956,7 +969,7 @@ class Database {
     });
   }
 
-  async collectCustomerOpeningBalanceAtomic({ customerId, amount, method = 'cash', chequeDetails = {}, auditLog = null }) {
+  async collectCustomerOpeningBalanceAtomic({ customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(customerId);
       const collectAmount = Money.round(amount);
@@ -966,6 +979,8 @@ class Database {
       }
 
       const now = new Date().getTime();
+      const dateStr = paymentDate || new Date().toISOString().slice(0, 10);
+      const logTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : now;
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
       const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
@@ -1005,7 +1020,8 @@ class Database {
           action: 'opening_collection',
           beforeReceived: currentBalance,
           afterReceived: nextBalance,
-          timestamp: now
+          date: dateStr,
+          timestamp: logTimestamp
         });
 
         auditStore.add({
@@ -1099,7 +1115,7 @@ class Database {
     });
   }
 
-  async updateOpeningBalanceCollectionAtomic({ logId, customerId, amount, method = 'cash', chequeDetails = {} }) {
+  async updateOpeningBalanceCollectionAtomic({ logId, customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {} }) {
     return new Promise((resolve, reject) => {
       const numericLogId = Number(logId);
       const numericCustomerId = Number(customerId);
@@ -1150,10 +1166,15 @@ class Database {
           customer.updated_at = now;
           customersStore.put(customer);
 
+          const dateStr = paymentDate || log.date || new Date().toISOString().slice(0, 10);
+          const paymentTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : (log.timestamp || now);
+
           const updatedLog = {
             ...log,
             amount: newAmount,
             method: finalMethod,
+            date: dateStr,
+            timestamp: paymentTimestamp,
             ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
             action: 'collection_edited',
             updated_at: now

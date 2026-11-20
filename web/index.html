@@ -1915,6 +1915,10 @@
               <option value="cheque">Cheque</option>
             </select>
           </div>
+          <div class="input-group">
+            <label>Payment Date</label>
+            <input type="date" id="edit-collection-date" class="input-field" />
+          </div>
           <div id="edit-collection-cheque-details" class="cheque-details hidden" style="margin-bottom: 16px;">
             <div class="input-group">
               <label>Cheque Date</label>
@@ -2361,7 +2365,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=145")
+            .register("./sw.js?v=146")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })

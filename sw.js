@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cashew-billing-v145';
+const CACHE_NAME = 'cashew-billing-v146';
 const ASSETS = [
   './',
   './index.html',
