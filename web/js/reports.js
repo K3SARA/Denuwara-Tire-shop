@@ -448,7 +448,7 @@ class ReportsView {
     const chequeRange = this.getChequeDateRange();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return bills.flatMap((bill) => this.getPaymentRows(bill)
+    const billCheques = bills.flatMap((bill) => this.getPaymentRows(bill)
       .filter((payment) => payment.method === 'cheque')
       .filter((payment) => this.isChequeRowInRange(bill, payment, range, chequeRange))
       .map((payment, index) => {
@@ -472,6 +472,33 @@ class ReportsView {
           label: `Cheque ${index + 1}`
         };
       }));
+
+    const openingCheques = (this.logs || [])
+      .filter((log) => log.isOpeningBalance && log.method === 'cheque')
+      .filter((log) => this.inRange(log.timestamp || 0, range))
+      .map((log) => {
+        const chequeDateTs = log.chequeDate ? new Date(`${log.chequeDate}T00:00:00`).getTime() : null;
+        const status = log.chequeStatus || 'pending';
+        const isOverdue = chequeDateTs !== null
+          && chequeDateTs < today.getTime()
+          && ['pending', 'deposited'].includes(status);
+        return {
+          billId: log.billId || `OB-${log.customerId}`,
+          paymentId: log.id,
+          billNo: 'Opening Balance',
+          customer: log.customerName || 'Customer',
+          amount: Number(log.amount) || 0,
+          chequeDate: log.chequeDate || '-',
+          chequeNumber: log.chequeNumber || '-',
+          chequeBank: log.chequeBank || '-',
+          chequeImage: log.chequeImage || '',
+          status,
+          isOverdue,
+          label: 'Opening Cheque'
+        };
+      });
+
+    return [...billCheques, ...openingCheques];
   }
 
   renderChequeReport(range) {

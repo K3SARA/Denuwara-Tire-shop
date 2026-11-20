@@ -54,26 +54,45 @@ class Billing {
     document.getElementById('btn-clear-split-payments')?.addEventListener('click', () => this.disableSplitPayments());
     document.getElementById('cheque-amount')?.addEventListener('input', () => this.syncChequeAmountToReceived());
 
-    const chequeFileInput = document.getElementById('cheque-image-file');
-    if (chequeFileInput) {
-      chequeFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          try {
-            const compressed = await this.compressImageFile(file);
-            if (compressed) {
-              this.setChequeImage(compressed);
-            }
-          } catch (err) {
-            console.error('Failed to process cheque image:', err);
-            alert('Failed to read cheque image. Please try again.');
-          }
+    // Cheque Image Capture & Upload (Single Cheque)
+    const btnCapture = document.getElementById('btn-capture-cheque-image');
+    const btnUpload = document.getElementById('btn-upload-cheque-image');
+    const inputCapture = document.getElementById('cheque-image-capture');
+    const inputUpload = document.getElementById('cheque-image-upload');
+    const btnViewImg = document.getElementById('btn-view-cheque-image');
+    const btnRemoveImg = document.getElementById('btn-remove-cheque-image');
+
+    btnCapture?.addEventListener('click', () => inputCapture?.click());
+    btnUpload?.addEventListener('click', () => inputUpload?.click());
+
+    const handleChequeFileSelected = async (file) => {
+      if (!file) return;
+      try {
+        const compressed = await this.compressImageFile(file);
+        if (compressed) {
+          this.setChequeImage(compressed);
         }
-      });
-    }
-    document.getElementById('btn-remove-cheque-image')?.addEventListener('click', () => {
+      } catch (err) {
+        console.error('Failed to process cheque image:', err);
+        alert('Failed to read cheque image. Please try again.');
+      }
+    };
+
+    inputCapture?.addEventListener('change', (e) => handleChequeFileSelected(e.target.files?.[0]));
+    inputUpload?.addEventListener('change', (e) => handleChequeFileSelected(e.target.files?.[0]));
+
+    btnViewImg?.addEventListener('click', () => {
+      if (this.currentChequeImage) {
+        window.viewImageModal(this.currentChequeImage, 'Cheque Photo');
+      }
+    });
+
+    btnRemoveImg?.addEventListener('click', () => {
       this.setChequeImage('');
     });
+
+    // Backward compatibility for legacy file input if present
+    document.getElementById('cheque-image-file')?.addEventListener('change', (e) => handleChequeFileSelected(e.target.files?.[0]));
 
     this.addItem();
     this.toggleChequeDetails();
@@ -124,6 +143,8 @@ class Billing {
     this.currentChequeImage = base64 || '';
     const previewContainer = document.getElementById('cheque-image-preview-container');
     const previewImg = document.getElementById('cheque-image-preview');
+    const captureInput = document.getElementById('cheque-image-capture');
+    const uploadInput = document.getElementById('cheque-image-upload');
     const fileInput = document.getElementById('cheque-image-file');
     if (previewContainer && previewImg) {
       if (this.currentChequeImage) {
@@ -132,6 +153,8 @@ class Billing {
       } else {
         previewImg.src = '';
         previewContainer.classList.add('hidden');
+        if (captureInput) captureInput.value = '';
+        if (uploadInput) uploadInput.value = '';
         if (fileInput) fileInput.value = '';
       }
     }
@@ -1301,11 +1324,24 @@ class Billing {
             <div class="input-group" style="margin-bottom:0;">
               <label>Cheque Photo (Optional)</label>
               <div class="cheque-image-upload-wrap">
-                <input type="file" accept="image/*" class="input-field" style="padding: 6px 8px; font-size: 0.8rem;" data-split-cheque-file="${this.escapeAttribute(payment.id)}">
+                <div class="cheque-capture-buttons" style="display: flex; gap: 6px;">
+                  <button type="button" class="cheque-capture-btn" data-split-capture-btn="${this.escapeAttribute(payment.id)}" style="padding: 6px 10px; font-size: 0.78rem;">
+                    <span>📷 Take Photo</span>
+                  </button>
+                  <button type="button" class="cheque-capture-btn" data-split-upload-btn="${this.escapeAttribute(payment.id)}" style="padding: 6px 10px; font-size: 0.78rem;">
+                    <span>📁 Upload Image</span>
+                  </button>
+                  <input type="file" accept="image/*" capture="environment" style="display: none;" data-split-cheque-capture="${this.escapeAttribute(payment.id)}">
+                  <input type="file" accept="image/*" style="display: none;" data-split-cheque-upload="${this.escapeAttribute(payment.id)}">
+                  <input type="file" accept="image/*" style="display: none;" data-split-cheque-file="${this.escapeAttribute(payment.id)}">
+                </div>
                 ${payment.chequeImage ? `
                   <div class="cheque-image-preview-container">
                     <img src="${this.escapeAttribute(payment.chequeImage)}" alt="Cheque Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Cheque Photo')">
-                    <button type="button" class="btn-remove-cheque-image" data-remove-split-cheque-image="${this.escapeAttribute(payment.id)}" title="Remove Photo">&times;</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                      <button type="button" class="btn-tool" data-view-split-cheque-image="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px;">👁️ View Full</button>
+                      <button type="button" class="btn-tool" data-remove-split-cheque-image="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px; color: #dc2626;">✕ Remove</button>
+                    </div>
                   </div>
                 ` : ''}
               </div>
@@ -1322,24 +1358,58 @@ class Billing {
     list.querySelectorAll('[data-payment-remove]').forEach((button) => {
       button.addEventListener('click', () => this.removePaymentRow(button.getAttribute('data-payment-remove')));
     });
-    list.querySelectorAll('[data-split-cheque-file]').forEach((fileInput) => {
-      fileInput.addEventListener('change', async (e) => {
-        const id = fileInput.getAttribute('data-split-cheque-file');
-        const file = e.target.files?.[0];
-        if (file) {
-          try {
-            const compressed = await this.compressImageFile(file);
-            if (compressed) {
-              const payment = this.payments.find((p) => p.id === id);
-              if (payment) {
-                payment.chequeImage = compressed;
-                this.renderPaymentRows();
-              }
-            }
-          } catch (err) {
-            console.error('Failed to process split cheque image:', err);
-            alert('Failed to read cheque image.');
+    list.querySelectorAll('[data-split-capture-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-split-capture-btn');
+        list.querySelector(`[data-split-cheque-capture="${id}"]`)?.click();
+      });
+    });
+    list.querySelectorAll('[data-split-upload-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-split-upload-btn');
+        list.querySelector(`[data-split-cheque-upload="${id}"]`)?.click();
+      });
+    });
+    const handleSplitChequeFile = async (id, file) => {
+      if (!file) return;
+      try {
+        const compressed = await this.compressImageFile(file);
+        if (compressed) {
+          const payment = this.payments.find((p) => p.id === id);
+          if (payment) {
+            payment.chequeImage = compressed;
+            this.renderPaymentRows();
           }
+        }
+      } catch (err) {
+        console.error('Failed to process split cheque image:', err);
+        alert('Failed to read cheque image.');
+      }
+    };
+    list.querySelectorAll('[data-split-cheque-capture]').forEach((fileInput) => {
+      fileInput.addEventListener('change', (e) => {
+        const id = fileInput.getAttribute('data-split-cheque-capture');
+        handleSplitChequeFile(id, e.target.files?.[0]);
+      });
+    });
+    list.querySelectorAll('[data-split-cheque-upload]').forEach((fileInput) => {
+      fileInput.addEventListener('change', (e) => {
+        const id = fileInput.getAttribute('data-split-cheque-upload');
+        handleSplitChequeFile(id, e.target.files?.[0]);
+      });
+    });
+    list.querySelectorAll('[data-split-cheque-file]').forEach((fileInput) => {
+      fileInput.addEventListener('change', (e) => {
+        const id = fileInput.getAttribute('data-split-cheque-file');
+        handleSplitChequeFile(id, e.target.files?.[0]);
+      });
+    });
+    list.querySelectorAll('[data-view-split-cheque-image]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-view-split-cheque-image');
+        const payment = this.payments.find((p) => p.id === id);
+        if (payment?.chequeImage) {
+          window.viewImageModal(payment.chequeImage, 'Cheque Photo');
         }
       });
     });

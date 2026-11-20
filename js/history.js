@@ -471,9 +471,21 @@ class HistoryView {
         if (!bill) return;
 
         if (action === 'view-cheque') {
-          const img = bill.chequeImage || bill.payments?.find((p) => p.chequeImage)?.chequeImage;
-          if (img) {
-            window.viewImageModal(img, `Cheque Photo - Bill #${bill.billNumber || bill.id}`);
+          const imgs = [];
+          if (bill.chequeImage) {
+            imgs.push({ img: bill.chequeImage, title: `Cheque Photo - Bill #${bill.billNumber || bill.id}${bill.chequeNumber ? ` (Chq #${bill.chequeNumber})` : ''}` });
+          }
+          if (Array.isArray(bill.payments)) {
+            bill.payments.forEach((p, idx) => {
+              if (p.chequeImage && p.chequeImage !== bill.chequeImage) {
+                imgs.push({ img: p.chequeImage, title: `Cheque Photo - Bill #${bill.billNumber || bill.id}${p.chequeNumber ? ` (Chq #${p.chequeNumber})` : ` (Cheque ${idx + 1})`}` });
+              }
+            });
+          }
+          if (imgs.length === 1) {
+            window.viewImageModal(imgs[0].img, imgs[0].title);
+          } else if (imgs.length > 1) {
+            window.viewImageModal(imgs[0].img, `${imgs[0].title} (1 of ${imgs.length})`);
           }
           return;
         }

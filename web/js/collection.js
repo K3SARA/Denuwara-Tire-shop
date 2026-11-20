@@ -6,6 +6,8 @@ class CollectionPage {
     this.bound = false;
     this.activeTab = 'pending';
     this.editingLog = null;
+    this.collectChequeImages = {};
+    this.editChequeImage = '';
   }
 
   getQuery() {
@@ -43,14 +45,16 @@ class CollectionPage {
       return {
         chequeDate: '',
         chequeNumber: '',
-        chequeBank: ''
+        chequeBank: '',
+        chequeImage: ''
       };
     }
 
     return {
       chequeDate: document.getElementById(`collect-cheque-date-${billId}`)?.value || '',
       chequeNumber: (document.getElementById(`collect-cheque-number-${billId}`)?.value || '').trim(),
-      chequeBank: (document.getElementById(`collect-cheque-bank-${billId}`)?.value || '').trim()
+      chequeBank: (document.getElementById(`collect-cheque-bank-${billId}`)?.value || '').trim(),
+      chequeImage: this.collectChequeImages?.[billId] || ''
     };
   }
 
@@ -82,6 +86,7 @@ class CollectionPage {
       chequeDate: bill?.chequeDate || '',
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
+      chequeImage: bill?.chequeImage || '',
       chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : ''
     }] : [];
   }
@@ -94,6 +99,7 @@ class CollectionPage {
       chequeDate: method === 'cheque' ? chequeDetails.chequeDate : '',
       chequeNumber: method === 'cheque' ? chequeDetails.chequeNumber : '',
       chequeBank: method === 'cheque' ? chequeDetails.chequeBank : '',
+      chequeImage: method === 'cheque' ? (chequeDetails.chequeImage || '') : '',
       chequeStatus: method === 'cheque' ? 'pending' : '',
       date: new Date().toISOString().slice(0, 10),
       timestamp: Date.now()
@@ -265,6 +271,7 @@ class CollectionPage {
     const log = this.logs.find((l) => l.id === logId);
     if (!log) return;
     this.editingLog = log;
+    this.editChequeImage = log.chequeImage || '';
 
     const customerEl = document.getElementById('edit-collection-customer');
     const billInfoEl = document.getElementById('edit-collection-bill-info');
@@ -287,13 +294,30 @@ class CollectionPage {
     if (chequeNumEl) chequeNumEl.value = log.chequeNumber || '';
     if (chequeBankEl) chequeBankEl.value = log.chequeBank || '';
 
+    this.updateEditChequePreview();
     this.toggleEditChequeDetails(methodEl ? methodEl.value : 'cash');
 
     window.app?.openModal('collection-edit-modal');
   }
 
+  updateEditChequePreview() {
+    const container = document.getElementById('edit-collect-preview-container');
+    const img = document.getElementById('edit-collect-preview');
+    if (container && img) {
+      if (this.editChequeImage) {
+        img.src = this.editChequeImage;
+        container.classList.remove('hidden');
+      } else {
+        img.src = '';
+        container.classList.add('hidden');
+      }
+    }
+  }
+
   closeEditModal() {
     this.editingLog = null;
+    this.editChequeImage = '';
+    this.updateEditChequePreview();
     window.app?.closeModal('collection-edit-modal');
   }
 
@@ -313,7 +337,8 @@ class CollectionPage {
     const chequeDetails = {
       chequeDate: document.getElementById('edit-collection-cheque-date')?.value || '',
       chequeNumber: (document.getElementById('edit-collection-cheque-number')?.value || '').trim(),
-      chequeBank: (document.getElementById('edit-collection-cheque-bank')?.value || '').trim()
+      chequeBank: (document.getElementById('edit-collection-cheque-bank')?.value || '').trim(),
+      chequeImage: method === 'cheque' ? (this.editChequeImage || '') : ''
     };
 
     if (method === 'cheque' && !this.validateChequeDetails(chequeDetails)) {
@@ -472,9 +497,31 @@ class CollectionPage {
             <label>Cheque Number</label>
             <input type="text" id="collect-cheque-number-${keyId}" class="input-field" placeholder="Enter cheque number">
           </div>
-          <div class="input-group" style="margin-bottom:0;">
+          <div class="input-group" style="margin-bottom:8px;">
             <label>Bank</label>
             <input type="text" id="collect-cheque-bank-${keyId}" class="input-field" placeholder="Enter bank name">
+          </div>
+          <div class="input-group" style="margin-bottom:0;">
+            <label>Cheque Photo (Optional)</label>
+            <div class="cheque-image-upload-wrap">
+              <div class="cheque-capture-buttons">
+                <button type="button" class="cheque-capture-btn" data-collect-capture-btn="${keyId}">
+                  <span>📷 Take Photo</span>
+                </button>
+                <button type="button" class="cheque-capture-btn" data-collect-upload-btn="${keyId}">
+                  <span>📁 Upload Image</span>
+                </button>
+                <input type="file" accept="image/*" capture="environment" style="display: none;" data-collect-cheque-capture="${keyId}">
+                <input type="file" accept="image/*" style="display: none;" data-collect-cheque-upload="${keyId}">
+              </div>
+              <div id="collect-cheque-preview-container-${keyId}" class="cheque-image-preview-container ${this.collectChequeImages[keyId] ? '' : 'hidden'}">
+                <img id="collect-cheque-preview-${keyId}" src="${this.escapeHtml(this.collectChequeImages[keyId] || '')}" alt="Cheque Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Cheque Photo')">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <button type="button" class="btn-tool" data-collect-view-img="${keyId}" style="font-size: 0.72rem; padding: 2px 6px;">👁️ View Full</button>
+                  <button type="button" class="btn-tool" data-collect-remove-img="${keyId}" style="font-size: 0.72rem; padding: 2px 6px; color: #dc2626;">✕ Remove</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -485,6 +532,71 @@ class CollectionPage {
       select.addEventListener('change', () => {
         const keyId = select.id.replace('collect-method-', '');
         this.toggleChequeDetails(keyId);
+      });
+    });
+
+    list.querySelectorAll('[data-collect-capture-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const keyId = btn.getAttribute('data-collect-capture-btn');
+        list.querySelector(`[data-collect-cheque-capture="${keyId}"]`)?.click();
+      });
+    });
+
+    list.querySelectorAll('[data-collect-upload-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const keyId = btn.getAttribute('data-collect-upload-btn');
+        list.querySelector(`[data-collect-cheque-upload="${keyId}"]`)?.click();
+      });
+    });
+
+    const handleCollectChequeFile = async (keyId, file) => {
+      if (!file) return;
+      try {
+        const compressed = await window.compressImageFile(file);
+        if (compressed) {
+          this.collectChequeImages[keyId] = compressed;
+          const container = document.getElementById(`collect-cheque-preview-container-${keyId}`);
+          const img = document.getElementById(`collect-cheque-preview-${keyId}`);
+          if (img) img.src = compressed;
+          if (container) container.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error('Failed to read collection cheque image:', err);
+        alert('Failed to process cheque image.');
+      }
+    };
+
+    list.querySelectorAll('[data-collect-cheque-capture]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const keyId = input.getAttribute('data-collect-cheque-capture');
+        handleCollectChequeFile(keyId, e.target.files?.[0]);
+      });
+    });
+
+    list.querySelectorAll('[data-collect-cheque-upload]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const keyId = input.getAttribute('data-collect-cheque-upload');
+        handleCollectChequeFile(keyId, e.target.files?.[0]);
+      });
+    });
+
+    list.querySelectorAll('[data-collect-view-img]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const keyId = btn.getAttribute('data-collect-view-img');
+        if (this.collectChequeImages[keyId]) {
+          window.viewImageModal(this.collectChequeImages[keyId], 'Cheque Photo');
+        }
+      });
+    });
+
+    list.querySelectorAll('[data-collect-remove-img]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const keyId = btn.getAttribute('data-collect-remove-img');
+        delete this.collectChequeImages[keyId];
+        const container = document.getElementById(`collect-cheque-preview-container-${keyId}`);
+        const img = document.getElementById(`collect-cheque-preview-${keyId}`);
+        if (img) img.src = '';
+        if (container) container.classList.add('hidden');
       });
     });
 
@@ -533,8 +645,9 @@ class CollectionPage {
           <div class="collection-log-main">
             <strong>${this.escapeHtml(log.customerName || 'Customer')}</strong> &bull; ${billTag}
           </div>
-          <div class="collection-log-sub">
-            ${this.escapeHtml(date)} &bull; ${this.escapeHtml(action)} &bull; <span style="text-transform: capitalize;">${this.escapeHtml(log.method || '-')}</span> &bull; <span class="amount-highlight">LKR ${(Number(log.amount) || 0).toLocaleString()}</span>${log.method === 'cheque' && log.chequeNumber ? ` &bull; Chq #${this.escapeHtml(log.chequeNumber)}` : ''}
+          <div class="collection-log-sub" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px;">
+            <span>${this.escapeHtml(date)} &bull; ${this.escapeHtml(action)} &bull; <span style="text-transform: capitalize;">${this.escapeHtml(log.method || '-')}</span> &bull; <span class="amount-highlight">LKR ${(Number(log.amount) || 0).toLocaleString()}</span>${log.method === 'cheque' && log.chequeNumber ? ` &bull; Chq #${this.escapeHtml(log.chequeNumber)}` : ''}</span>
+            ${log.chequeImage ? `<button type="button" class="btn-tool" style="padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px;" onclick="window.viewImageModal(this.dataset.img, this.dataset.title)" data-img="${this.escapeHtml(log.chequeImage)}" data-title="Cheque Photo - ${this.escapeHtml(log.customerName || 'Customer')}${log.chequeNumber ? ` (Chq #${this.escapeHtml(log.chequeNumber)})` : ''}">📷 View Cheque</button>` : ''}
           </div>
         </div>
         <button type="button" class="btn-edit-collection" data-edit-log-id="${log.id}">Edit</button>
@@ -561,6 +674,44 @@ class CollectionPage {
     const editMethod = document.getElementById('edit-collection-method');
     editMethod?.addEventListener('change', () => {
       this.toggleEditChequeDetails(editMethod.value);
+    });
+
+    // Edit Collection Modal Cheque Photo bindings
+    document.getElementById('btn-edit-collect-capture')?.addEventListener('click', () => {
+      document.getElementById('edit-collect-cheque-capture')?.click();
+    });
+    document.getElementById('btn-edit-collect-upload')?.addEventListener('click', () => {
+      document.getElementById('edit-collect-cheque-upload')?.click();
+    });
+
+    const handleEditChequeFile = async (file) => {
+      if (!file) return;
+      try {
+        const compressed = await window.compressImageFile(file);
+        if (compressed) {
+          this.editChequeImage = compressed;
+          this.updateEditChequePreview();
+        }
+      } catch (err) {
+        console.error('Failed to read edit cheque image:', err);
+        alert('Failed to process cheque image.');
+      }
+    };
+
+    document.getElementById('edit-collect-cheque-capture')?.addEventListener('change', (e) => handleEditChequeFile(e.target.files?.[0]));
+    document.getElementById('edit-collect-cheque-upload')?.addEventListener('change', (e) => handleEditChequeFile(e.target.files?.[0]));
+    document.getElementById('btn-edit-collect-view-img')?.addEventListener('click', () => {
+      if (this.editChequeImage) {
+        window.viewImageModal(this.editChequeImage, 'Cheque Photo');
+      }
+    });
+    document.getElementById('btn-edit-collect-remove-img')?.addEventListener('click', () => {
+      this.editChequeImage = '';
+      this.updateEditChequePreview();
+      const cap = document.getElementById('edit-collect-cheque-capture');
+      const upl = document.getElementById('edit-collect-cheque-upload');
+      if (cap) cap.value = '';
+      if (upl) upl.value = '';
     });
 
     const btnSaveEdit = document.getElementById('btn-save-collection-edit');

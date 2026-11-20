@@ -1111,6 +1111,7 @@ class CustomersPage {
         chequeNumber: log.chequeNumber || '',
         chequeBank: log.chequeBank || '',
         chequeDate: log.chequeDate || '',
+        chequeImage: log.chequeImage || '',
         notes: log.notes || ''
       });
     }
@@ -1137,6 +1138,7 @@ class CustomersPage {
               chequeNumber: p.chequeNumber || bill.chequeNumber || '',
               chequeBank: p.chequeBank || bill.chequeBank || '',
               chequeDate: p.chequeDate || bill.chequeDate || '',
+              chequeImage: p.chequeImage || bill.chequeImage || '',
               notes: ''
             });
           }
@@ -1154,6 +1156,7 @@ class CustomersPage {
           chequeNumber: bill.chequeNumber || '',
           chequeBank: bill.chequeBank || '',
           chequeDate: bill.chequeDate || '',
+          chequeImage: bill.chequeImage || '',
           notes: ''
         });
       }
@@ -1482,8 +1485,11 @@ class CustomersPage {
       const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
       let methodDetail = '';
-      if (r.method === 'cheque' && (r.chequeNumber || r.chequeBank)) {
-        methodDetail = `<div class="rec-cheque-details">Chq #${this.escapeHtml(r.chequeNumber || '-')}${r.chequeBank ? ` &bull; ${this.escapeHtml(r.chequeBank)}` : ''}</div>`;
+      if (r.method === 'cheque' && (r.chequeNumber || r.chequeBank || r.chequeImage)) {
+        methodDetail = `<div class="rec-cheque-details">
+          ${r.chequeNumber ? `Chq #${this.escapeHtml(r.chequeNumber)}${r.chequeBank ? ` &bull; ${this.escapeHtml(r.chequeBank)}` : ''}` : (r.chequeBank ? this.escapeHtml(r.chequeBank) : '')}
+          ${r.chequeImage ? `<div style="margin-top: 3px;"><button type="button" class="btn-tool" style="padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px;" onclick="window.viewImageModal(this.dataset.img, this.dataset.title)" data-img="${this.escapeHtml(r.chequeImage)}" data-title="Cheque Photo - ${this.escapeHtml(r.ref || '')}${r.chequeNumber ? ` (Chq #${this.escapeHtml(r.chequeNumber)})` : ''}">📷 View Cheque</button></div>` : ''}
+        </div>`;
       }
 
       return `

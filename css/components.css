@@ -606,6 +606,31 @@ html[data-theme="dark"] .global-loading-subtext {
   flex-direction: column;
   gap: 8px;
 }
+.cheque-capture-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cheque-capture-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  color: var(--text-color, #1e293b);
+  transition: all 0.15s ease;
+}
+.cheque-capture-btn:hover {
+  background: var(--bg-hover, #f1f5f9);
+  border-color: var(--primary-color, #0284c7);
+}
 .cheque-image-preview-container {
   position: relative;
   display: inline-block;
@@ -615,7 +640,7 @@ html[data-theme="dark"] .global-loading-subtext {
   overflow: hidden;
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
   background: var(--bg-surface, #f8f9fa);
-  padding: 4px;
+  padding: 6px;
 }
 .cheque-image-preview {
   display: block;
@@ -652,6 +677,14 @@ html[data-theme="dark"] .global-loading-subtext {
 .btn-remove-cheque-image:hover {
   background: #dc2626;
   transform: scale(1.1);
+}
+html[data-theme="dark"] .cheque-capture-btn {
+  background: #141a23;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+}
+html[data-theme="dark"] .cheque-capture-btn:hover {
+  background: #1e293b;
 }
 html[data-theme="dark"] .cheque-image-preview-container {
   background: #141a23;

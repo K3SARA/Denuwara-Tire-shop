@@ -748,6 +748,7 @@ class Database {
             chequeDate: finalMethod === 'cheque' ? (chequeDetails.chequeDate || '') : '',
             chequeNumber: finalMethod === 'cheque' ? (chequeDetails.chequeNumber || '') : '',
             chequeBank: finalMethod === 'cheque' ? (chequeDetails.chequeBank || '') : '',
+            chequeImage: finalMethod === 'cheque' ? (chequeDetails.chequeImage !== undefined ? chequeDetails.chequeImage : (oldPayment.chequeImage || '')) : '',
             chequeStatus: finalMethod === 'cheque' ? (oldPayment.chequeStatus || 'pending') : ''
           };
           payments[paymentIndex] = updatedPayment;
@@ -764,6 +765,7 @@ class Database {
             payments: payments,
             paymentMethod: payments.length > 1 ? 'multiple' : finalMethod,
             paymentStatus: nextBalance > 0 ? 'due' : 'paid',
+            ...(finalMethod === 'cheque' ? { chequeImage: updatedPayment.chequeImage } : {}),
             updated_at: now
           };
           billsStore.put(updatedBill);
@@ -772,7 +774,7 @@ class Database {
             ...log,
             amount: newAmount,
             method: finalMethod,
-            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '' }),
+            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
             action: 'collection_edited',
             updated_at: now
           };
@@ -1152,7 +1154,7 @@ class Database {
             ...log,
             amount: newAmount,
             method: finalMethod,
-            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '' }),
+            ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
             action: 'collection_edited',
             updated_at: now
           };
