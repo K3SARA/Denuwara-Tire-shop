@@ -1112,6 +1112,9 @@ class CustomersPage {
         chequeBank: log.chequeBank || '',
         chequeDate: log.chequeDate || '',
         chequeImage: log.chequeImage || '',
+        bankName: log.bankName || log.bank || '',
+        bankDate: log.bankDate || '',
+        receiptImage: log.receiptImage || log.bankReceiptImage || '',
         notes: log.notes || ''
       });
     }
@@ -1139,6 +1142,9 @@ class CustomersPage {
               chequeBank: p.chequeBank || bill.chequeBank || '',
               chequeDate: p.chequeDate || bill.chequeDate || '',
               chequeImage: p.chequeImage || bill.chequeImage || '',
+              bankName: p.bankName || p.bank || bill.bankName || bill.bank || '',
+              bankDate: p.bankDate || bill.bankDate || '',
+              receiptImage: p.receiptImage || bill.receiptImage || '',
               notes: ''
             });
           }
@@ -1157,6 +1163,9 @@ class CustomersPage {
           chequeBank: bill.chequeBank || '',
           chequeDate: bill.chequeDate || '',
           chequeImage: bill.chequeImage || '',
+          bankName: bill.bankName || bill.bank || '',
+          bankDate: bill.bankDate || '',
+          receiptImage: bill.receiptImage || '',
           notes: ''
         });
       }
@@ -1489,6 +1498,11 @@ class CustomersPage {
         methodDetail = `<div class="rec-cheque-details">
           ${r.chequeNumber ? `Chq #${this.escapeHtml(r.chequeNumber)}${r.chequeBank ? ` &bull; ${this.escapeHtml(r.chequeBank)}` : ''}` : (r.chequeBank ? this.escapeHtml(r.chequeBank) : '')}
           ${r.chequeImage ? `<div style="margin-top: 3px;"><button type="button" class="btn-tool" style="padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px;" onclick="window.viewImageModal(this.dataset.img, this.dataset.title)" data-img="${this.escapeHtml(r.chequeImage)}" data-title="Cheque Photo - ${this.escapeHtml(r.ref || '')}${r.chequeNumber ? ` (Chq #${this.escapeHtml(r.chequeNumber)})` : ''}">📷 View Cheque</button></div>` : ''}
+        </div>`;
+      } else if (r.method === 'bank' && (r.bankName || r.receiptImage)) {
+        methodDetail = `<div class="rec-cheque-details">
+          ${r.bankName ? `${this.escapeHtml(r.bankName)}` : ''}
+          ${r.receiptImage ? `<div style="margin-top: 3px;"><button type="button" class="btn-tool" style="padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px;" onclick="window.viewImageModal(this.dataset.img, this.dataset.title)" data-img="${this.escapeHtml(r.receiptImage)}" data-title="Bank Receipt - ${this.escapeHtml(r.ref || '')}${r.bankName ? ` (${this.escapeHtml(r.bankName)})` : ''}">📷 View Receipt</button></div>` : ''}
         </div>`;
       }
 

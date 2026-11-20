@@ -11,6 +11,7 @@ class Billing {
     this.payments = [];
     this.splitPaymentsEnabled = false;
     this.currentChequeImage = '';
+    this.currentBankReceipt = '';
     this.currentStep = 1;
     this._draggedIndex = null;
   }
@@ -91,6 +92,49 @@ class Billing {
       this.setChequeImage('');
     });
 
+    // Bank Receipt Image Capture & Upload
+    const btnBankCapture = document.getElementById('btn-capture-bank-receipt');
+    const btnBankUpload = document.getElementById('btn-upload-bank-receipt');
+    const inputBankCapture = document.getElementById('bank-receipt-capture');
+    const inputBankUpload = document.getElementById('bank-receipt-upload');
+    const btnViewBankReceipt = document.getElementById('btn-view-bank-receipt');
+    const btnRemoveBankReceipt = document.getElementById('btn-remove-bank-receipt');
+
+    btnBankCapture?.addEventListener('click', () => inputBankCapture?.click());
+    btnBankUpload?.addEventListener('click', () => inputBankUpload?.click());
+
+    const handleBankFileSelected = async (file) => {
+      if (!file) return;
+      try {
+        const compressed = await this.compressImageFile(file);
+        if (compressed) {
+          this.setBankReceiptImage(compressed);
+        }
+      } catch (err) {
+        console.error('Failed to process bank receipt image:', err);
+        alert('Failed to read bank receipt image. Please try again.');
+      }
+    };
+
+    inputBankCapture?.addEventListener('change', (e) => handleBankFileSelected(e.target.files?.[0]));
+    inputBankUpload?.addEventListener('change', (e) => handleBankFileSelected(e.target.files?.[0]));
+
+    btnViewBankReceipt?.addEventListener('click', () => {
+      if (this.currentBankReceipt) {
+        window.viewImageModal(this.currentBankReceipt, 'Bank Receipt Photo');
+      }
+    });
+
+    btnRemoveBankReceipt?.addEventListener('click', () => {
+      this.setBankReceiptImage('');
+    });
+
+    // Set default bank deposit date
+    const bankDepDate = document.getElementById('bank-deposit-date');
+    if (bankDepDate && !bankDepDate.value) {
+      bankDepDate.value = new Date().toISOString().slice(0, 10);
+    }
+
     // Backward compatibility for legacy file input if present
     document.getElementById('cheque-image-file')?.addEventListener('change', (e) => handleChequeFileSelected(e.target.files?.[0]));
 
@@ -156,6 +200,25 @@ class Billing {
         if (captureInput) captureInput.value = '';
         if (uploadInput) uploadInput.value = '';
         if (fileInput) fileInput.value = '';
+      }
+    }
+  }
+
+  setBankReceiptImage(base64) {
+    this.currentBankReceipt = base64 || '';
+    const previewContainer = document.getElementById('bank-receipt-preview-container');
+    const previewImg = document.getElementById('bank-receipt-preview');
+    const captureInput = document.getElementById('bank-receipt-capture');
+    const uploadInput = document.getElementById('bank-receipt-upload');
+    if (previewContainer && previewImg) {
+      if (this.currentBankReceipt) {
+        previewImg.src = this.currentBankReceipt;
+        previewContainer.classList.remove('hidden');
+      } else {
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+        if (captureInput) captureInput.value = '';
+        if (uploadInput) uploadInput.value = '';
       }
     }
   }
@@ -1128,11 +1191,13 @@ class Billing {
 
   toggleChequeDetails() {
     const method = document.getElementById('payment-method');
-    const details = document.getElementById('cheque-details');
-    if (!method || !details) return;
+    const chequeDetails = document.getElementById('cheque-details');
+    const bankDetails = document.getElementById('bank-details');
+    if (!method) return;
 
-    const isCheque = method.value === 'cheque';
-    details.classList.toggle('hidden', !isCheque);
+    const val = method.value;
+    if (chequeDetails) chequeDetails.classList.toggle('hidden', val !== 'cheque');
+    if (bankDetails) bankDetails.classList.toggle('hidden', val !== 'bank');
   }
 
   methodLabel(method) {
@@ -1159,7 +1224,11 @@ class Billing {
         chequeNumber: payment.chequeNumber || '',
         chequeBank: payment.chequeBank || '',
         chequeStatus: payment.chequeStatus || (String(payment.method || '').toLowerCase() === 'cheque' ? 'pending' : ''),
-        chequeImage: payment.chequeImage || (String(payment.method || '').toLowerCase() === 'cheque' ? (bill.chequeImage || '') : '')
+        chequeImage: payment.chequeImage || (String(payment.method || '').toLowerCase() === 'cheque' ? (bill.chequeImage || '') : ''),
+        bankDate: payment.bankDate || (String(payment.method || '').toLowerCase() === 'bank' ? (bill.bankDate || '') : ''),
+        bankName: payment.bankName || payment.bank || (String(payment.method || '').toLowerCase() === 'bank' ? (bill.bankName || bill.bank || '') : ''),
+        bank: payment.bankName || payment.bank || (String(payment.method || '').toLowerCase() === 'bank' ? (bill.bankName || bill.bank || '') : ''),
+        receiptImage: payment.receiptImage || (String(payment.method || '').toLowerCase() === 'bank' ? (bill.receiptImage || '') : '')
       }));
     }
 
@@ -1173,7 +1242,11 @@ class Billing {
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
       chequeStatus: method === 'cheque' ? (bill?.chequeStatus || 'pending') : '',
-      chequeImage: method === 'cheque' ? (bill?.chequeImage || '') : ''
+      chequeImage: method === 'cheque' ? (bill?.chequeImage || '') : '',
+      bankDate: method === 'bank' ? (bill?.bankDate || '') : '',
+      bankName: method === 'bank' ? (bill?.bankName || bill?.bank || '') : '',
+      bank: method === 'bank' ? (bill?.bankName || bill?.bank || '') : '',
+      receiptImage: method === 'bank' ? (bill?.receiptImage || '') : ''
     }];
   }
 
@@ -1192,6 +1265,10 @@ class Billing {
       chequeBank: seed.chequeBank || '',
       chequeStatus: seed.chequeStatus || (seed.method === 'cheque' ? 'pending' : ''),
       chequeImage: seed.chequeImage || '',
+      bankDate: seed.bankDate || (seed.method === 'bank' ? new Date().toISOString().slice(0, 10) : ''),
+      bankName: seed.bankName || seed.bank || '',
+      bank: seed.bankName || seed.bank || '',
+      receiptImage: seed.receiptImage || '',
       date: seed.date || new Date().toISOString().slice(0, 10),
       timestamp: seed.timestamp || Date.now()
     };
@@ -1200,10 +1277,11 @@ class Billing {
   getCurrentSinglePaymentSeed() {
     const method = document.getElementById('payment-method')?.value || 'cash';
     const chequeDetails = this.getChequeDetails();
+    const bankDetails = this.getBankDetails();
     const amount = method === 'cheque' && chequeDetails.chequeAmount > 0
       ? chequeDetails.chequeAmount
       : Money.clampZero(document.getElementById('received-amount')?.value || '0');
-    return this.createPayment({ method, amount: amount || '', ...chequeDetails });
+    return this.createPayment({ method, amount: amount || '', ...chequeDetails, ...bankDetails });
   }
 
   addAnotherPaymentMethod() {
@@ -1224,7 +1302,8 @@ class Billing {
       const method = document.getElementById('payment-method')?.value || 'cash';
       const amount = Money.clampZero(document.getElementById('received-amount')?.value || '0');
       const chequeDetails = this.getChequeDetails();
-      this.payments = [this.createPayment({ method, amount: amount || '', ...chequeDetails })];
+      const bankDetails = this.getBankDetails();
+      this.payments = [this.createPayment({ method, amount: amount || '', ...chequeDetails, ...bankDetails })];
     }
 
     document.getElementById('payment-method')?.setAttribute('disabled', 'disabled');
@@ -1281,6 +1360,14 @@ class Billing {
       } else if (!payment.chequeStatus) {
         payment.chequeStatus = 'pending';
       }
+      if (value !== 'bank') {
+        payment.bankDate = '';
+        payment.bankName = '';
+        payment.bank = '';
+        payment.receiptImage = '';
+      } else if (!payment.bankDate) {
+        payment.bankDate = new Date().toISOString().slice(0, 10);
+      }
       this.renderPaymentRows();
     } else {
       payment[field] = value;
@@ -1293,6 +1380,7 @@ class Billing {
     if (!list) return;
     list.innerHTML = this.payments.map((payment, index) => {
       const isCheque = payment.method === 'cheque';
+      const isBank = payment.method === 'bank';
       return `
         <div class="split-payment-row" data-payment-id="${this.escapeAttribute(payment.id)}">
           <div class="split-payment-top">
@@ -1341,6 +1429,52 @@ class Billing {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                       <button type="button" class="btn-tool" data-view-split-cheque-image="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px;">👁️ View Full</button>
                       <button type="button" class="btn-tool" data-remove-split-cheque-image="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px; color: #dc2626;">✕ Remove</button>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="split-bank-fields${isBank ? '' : ' hidden'}">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Deposit Date</label>
+                <div class="date-picker-wrap">
+                  <input type="date" class="input-field date-picker-input" value="${this.escapeAttribute(payment.bankDate || new Date().toISOString().slice(0, 10))}" data-payment-field="bankDate" data-payment-id="${this.escapeAttribute(payment.id)}">
+                  <button type="button" class="date-picker-btn" tabindex="-1" aria-label="Open calendar">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Bank</label>
+                <input type="text" class="input-field" placeholder="Enter bank name" value="${this.escapeAttribute(payment.bankName || payment.bank || '')}" data-payment-field="bankName" data-payment-id="${this.escapeAttribute(payment.id)}">
+              </div>
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Bank Receipt Photo (Optional)</label>
+              <div class="cheque-image-upload-wrap">
+                <div class="cheque-capture-buttons" style="display: flex; gap: 6px;">
+                  <button type="button" class="cheque-capture-btn" data-split-bank-capture-btn="${this.escapeAttribute(payment.id)}" style="padding: 6px 10px; font-size: 0.78rem;">
+                    <span>📷 Take Photo</span>
+                  </button>
+                  <button type="button" class="cheque-capture-btn" data-split-bank-upload-btn="${this.escapeAttribute(payment.id)}" style="padding: 6px 10px; font-size: 0.78rem;">
+                    <span>📁 Upload Receipt</span>
+                  </button>
+                  <input type="file" accept="image/*" capture="environment" style="display: none;" data-split-bank-capture="${this.escapeAttribute(payment.id)}">
+                  <input type="file" accept="image/*" style="display: none;" data-split-bank-upload="${this.escapeAttribute(payment.id)}">
+                </div>
+                ${payment.receiptImage ? `
+                  <div class="cheque-image-preview-container">
+                    <img src="${this.escapeAttribute(payment.receiptImage)}" alt="Receipt Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Bank Receipt Photo')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                      <button type="button" class="btn-tool" data-view-split-bank-receipt="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px;">👁️ View Full</button>
+                      <button type="button" class="btn-tool" data-remove-split-bank-receipt="${this.escapeAttribute(payment.id)}" style="font-size: 0.72rem; padding: 2px 6px; color: #dc2626;">✕ Remove</button>
                     </div>
                   </div>
                 ` : ''}
@@ -1423,6 +1557,68 @@ class Billing {
         }
       });
     });
+
+    // Split Bank Receipt bindings
+    list.querySelectorAll('[data-split-bank-capture-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-split-bank-capture-btn');
+        list.querySelector(`[data-split-bank-capture="${id}"]`)?.click();
+      });
+    });
+    list.querySelectorAll('[data-split-bank-upload-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-split-bank-upload-btn');
+        list.querySelector(`[data-split-bank-upload="${id}"]`)?.click();
+      });
+    });
+    const handleSplitBankFile = async (id, file) => {
+      if (!file) return;
+      try {
+        const compressed = await this.compressImageFile(file);
+        if (compressed) {
+          const payment = this.payments.find((p) => p.id === id);
+          if (payment) {
+            payment.receiptImage = compressed;
+            this.renderPaymentRows();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to process split bank receipt image:', err);
+        alert('Failed to read bank receipt image.');
+      }
+    };
+    list.querySelectorAll('[data-split-bank-capture]').forEach((fileInput) => {
+      fileInput.addEventListener('change', (e) => {
+        const id = fileInput.getAttribute('data-split-bank-capture');
+        handleSplitBankFile(id, e.target.files?.[0]);
+      });
+    });
+    list.querySelectorAll('[data-split-bank-upload]').forEach((fileInput) => {
+      fileInput.addEventListener('change', (e) => {
+        const id = fileInput.getAttribute('data-split-bank-upload');
+        handleSplitBankFile(id, e.target.files?.[0]);
+      });
+    });
+    list.querySelectorAll('[data-view-split-bank-receipt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-view-split-bank-receipt');
+        const payment = this.payments.find((p) => p.id === id);
+        if (payment?.receiptImage) {
+          window.viewImageModal(payment.receiptImage, 'Bank Receipt Photo');
+        }
+      });
+    });
+    list.querySelectorAll('[data-remove-split-bank-receipt]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-remove-split-bank-receipt');
+        const payment = this.payments.find((p) => p.id === id);
+        if (payment) {
+          payment.receiptImage = '';
+          this.renderPaymentRows();
+        }
+      });
+    });
+
     list.querySelector('[data-add-payment-row]')?.addEventListener('click', () => this.addPaymentRow({ method: 'cash' }));
   }
 
@@ -1443,7 +1639,8 @@ class Billing {
       const method = document.getElementById('payment-method')?.value || 'cash';
       const amount = Money.clampZero(document.getElementById('received-amount')?.value || '0');
       const chequeDetails = this.getChequeDetails();
-      return [this.createPayment({ method, amount, ...chequeDetails })];
+      const bankDetails = this.getBankDetails();
+      return [this.createPayment({ method, amount, ...chequeDetails, ...bankDetails })];
     }
 
     return this.payments.map((payment) => ({
@@ -1455,7 +1652,11 @@ class Billing {
       chequeNumber: payment.method === 'cheque' ? String(payment.chequeNumber || '').trim() : '',
       chequeBank: payment.method === 'cheque' ? String(payment.chequeBank || '').trim() : '',
       chequeStatus: payment.method === 'cheque' ? (payment.chequeStatus || 'pending') : '',
-      chequeImage: payment.method === 'cheque' ? (payment.chequeImage || '') : ''
+      chequeImage: payment.method === 'cheque' ? (payment.chequeImage || '') : '',
+      bankDate: payment.method === 'bank' ? (payment.bankDate || new Date().toISOString().slice(0, 10)) : '',
+      bankName: payment.method === 'bank' ? String(payment.bankName || payment.bank || '').trim() : '',
+      bank: payment.method === 'bank' ? String(payment.bankName || payment.bank || '').trim() : '',
+      receiptImage: payment.method === 'bank' ? (payment.receiptImage || '') : ''
     })).filter((payment) => Money.isPositive(payment.amount) || payment.method === 'credit');
   }
 
@@ -1471,12 +1672,14 @@ class Billing {
         return false;
       }
       if (payment.method === 'cheque' && !this.validateChequeDetails(payment)) return false;
+      if (payment.method === 'bank' && !this.validateBankDetails(payment)) return false;
     }
     return true;
   }
 
   getPrimaryPaymentFields(payments) {
     const cheque = payments.find((payment) => payment.method === 'cheque');
+    const bank = payments.find((payment) => payment.method === 'bank');
     const paymentMethod = payments.length > 1 ? 'multiple' : (payments[0]?.method || 'cash');
     return {
       paymentMethod,
@@ -1486,7 +1689,11 @@ class Billing {
       chequeNumber: cheque?.chequeNumber || '',
       chequeBank: cheque?.chequeBank || '',
       chequeStatus: cheque ? (cheque.chequeStatus || 'pending') : '',
-      chequeImage: cheque?.chequeImage || this.currentChequeImage || ''
+      chequeImage: cheque?.chequeImage || this.currentChequeImage || '',
+      bankDate: bank?.bankDate || document.getElementById('bank-deposit-date')?.value || '',
+      bankName: bank?.bankName || bank?.bank || (document.getElementById('bank-name-input')?.value || '').trim(),
+      bank: bank?.bankName || bank?.bank || (document.getElementById('bank-name-input')?.value || '').trim(),
+      receiptImage: bank?.receiptImage || this.currentBankReceipt || ''
     };
   }
 
@@ -1505,6 +1712,10 @@ class Billing {
           chequeDate: payment.chequeDate || '',
           chequeNumber: payment.chequeNumber || '',
           chequeBank: payment.chequeBank || '',
+          bankDate: payment.bankDate || '',
+          bankName: payment.bankName || payment.bank || '',
+          bank: payment.bankName || payment.bank || '',
+          receiptImage: payment.receiptImage || '',
           paymentId: payment.id,
           action: 'invoice_payment',
           beforeReceived: before,
@@ -1546,6 +1757,35 @@ class Billing {
   validateChequeDetails(details) {
     if (!details.chequeDate || !details.chequeNumber || !details.chequeBank) {
       alert('Please fill cheque date, cheque number, and bank.');
+      return false;
+    }
+    return true;
+  }
+
+  getBankDetails() {
+    const method = document.getElementById('payment-method')?.value || 'cash';
+    if (method !== 'bank') {
+      return {
+        bankDate: '',
+        bankName: '',
+        bank: '',
+        receiptImage: ''
+      };
+    }
+
+    const bankName = (document.getElementById('bank-name-input')?.value || '').trim();
+    return {
+      bankDate: document.getElementById('bank-deposit-date')?.value || new Date().toISOString().slice(0, 10),
+      bankName,
+      bank: bankName,
+      receiptImage: this.currentBankReceipt || ''
+    };
+  }
+
+  validateBankDetails(details) {
+    const bankName = String(details.bankName || details.bank || '').trim();
+    if (!bankName) {
+      alert('Please enter bank name for bank transfer.');
       return false;
     }
     return true;
@@ -1656,8 +1896,23 @@ class Billing {
       chequePayment?.chequeDate || chequePayment?.chequeNumber || chequePayment?.chequeBank
       || bill.chequeDate || bill.chequeNumber || bill.chequeBank
     );
+    const bankPayment = existingPayments.find((payment) => payment.method === 'bank');
+    const hasBankDetails = Boolean(
+      bankPayment?.bankDate || bankPayment?.bankName || bankPayment?.bank
+      || bill.bankDate || bill.bankName || bill.bank
+    );
     const shouldUseSplit = Array.isArray(bill.payments) && bill.payments.length > 1;
-    document.getElementById('payment-method').value = shouldUseSplit ? (existingPayments[0]?.method || 'cash') : (bill.paymentMethod || (hasChequeDetails ? 'cheque' : 'cash'));
+    let defMethod = 'cash';
+    if (shouldUseSplit) {
+      defMethod = existingPayments[0]?.method || 'cash';
+    } else if (bill.paymentMethod && bill.paymentMethod !== 'multiple') {
+      defMethod = bill.paymentMethod;
+    } else if (hasChequeDetails) {
+      defMethod = 'cheque';
+    } else if (hasBankDetails) {
+      defMethod = 'bank';
+    }
+    document.getElementById('payment-method').value = defMethod;
     const billRecAmount = Number(bill.receivedAmount || 0);
     document.getElementById('received-amount').value = billRecAmount > 0 ? billRecAmount : '';
     const billChqAmount = Number(
@@ -1673,6 +1928,17 @@ class Billing {
     document.getElementById('cheque-bank').value = chequePayment?.chequeBank || bill.chequeBank || '';
     const chequeImage = chequePayment?.chequeImage || bill.chequeImage || '';
     this.setChequeImage(chequeImage);
+
+    // Bank transfer details
+    const bankDepositDate = bankPayment?.bankDate || bill.bankDate || new Date().toISOString().slice(0, 10);
+    const bankName = bankPayment?.bankName || bankPayment?.bank || bill.bankName || bill.bank || '';
+    const bankReceipt = bankPayment?.receiptImage || bill.receiptImage || '';
+    const bankDateEl = document.getElementById('bank-deposit-date');
+    if (bankDateEl) bankDateEl.value = bankDepositDate;
+    const bankNameEl = document.getElementById('bank-name-input');
+    if (bankNameEl) bankNameEl.value = bankName;
+    this.setBankReceiptImage(bankReceipt);
+
     if (shouldUseSplit) this.enableSplitPayments(existingPayments);
     else this.disableSplitPayments();
 
@@ -1726,6 +1992,11 @@ class Billing {
     document.getElementById('cheque-number').value = '';
     document.getElementById('cheque-bank').value = '';
     this.setChequeImage('');
+    const bankDepDate = document.getElementById('bank-deposit-date');
+    if (bankDepDate) bankDepDate.value = new Date().toISOString().slice(0, 10);
+    const bankNameInput = document.getElementById('bank-name-input');
+    if (bankNameInput) bankNameInput.value = '';
+    this.setBankReceiptImage('');
     this.toggleChequeDetails();
     this.addItem();
     const saveAdvChk = document.getElementById('save-as-advance-check');
@@ -1794,6 +2065,12 @@ class Billing {
       chequeNumber: primaryPayment.chequeNumber,
       chequeBank: primaryPayment.chequeBank,
       chequeImage: primaryPayment.chequeImage || ''
+    };
+    const bankDetails = {
+      bankDate: primaryPayment.bankDate || '',
+      bankName: primaryPayment.bankName || primaryPayment.bank || '',
+      bank: primaryPayment.bankName || primaryPayment.bank || '',
+      receiptImage: primaryPayment.receiptImage || ''
     };
 
     const receivedAmount = payments.reduce((sum, payment) => (
@@ -1887,6 +2164,8 @@ class Billing {
       ...chequeDetails,
       chequeStatus: primaryPayment.chequeStatus,
       chequeImage: primaryPayment.chequeImage || '',
+      ...bankDetails,
+      receiptImage: primaryPayment.receiptImage || '',
       receivedAmount,
       balanceAmount,
       changeAmount,

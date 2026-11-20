@@ -140,6 +140,10 @@ class ShareManager {
         chequeNumber: payment.chequeNumber || '',
         chequeBank: payment.chequeBank || '',
         chequeStatus: payment.chequeStatus || '',
+        bankDate: payment.bankDate || '',
+        bankName: payment.bankName || payment.bank || '',
+        bank: payment.bankName || payment.bank || '',
+        receiptImage: payment.receiptImage || '',
         date: payment.date || payment.paidDate || billDate
       }));
     }
@@ -153,6 +157,10 @@ class ShareManager {
       chequeNumber: bill?.chequeNumber || '',
       chequeBank: bill?.chequeBank || '',
       chequeStatus: bill?.chequeStatus || '',
+      bankDate: bill?.bankDate || '',
+      bankName: bill?.bankName || bill?.bank || '',
+      bank: bill?.bankName || bill?.bank || '',
+      receiptImage: bill?.receiptImage || '',
       date: billDate
     }];
   }
@@ -238,6 +246,10 @@ class ShareManager {
           text += `  No: ${payment.chequeNumber || '-'}\n`;
           text += `  Bank: ${payment.chequeBank || '-'}\n`;
         }
+        if (payment.method === 'bank' && (payment.bankName || payment.bankDate)) {
+          if (payment.bankDate) text += `  Deposit Date: ${payment.bankDate}\n`;
+          if (payment.bankName || payment.bank) text += `  Bank: ${payment.bankName || payment.bank}\n`;
+        }
       });
     } else if (paymentMethod) {
       text += `Method: ${this.methodLabel(paymentMethod)}\n`;
@@ -246,6 +258,9 @@ class ShareManager {
         text += `Cheque Date: ${b.chequeDate || '-'}\n`;
         text += `Cheque No: ${b.chequeNumber || '-'}\n`;
         text += `Bank: ${b.chequeBank || '-'}\n`;
+      } else if (paymentMethod === 'bank' && (b.bankName || b.bankDate)) {
+        if (b.bankDate) text += `Deposit Date: ${b.bankDate}\n`;
+        if (b.bankName || b.bank) text += `Bank: ${b.bankName || b.bank}\n`;
       }
     }
     text += `Status: ${paymentStatus}\n`;
@@ -1523,6 +1538,9 @@ class ShareManager {
             <div class="row detail-row small"><span>${t('chequeDate')}</span><span>${this.escapeHtml(payment.chequeDate || '-')}</span></div>
             <div class="row detail-row small"><span>${t('chequeNo')}</span><span>${this.escapeHtml(payment.chequeNumber || '-')}</span></div>
             <div class="row detail-row small"><span>${t('bank')}</span><span>${this.escapeHtml(payment.chequeBank || '-')}</span></div>` : ''}
+          ${payment.method === 'bank' && (payment.bankName || payment.bankDate) ? `
+            ${payment.bankDate ? `<div class="row detail-row small"><span>Deposit Date</span><span>${this.escapeHtml(payment.bankDate)}</span></div>` : ''}
+            ${(payment.bankName || payment.bank) ? `<div class="row detail-row small"><span>${t('bank')}</span><span>${this.escapeHtml(payment.bankName || payment.bank)}</span></div>` : ''}` : ''}
           </div>
         `;
         }).join('');
@@ -1536,6 +1554,13 @@ class ShareManager {
       <div class="row detail-row small"><span>${t('chequeDate')}</span><span>${this.escapeHtml(b.chequeDate || '-')}</span></div>
       <div class="row detail-row small"><span>${t('chequeNo')}</span><span>${this.escapeHtml(b.chequeNumber || '-')}</span></div>
       <div class="row detail-row small"><span>${t('bank')}</span><span>${this.escapeHtml(b.chequeBank || '-')}</span></div>
+      </div>`
+      : '';
+    const bankRows = !paymentRows && (this.getPaymentMethod(b) === 'bank' || b.bankName || b.bankDate) && (b.bankName || b.bankDate)
+      ? `
+      <div class="payment-block">
+      ${b.bankDate ? `<div class="row detail-row small"><span>Deposit Date</span><span>${this.escapeHtml(b.bankDate)}</span></div>` : ''}
+      ${(b.bankName || b.bank) ? `<div class="row detail-row small"><span>${t('bank')}</span><span>${this.escapeHtml(b.bankName || b.bank)}</span></div>` : ''}
       </div>`
       : '';
     const showToolbar = Boolean(options.showToolbar);
@@ -1816,6 +1841,7 @@ class ShareManager {
       ${hasChequePayment ? '' : `<div class="row"><span>${t('paymentStatus')}</span><span>${this.escapeHtml(localizeStatus(paymentStatus))}</span></div>`}
       ${billStatus !== 'active' ? `<div class="row"><span>${t('billStatus')}</span><span>${this.escapeHtml(localizeStatus(billStatus))}</span></div>` : ''}
       ${chequeRows}
+      ${bankRows}
     </div>
 
     <div class="rule"></div>

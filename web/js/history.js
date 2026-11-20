@@ -449,6 +449,7 @@ class HistoryView {
           </div>
           <div class="history-sale-actions">
             ${(bill.chequeImage || bill.payments?.some((p) => p.chequeImage)) ? `<button class="history-icon-btn" data-history-action="view-cheque" data-bill-id="${bill.id}" title="View Cheque Photo" style="font-size: 1.05rem;">📷</button>` : ''}
+            ${(bill.receiptImage || bill.payments?.some((p) => p.receiptImage)) ? `<button class="history-icon-btn" data-history-action="view-receipt" data-bill-id="${bill.id}" title="View Bank Receipt" style="font-size: 1.05rem;">🧾</button>` : ''}
             <button class="history-icon-btn" data-history-action="print" data-bill-id="${bill.id}" title="Print">${this.getPrintIcon()}</button>
             <button class="history-icon-btn" data-history-action="share" data-bill-id="${bill.id}" title="Share">${this.getShareIcon()}</button>
             <button class="history-pdf-btn" data-history-action="pdf" data-bill-id="${bill.id}">Pdf</button>
@@ -479,6 +480,25 @@ class HistoryView {
             bill.payments.forEach((p, idx) => {
               if (p.chequeImage && p.chequeImage !== bill.chequeImage) {
                 imgs.push({ img: p.chequeImage, title: `Cheque Photo - Bill #${bill.billNumber || bill.id}${p.chequeNumber ? ` (Chq #${p.chequeNumber})` : ` (Cheque ${idx + 1})`}` });
+              }
+            });
+          }
+          if (imgs.length === 1) {
+            window.viewImageModal(imgs[0].img, imgs[0].title);
+          } else if (imgs.length > 1) {
+            window.viewImageModal(imgs[0].img, `${imgs[0].title} (1 of ${imgs.length})`);
+          }
+          return;
+        }
+        if (action === 'view-receipt') {
+          const imgs = [];
+          if (bill.receiptImage) {
+            imgs.push({ img: bill.receiptImage, title: `Bank Receipt - Bill #${bill.billNumber || bill.id}${bill.bankName ? ` (${bill.bankName})` : ''}` });
+          }
+          if (Array.isArray(bill.payments)) {
+            bill.payments.forEach((p, idx) => {
+              if (p.receiptImage && p.receiptImage !== bill.receiptImage) {
+                imgs.push({ img: p.receiptImage, title: `Bank Receipt - Bill #${bill.billNumber || bill.id}${p.bankName ? ` (${p.bankName})` : ` (Receipt ${idx + 1})`}` });
               }
             });
           }

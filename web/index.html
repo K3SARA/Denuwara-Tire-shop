@@ -421,6 +421,61 @@
                   </div>
                 </div>
               </div>
+              <div id="bank-details" class="bank-details hidden" style="margin-bottom: 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+                  <div class="input-group" style="margin-bottom:0;">
+                    <label>Deposit Date</label>
+                    <div class="date-picker-wrap">
+                      <input type="date" id="bank-deposit-date" class="input-field date-picker-input" />
+                      <button type="button" class="date-picker-btn" tabindex="-1" aria-label="Open calendar" data-picker-for="bank-deposit-date">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="16" y1="2" x2="16" y2="6"></line>
+                          <line x1="8" y1="2" x2="8" y2="6"></line>
+                          <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="input-group" style="margin-bottom:0;">
+                    <label>Bank</label>
+                    <input type="text" id="bank-name-input" class="input-field" placeholder="Enter bank name" />
+                  </div>
+                </div>
+                <div class="input-group" style="margin-bottom: 0">
+                  <label>Bank Receipt Photo (Optional)</label>
+                  <div class="cheque-image-upload-wrap">
+                    <div class="cheque-capture-buttons">
+                      <button type="button" id="btn-capture-bank-receipt" class="cheque-capture-btn">
+                        <span>📷 Take Photo</span>
+                      </button>
+                      <button type="button" id="btn-upload-bank-receipt" class="cheque-capture-btn">
+                        <span>📁 Upload Receipt</span>
+                      </button>
+                      <input
+                        type="file"
+                        id="bank-receipt-capture"
+                        accept="image/*"
+                        capture="environment"
+                        style="display: none;"
+                      />
+                      <input
+                        type="file"
+                        id="bank-receipt-upload"
+                        accept="image/*"
+                        style="display: none;"
+                      />
+                    </div>
+                    <div id="bank-receipt-preview-container" class="cheque-image-preview-container hidden">
+                      <img id="bank-receipt-preview" src="" alt="Receipt Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Bank Receipt Photo')" />
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <button type="button" id="btn-view-bank-receipt" class="btn-tool" style="font-size: 0.75rem; padding: 3px 8px;">👁️ View Full</button>
+                        <button type="button" id="btn-remove-bank-receipt" class="btn-tool" style="font-size: 0.75rem; padding: 3px 8px; color: #dc2626;">✕ Remove</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="input-group">
                 <label>Received Amount</label>
                 <input
@@ -1976,6 +2031,61 @@
               </div>
             </div>
           </div>
+          <div id="edit-collection-bank-details" class="bank-details hidden" style="margin-bottom: 16px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Deposit Date</label>
+                <div class="date-picker-wrap">
+                  <input type="date" id="edit-collection-bank-date" class="input-field date-picker-input" />
+                  <button type="button" class="date-picker-btn" tabindex="-1" aria-label="Open calendar" data-picker-for="edit-collection-bank-date">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Bank</label>
+                <input type="text" id="edit-collection-bank-name" class="input-field" placeholder="Enter bank name" />
+              </div>
+            </div>
+            <div class="input-group" style="margin-top: 10px; margin-bottom: 0;">
+              <label>Bank Receipt Photo (Optional)</label>
+              <div class="cheque-image-upload-wrap">
+                <div class="cheque-capture-buttons">
+                  <button type="button" id="btn-edit-collect-bank-capture" class="cheque-capture-btn">
+                    <span>📷 Take Photo</span>
+                  </button>
+                  <button type="button" id="btn-edit-collect-bank-upload" class="cheque-capture-btn">
+                    <span>📁 Upload Receipt</span>
+                  </button>
+                  <input
+                    type="file"
+                    id="edit-collect-bank-capture"
+                    accept="image/*"
+                    capture="environment"
+                    style="display: none;"
+                  />
+                  <input
+                    type="file"
+                    id="edit-collect-bank-upload"
+                    accept="image/*"
+                    style="display: none;"
+                  />
+                </div>
+                <div id="edit-collect-bank-preview-container" class="cheque-image-preview-container hidden">
+                  <img id="edit-collect-bank-preview" src="" alt="Receipt Preview" class="cheque-image-preview" onclick="window.viewImageModal(this.src, 'Bank Receipt Photo')" />
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                    <button type="button" id="btn-edit-collect-bank-view-btn" class="btn-tool" style="font-size: 0.75rem; padding: 3px 8px;">👁️ View Full</button>
+                    <button type="button" id="btn-edit-collect-bank-remove-btn" class="btn-tool" style="font-size: 0.75rem; padding: 3px 8px; color: #dc2626;">✕ Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div style="display: flex; gap: 8px; margin-top: 12px;">
             <button
               id="btn-save-collection-edit"
@@ -2375,7 +2485,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("./sw.js?v=147")
+            .register("./sw.js?v=148")
             .then((reg) => {
               console.log("SW registered:", reg.scope);
             })

@@ -121,10 +121,16 @@
   padding-top: var(--spacing-3);
   border-top: 1px solid rgba(0,0,0,0.1);
 }
-.cheque-details.hidden {
+.cheque-details.hidden,
+.bank-details.hidden,
+.split-cheque-fields.hidden,
+.split-bank-fields.hidden {
   display: none;
 }
-.cheque-details {
+.cheque-details,
+.bank-details,
+.split-cheque-fields,
+.split-bank-fields {
   margin-bottom: var(--spacing-4);
 }
 .split-payment-add {

@@ -445,7 +445,7 @@ class Database {
     }];
   }
 
-  async collectBillPaymentAtomic({ billId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, payment = null, auditLog = null }) {
+  async collectBillPaymentAtomic({ billId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, bankDetails = {}, extraDetails = {}, payment = null, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(billId);
       const collectAmount = Money.round(amount);
@@ -458,6 +458,7 @@ class Database {
       const dateStr = paymentDate || (payment && payment.date) || new Date().toISOString().slice(0, 10);
       const logTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : (payment?.timestamp || now);
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const mergedDetails = { ...chequeDetails, ...bankDetails, ...extraDetails };
       const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
       const customersStore = tx.objectStore('customers');
@@ -502,6 +503,10 @@ class Database {
           chequeBank: finalMethod === 'cheque' ? chequeDetails.chequeBank || '' : '',
           chequeImage: finalMethod === 'cheque' ? (chequeDetails.chequeImage || '') : '',
           chequeStatus: finalMethod === 'cheque' ? 'pending' : '',
+          bankDate: finalMethod === 'bank' ? (mergedDetails.bankDate || dateStr) : '',
+          bankName: finalMethod === 'bank' ? (mergedDetails.bankName || mergedDetails.bank || '') : '',
+          bank: finalMethod === 'bank' ? (mergedDetails.bankName || mergedDetails.bank || '') : '',
+          receiptImage: finalMethod === 'bank' ? (mergedDetails.receiptImage || '') : '',
           date: dateStr,
           timestamp: logTimestamp
         };
@@ -518,6 +523,12 @@ class Database {
           paymentMethod: nextPayments.length > 1 ? 'multiple' : finalMethod,
           lastCollectionMethod: finalMethod,
           ...(finalMethod === 'cheque' ? { ...chequeDetails, chequeStatus: bill.chequeStatus || 'pending' } : {}),
+          ...(finalMethod === 'bank' ? {
+            bankDate: paymentRow.bankDate,
+            bankName: paymentRow.bankName,
+            bank: paymentRow.bank,
+            receiptImage: paymentRow.receiptImage
+          } : {}),
           paymentStatus: nextBalance > 0 ? 'due' : 'paid',
           updated_at: now
         };
@@ -529,7 +540,13 @@ class Database {
           amount: targetCollect,
           method: finalMethod,
           paymentId: paymentRow.id,
-          ...chequeDetails,
+          ...(finalMethod === 'cheque' ? chequeDetails : {}),
+          ...(finalMethod === 'bank' ? {
+            bankDate: paymentRow.bankDate || '',
+            bankName: paymentRow.bankName || paymentRow.bank || '',
+            bank: paymentRow.bank || paymentRow.bankName || '',
+            receiptImage: paymentRow.receiptImage || ''
+          } : {}),
           action: 'collection',
           beforeReceived: received,
           afterReceived: nextReceived,
@@ -676,7 +693,7 @@ class Database {
     });
   }
 
-  async updateCollectionPaymentAtomic({ logId, billId, amount, method = 'cash', paymentDate = null, chequeDetails = {} }) {
+  async updateCollectionPaymentAtomic({ logId, billId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, bankDetails = {}, extraDetails = {} }) {
     return new Promise((resolve, reject) => {
       const numericBillId = Number(billId);
       const numericLogId = Number(logId);
@@ -688,6 +705,7 @@ class Database {
 
       const now = Date.now();
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const mergedDetails = { ...chequeDetails, ...bankDetails, ...extraDetails };
       const tx = this.db.transaction(['bills', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
       const logsStore = tx.objectStore('collection_logs');
@@ -760,7 +778,11 @@ class Database {
             chequeNumber: finalMethod === 'cheque' ? (chequeDetails.chequeNumber || '') : '',
             chequeBank: finalMethod === 'cheque' ? (chequeDetails.chequeBank || '') : '',
             chequeImage: finalMethod === 'cheque' ? (chequeDetails.chequeImage !== undefined ? chequeDetails.chequeImage : (oldPayment.chequeImage || '')) : '',
-            chequeStatus: finalMethod === 'cheque' ? (oldPayment.chequeStatus || 'pending') : ''
+            chequeStatus: finalMethod === 'cheque' ? (oldPayment.chequeStatus || 'pending') : '',
+            bankDate: finalMethod === 'bank' ? (mergedDetails.bankDate || dateStr) : '',
+            bankName: finalMethod === 'bank' ? (mergedDetails.bankName || mergedDetails.bank || '') : '',
+            bank: finalMethod === 'bank' ? (mergedDetails.bankName || mergedDetails.bank || '') : '',
+            receiptImage: finalMethod === 'bank' ? (mergedDetails.receiptImage !== undefined ? mergedDetails.receiptImage : (oldPayment.receiptImage || '')) : ''
           };
           payments[paymentIndex] = updatedPayment;
 
@@ -777,6 +799,12 @@ class Database {
             paymentMethod: payments.length > 1 ? 'multiple' : finalMethod,
             paymentStatus: nextBalance > 0 ? 'due' : 'paid',
             ...(finalMethod === 'cheque' ? { chequeImage: updatedPayment.chequeImage } : {}),
+            ...(finalMethod === 'bank' ? {
+              bankDate: updatedPayment.bankDate,
+              bankName: updatedPayment.bankName,
+              bank: updatedPayment.bank,
+              receiptImage: updatedPayment.receiptImage
+            } : {}),
             updated_at: now
           };
           billsStore.put(updatedBill);
@@ -788,6 +816,12 @@ class Database {
             date: dateStr,
             timestamp: paymentTimestamp,
             ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
+            ...(finalMethod === 'bank' ? {
+              bankDate: updatedPayment.bankDate,
+              bankName: updatedPayment.bankName,
+              bank: updatedPayment.bank,
+              receiptImage: updatedPayment.receiptImage
+            } : { bankDate: '', bankName: '', bank: '', receiptImage: '' }),
             action: 'collection_edited',
             updated_at: now
           };
@@ -969,7 +1003,7 @@ class Database {
     });
   }
 
-  async collectCustomerOpeningBalanceAtomic({ customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, auditLog = null }) {
+  async collectCustomerOpeningBalanceAtomic({ customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, bankDetails = {}, extraDetails = {}, auditLog = null }) {
     return new Promise((resolve, reject) => {
       const numericId = Number(customerId);
       const collectAmount = Money.round(amount);
@@ -982,6 +1016,7 @@ class Database {
       const dateStr = paymentDate || new Date().toISOString().slice(0, 10);
       const logTimestamp = paymentDate ? new Date(`${paymentDate}T12:00:00`).getTime() : now;
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const mergedDetails = { ...chequeDetails, ...bankDetails, ...extraDetails };
       const tx = this.db.transaction(['bills', 'customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const billsStore = tx.objectStore('bills');
       const customersStore = tx.objectStore('customers');
@@ -1017,6 +1052,12 @@ class Database {
           amount: targetCollect,
           method: finalMethod,
           ...(finalMethod === 'cheque' ? chequeDetails : {}),
+          ...(finalMethod === 'bank' ? {
+            bankDate: mergedDetails.bankDate || dateStr,
+            bankName: mergedDetails.bankName || mergedDetails.bank || '',
+            bank: mergedDetails.bank || mergedDetails.bankName || '',
+            receiptImage: mergedDetails.receiptImage || ''
+          } : {}),
           action: 'opening_collection',
           beforeReceived: currentBalance,
           afterReceived: nextBalance,
@@ -1115,7 +1156,7 @@ class Database {
     });
   }
 
-  async updateOpeningBalanceCollectionAtomic({ logId, customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {} }) {
+  async updateOpeningBalanceCollectionAtomic({ logId, customerId, amount, method = 'cash', paymentDate = null, chequeDetails = {}, bankDetails = {}, extraDetails = {} }) {
     return new Promise((resolve, reject) => {
       const numericLogId = Number(logId);
       const numericCustomerId = Number(customerId);
@@ -1127,6 +1168,7 @@ class Database {
 
       const now = Date.now();
       const finalMethod = this.normalizeText(method || 'cash') || 'cash';
+      const mergedDetails = { ...chequeDetails, ...bankDetails, ...extraDetails };
       const tx = this.db.transaction(['customers', 'collection_logs', 'audit_logs'], 'readwrite');
       const customersStore = tx.objectStore('customers');
       const logsStore = tx.objectStore('collection_logs');
@@ -1176,6 +1218,12 @@ class Database {
             date: dateStr,
             timestamp: paymentTimestamp,
             ...(finalMethod === 'cheque' ? chequeDetails : { chequeDate: '', chequeNumber: '', chequeBank: '', chequeImage: '' }),
+            ...(finalMethod === 'bank' ? {
+              bankDate: mergedDetails.bankDate || dateStr,
+              bankName: mergedDetails.bankName || mergedDetails.bank || '',
+              bank: mergedDetails.bank || mergedDetails.bankName || '',
+              receiptImage: mergedDetails.receiptImage !== undefined ? mergedDetails.receiptImage : (log.receiptImage || '')
+            } : { bankDate: '', bankName: '', bank: '', receiptImage: '' }),
             action: 'collection_edited',
             updated_at: now
           };
