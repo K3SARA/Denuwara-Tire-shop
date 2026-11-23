@@ -1227,7 +1227,7 @@ class CustomersPage {
           dueCardEl.classList.add('profile-stat-due');
         }
       } else if (hasAdvance) {
-        dueEl.textContent = `+ LKR ${customer.creditBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        dueEl.textContent = `-LKR ${customer.creditBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         if (dueStatusEl) dueStatusEl.textContent = 'Customer Advance Credit';
         if (dueCardEl) {
           dueCardEl.classList.add('settled');
@@ -1579,7 +1579,7 @@ class CustomersPage {
       if (c.outstanding > 0) {
         outstanding = `<span class="customers-due">LKR ${c.outstanding.toLocaleString()}</span>`;
       } else if (hasAdvance) {
-        outstanding = `<span class="customers-advance" style="color: #059669; font-weight: 600;">Advance LKR ${c.creditBalance.toLocaleString()}</span>`;
+        outstanding = `<span class="customers-advance" style="color: #059669; font-weight: 600;">-LKR ${c.creditBalance.toLocaleString()}</span>`;
       }
 
       return `

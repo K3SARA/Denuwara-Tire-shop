@@ -222,7 +222,7 @@ class SuppliersPage {
       if (isDue) {
         badgeHtml = `<span class="customers-due" style="font-weight: 800; font-size: 0.85rem;">Due LKR ${this.formatAmount(info.balance)}</span>`;
       } else if (isAdvance) {
-        badgeHtml = `<span class="customers-advance" style="font-weight: 800; font-size: 0.85rem;">Advance LKR ${this.formatAmount(Math.abs(info.balance))}</span>`;
+        badgeHtml = `<span class="customers-advance" style="font-weight: 800; font-size: 0.85rem;">-LKR ${this.formatAmount(Math.abs(info.balance))}</span>`;
       } else {
         badgeHtml = `<span class="customers-paid" style="font-weight: 800; font-size: 0.85rem;">Clear / Paid &#10003;</span>`;
       }
@@ -743,7 +743,7 @@ class SuppliersPage {
         statusBadge.style.color = '#dc2626';
         statusBadge.style.border = '1px solid #fca5a5';
       } else if (isAdvance) {
-        statusBadge.textContent = `Advance LKR ${this.formatAmount(Math.abs(info.balance))}`;
+        statusBadge.textContent = `-LKR ${this.formatAmount(Math.abs(info.balance))}`;
         statusBadge.style.background = '#ecfdf5';
         statusBadge.style.color = '#047857';
         statusBadge.style.border = '1px solid #a7f3d0';
