@@ -977,6 +977,7 @@ class ShareManager {
   .a5-meta-summary {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 11px;
     color: #222;
     font-weight: 700;
@@ -1237,12 +1238,9 @@ class ShareManager {
 
       <div class="a5-bottom-section">
         <div class="a5-meta-summary">
-          <div><strong>Status:</strong> ${this.escapeHtml(localizeStatus(paymentStatus)).toUpperCase()}</div>
-          <div><strong>Payment Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
-        </div>
-        <div class="a5-footer-note" style="text-align: center; margin-top: 5px; font-size: 9.5px; color: #444; line-height: 1.3;">
-          <div>${t('terms')} &bull; ${t('thankYou')}</div>
-          <div style="font-weight: 700; color: #222; margin-top: 2px;">${t('poweredBy')}</div>
+          <div style="flex-shrink: 0;"><strong>Status:</strong> ${this.escapeHtml(localizeStatus(paymentStatus)).toUpperCase()}</div>
+          <div class="a5-powered-center" style="flex: 1; text-align: center; color: #6b7280; font-size: 8.5px; font-weight: 600; padding: 0 4px; white-space: nowrap;">Powered by J&co. Software Solutions - 07 065 4279</div>
+          <div style="flex-shrink: 0; text-align: right;"><strong>Payment Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
         </div>
       </div>
     </div>
@@ -1851,9 +1849,7 @@ class ShareManager {
     <div class="rule"></div>
 
     <div class="foot small" style="text-align: center;">
-      <div>${t('terms')}</div>
-      <div>${t('thankYou')}</div>
-      <div style="margin-top: 4px; font-size: 11px; font-weight: 700; color: #444; text-align: center;">${t('poweredBy')}</div>
+      <div style="font-size: 10.5px; font-weight: 600; color: #6b7280; text-align: center;">Powered by J&co. Software Solutions - 07 065 4279</div>
     </div>
   </div>
   </div>
