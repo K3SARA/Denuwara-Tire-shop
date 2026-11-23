@@ -266,7 +266,7 @@ class ShareManager {
     text += `Status: ${paymentStatus}\n`;
     if (billStatus !== 'active') text += `Bill: ${billStatus}\n`;
     text += `\nThank you for your business!\n`;
-    text += `Powered by Denuwara Tyre Care`;
+    text += `Powered by J&co. Software Solutions - 07 065 4279`;
     return text;
   }
 
@@ -328,7 +328,7 @@ class ShareManager {
         items: 'Items', qty: 'Qty.', price: 'Rate', amount: 'Amount', subTotal: 'Sub Total', total: 'Total Amount', received: 'Received',
         balance: 'Balance', change: 'Change', paymentMethods: 'Payment Methods', chequeAmount: 'Cheque Amount', chequeDate: 'Cheque Date',
         chequeNo: 'Cheque No', bank: 'Bank', paymentMethod: 'Payment Method', paymentStatus: 'Payment Status', billStatus: 'Bill Status',
-        terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'Cash', card: 'PMT', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
         due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
         totalAmount: 'TOTAL AMOUNT', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
@@ -338,7 +338,7 @@ class ShareManager {
         items: 'பொருட்கள்', qty: 'அளவு', price: 'விலை', amount: 'தொகை', subTotal: 'இடைத் தொகை', total: 'மொத்தம்', received: 'பெற்ற தொகை',
         balance: 'நிலுவைத் தொகை', change: 'மீதிப் பணம்', paymentMethods: 'கட்டண முறைகள்', chequeAmount: 'காசோலைத் தொகை', chequeDate: 'காசோலை தேதி',
         chequeNo: 'காசோலை எண்', bank: 'வங்கி', paymentMethod: 'கட்டண முறை', paymentStatus: 'கட்டண நிலை', billStatus: 'ரசீது நிலை',
-        terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'பணம்', card: 'அட்டை', bankTransfer: 'வங்கி பரிமாற்றம்', cheque: 'காசோலை', credit: 'கடன்', multiple: 'பல முறைகள்',
         due: 'செலுத்த வேண்டியது', paid: 'செலுத்தப்பட்டது', active: 'செயலில்', cancelled: 'ரத்து செய்யப்பட்டது', refunded: 'பணம் திருப்பப்பட்டது',
         totalAmount: 'மொத்தத் தொகை', openingBalance: 'தொடக்க நிலுவை', openingOutstand: 'தொடக்க நிலுவை', previousDue: 'முந்தைய நிலுவை', totalPayable: 'செலுத்த வேண்டிய மொத்தத் தொகை', totalDue: 'மொத்த நிலுவை', paidAmount: 'செலுத்திய தொகை'
@@ -348,7 +348,7 @@ class ShareManager {
         items: 'භාණ්ඩ', qty: 'ප්‍රමාණය', price: 'මිල', amount: 'මුදල', subTotal: 'උප එකතුව', total: 'මුළු එකතුව', received: 'ලැබුණු මුදල',
         balance: 'ඉතිරි මුදල', change: 'ඉතිරි මුදල්', paymentMethods: 'ගෙවීම් ක්‍රම', chequeAmount: 'චෙක්පත් මුදල', chequeDate: 'චෙක්පත් දිනය',
         chequeNo: 'චෙක්පත් අංකය', bank: 'බැංකුව', paymentMethod: 'ගෙවීමේ ක්‍රමය', paymentStatus: 'ගෙවීමේ තත්ත්වය', billStatus: 'රිසිට්පත් තත්ත්වය',
-        terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'මුදල්', card: 'කාඩ්පත', bankTransfer: 'බැංකු මාරු කිරීම', cheque: 'චෙක්පත', credit: 'ණය', multiple: 'ක්‍රම කිහිපයක්',
         due: 'ගෙවීමට ඇත', paid: 'ගෙවා ඇත', active: 'සක්‍රියයි', cancelled: 'අවලංගුයි', refunded: 'මුදල් ආපසු දී ඇත',
         totalAmount: 'මුළු මුදල', openingBalance: 'ආරම්භක හිඟ මුදල', openingOutstand: 'ආරම්භක හිඟ මුදල', previousDue: 'පෙර හිඟ මුදල', totalPayable: 'මුළු ගෙවිය යුතු මුදල', totalDue: 'මුළු හිඟ මුදල', paidAmount: 'ගෙවූ මුදල'
@@ -1240,6 +1240,10 @@ class ShareManager {
           <div><strong>Status:</strong> ${this.escapeHtml(localizeStatus(paymentStatus)).toUpperCase()}</div>
           <div><strong>Payment Method:</strong> ${this.escapeHtml(paymentLabel)}</div>
         </div>
+        <div class="a5-footer-note" style="text-align: center; margin-top: 5px; font-size: 9.5px; color: #444; line-height: 1.3;">
+          <div>${t('terms')} &bull; ${t('thankYou')}</div>
+          <div style="font-weight: 700; color: #222; margin-top: 2px;">${t('poweredBy')}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1414,7 +1418,7 @@ class ShareManager {
         items: 'Items', qty: 'Qty', price: 'Price', amount: 'Amount', subTotal: 'Sub Total', total: 'Total', received: 'Received',
         balance: 'Balance', change: 'Change', paymentMethods: 'Payment Methods', chequeAmount: 'Cheque Amount', chequeDate: 'Cheque Date',
         chequeNo: 'Cheque No', bank: 'Bank', paymentMethod: 'Payment Method', paymentStatus: 'Payment Status', billStatus: 'Bill Status',
-        terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'Goods received in good condition.', thankYou: 'Thank you for doing business with us.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'Cash', card: 'PMT', bankTransfer: 'Bank Transfer', cheque: 'Cheque', credit: 'Credit', multiple: 'Multiple',
         due: 'Due', paid: 'Paid', active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded',
         totalAmount: 'Total Amount', openingBalance: 'Opening Outstand', openingOutstand: 'Opening Outstand', previousDue: 'Previous Due', totalPayable: 'Total Payable', totalDue: 'Total Due', paidAmount: 'Paid Amount'
@@ -1424,7 +1428,7 @@ class ShareManager {
         items: 'பொருட்கள்', qty: 'அளவு', price: 'விலை', amount: 'தொகை', subTotal: 'இடைத் தொகை', total: 'மொத்தம்', received: 'பெற்ற தொகை',
         balance: 'நிலுவைத் தொகை', change: 'மீதிப் பணம்', paymentMethods: 'கட்டண முறைகள்', chequeAmount: 'காசோலைத் தொகை', chequeDate: 'காசோலை தேதி',
         chequeNo: 'காசோலை எண்', bank: 'வங்கி', paymentMethod: 'கட்டண முறை', paymentStatus: 'கட்டண நிலை', billStatus: 'ரசீது நிலை',
-        terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'விதிமுறைகள் மற்றும் நிபந்தனைகள்', thankYou: 'உங்கள் வணிகத்திற்கு நன்றி.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'பணம்', card: 'அட்டை', bankTransfer: 'வங்கி பரிமாற்றம்', cheque: 'காசோலை', credit: 'கடன்', multiple: 'பல முறைகள்',
         due: 'செலுத்த வேண்டியது', paid: 'செலுத்தப்பட்டது', active: 'செயலில்', cancelled: 'ரத்து செய்யப்பட்டது', refunded: 'பணம் திருப்பப்பட்டது',
         totalAmount: 'மொத்தத் தொகை', openingBalance: 'தொடக்க நிலுவை', openingOutstand: 'தொடக்க நிலுவை', previousDue: 'முந்தைய நிலுவை', totalPayable: 'செலுத்த வேண்டிய மொத்தத் தொகை', totalDue: 'மொத்த நிலுவை', paidAmount: 'செலுத்திய தொகை'
@@ -1434,7 +1438,7 @@ class ShareManager {
         items: 'භාණ්ඩ', qty: 'ප්‍රමාණය', price: 'මිල', amount: 'මුදල', subTotal: 'උප එකතුව', total: 'මුළු එකතුව', received: 'ලැබුණු මුදල',
         balance: 'ඉතිරි මුදල', change: 'ඉතිරි මුදල්', paymentMethods: 'ගෙවීම් ක්‍රම', chequeAmount: 'චෙක්පත් මුදල', chequeDate: 'චෙක්පත් දිනය',
         chequeNo: 'චෙක්පත් අංකය', bank: 'බැංකුව', paymentMethod: 'ගෙවීමේ ක්‍රමය', paymentStatus: 'ගෙවීමේ තත්ත්වය', billStatus: 'රිසිට්පත් තත්ත්වය',
-        terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Denuwara Tyre Care',
+        terms: 'නියමයන් සහ කොන්දේසි', thankYou: 'ඔබගේ ව්‍යාපාරයට ස්තුතියි.', poweredBy: 'Powered by J&co. Software Solutions - 07 065 4279',
         cash: 'මුදල්', card: 'කාඩ්පත', bankTransfer: 'බැංකු මාරු කිරීම', cheque: 'චෙක්පත', credit: 'ණය', multiple: 'ක්‍රම කිහිපයක්',
         due: 'ගෙවීමට ඇත', paid: 'ගෙවා ඇත', active: 'සක්‍රියයි', cancelled: 'අවලංගුයි', refunded: 'මුදල් ආපසු දී ඇත',
         totalAmount: 'මුළු මුදල', openingBalance: 'ආරම්භක හිඟ මුදල', openingOutstand: 'ආරම්භක හිඟ මුදල', previousDue: 'පෙර හිඟ මුදල', totalPayable: 'මුළු ගෙවිය යුතු මුදල', totalDue: 'මුළු හිඟ මුදල', paidAmount: 'ගෙවූ මුදල'
@@ -1675,7 +1679,7 @@ class ShareManager {
   .payment-block + .payment-block { border-top: 1px dashed #888; margin-top: 6px; padding-top: 10px; }
   .payment-block .row:first-child { padding-bottom: 3px; }
   .detail-row { grid-template-columns: 24mm minmax(0, 1fr) !important; padding: 4px 0 4px 4mm !important; }
-  .foot { margin-top: 10px; line-height: 1.35; }
+  .foot { margin-top: 10px; line-height: 1.35; text-align: center; }
   .small { font-size: 14px; font-weight: 800; }
   .screen-actions {
     position: sticky;
@@ -1846,10 +1850,10 @@ class ShareManager {
 
     <div class="rule"></div>
 
-    <div class="foot small">
+    <div class="foot small" style="text-align: center;">
       <div>${t('terms')}</div>
       <div>${t('thankYou')}</div>
-      <div>${t('poweredBy')}</div>
+      <div style="margin-top: 4px; font-size: 11px; font-weight: 700; color: #444; text-align: center;">${t('poweredBy')}</div>
     </div>
   </div>
   </div>
